@@ -1,15 +1,22 @@
-# Python
 __pycache__/
 *.py[cod]
-*.pyo
+*.pyd
 
-# Virtualenv
+# Virtual environments
 .venv/
+venv/
+.env
 
-# Tool caches
+# Test / type / lint caches
 .pytest_cache/
-.ruff_cache/
 .mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
 
-# macOS
+# Build / packaging artifacts
+build/
+dist/
+*.egg-info/
+
 .DS_Store
