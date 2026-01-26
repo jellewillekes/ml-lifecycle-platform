@@ -1,4 +1,3 @@
-# Python
 __pycache__/
 *.py[cod]
 *.pyd
@@ -8,12 +7,16 @@ __pycache__/
 venv/
 .env
 
-# Tooling caches
+# Test / type / lint caches
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
 .coverage
 htmlcov/
 
-# OS
+# Build / packaging artifacts
+build/
+dist/
+*.egg-info/
+
 .DS_Store
