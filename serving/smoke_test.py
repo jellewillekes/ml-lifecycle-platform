@@ -2,26 +2,30 @@ from __future__ import annotations
 
 import os
 import time
+from typing import Any
+
 import requests
 
 SERVE_URL = os.getenv("SERVE_URL", "http://localhost:8000")
 
 
-def main() -> None:
-    # Wait a bit for uvicorn
+def _wait_for_service() -> None:
+    """Wait until the service becomes healthy or raise."""
     for _ in range(30):
         try:
             r = requests.get(f"{SERVE_URL}/health", timeout=2)
             if r.status_code == 200:
-                break
-        except Exception:
+                return
+        except requests.RequestException:
+            # Service not up yet; retry.
             pass
         time.sleep(1)
-    else:
-        raise RuntimeError("Service did not become healthy in time.")
+    raise RuntimeError("Service did not become healthy in time.")
 
-    # Minimal valid payload: the breast cancer dataset has these columns; we use a tiny subset with plausible values.
-    payload = {
+
+def _payload() -> dict[str, Any]:
+    """Return a minimal valid prediction payload."""
+    return {
         "rows": [
             {
                 "mean radius": 14.0,
@@ -58,13 +62,32 @@ def main() -> None:
         ]
     }
 
-    r = requests.post(f"{SERVE_URL}/predict", json=payload, timeout=10)
+
+def _call(mode: str) -> None:
+    r = requests.post(f"{SERVE_URL}/predict?mode={mode}", json=_payload(), timeout=10)
     r.raise_for_status()
+
     body = r.json()
-    assert "proba" in body and len(body["proba"]) == 1
-    p = body["proba"][0]
-    assert 0.0 <= p <= 1.0
-    print("[smoke] OK:", body)
+    assert isinstance(body, dict)
+
+    proba = body.get("proba")
+    assert isinstance(proba, list) and len(proba) == 1
+
+    p = proba[0]
+    assert isinstance(p, (float, int))
+    p_float = float(p)
+
+    assert 0.0 <= p_float <= 1.0
+    print(f"[smoke] mode={mode} OK:", body)
+
+
+def main() -> None:
+    _wait_for_service()
+
+    for mode in ["prod", "candidate", "shadow", "canary"]:
+        _call(mode)
+
+    print("[smoke] ALL OK")
 
 
 if __name__ == "__main__":
