@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from typing import Optional
 
 from mlflow.tracking import MlflowClient
 
@@ -9,13 +8,14 @@ from src.common.constants import (
     ALIAS_CANDIDATE,
     ALIAS_CHAMPION,
     ALIAS_PROD,
+    RELEASE_STATUS_PREVIOUS_PROD,
     TAG_PREVIOUS_PROD_VERSION,
     TAG_PROMOTED_FROM_ALIAS,
     TAG_RELEASE_STATUS,
 )
 
 
-def get_alias_version(client: MlflowClient, name: str, alias: str) -> Optional[str]:
+def get_alias_version(client: MlflowClient, name: str, alias: str) -> str | None:
     try:
         mv = client.get_model_version_by_alias(name, alias)
         return str(mv.version)
@@ -56,7 +56,7 @@ def main() -> None:
             model_name, candidate_version, TAG_PREVIOUS_PROD_VERSION, current_prod
         )
         client.set_model_version_tag(
-            model_name, current_prod, TAG_RELEASE_STATUS, "previous_prod"
+            model_name, current_prod, TAG_RELEASE_STATUS, RELEASE_STATUS_PREVIOUS_PROD
         )
         print(f"[promote] previous prod was v{current_prod}")
 

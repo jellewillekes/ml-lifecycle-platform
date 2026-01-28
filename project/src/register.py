@@ -11,6 +11,7 @@ from src.common.constants import (
     ART_GATE_OK,
     ART_REGISTERED_VERSION,
     ART_TRAIN_RUN_ID,
+    GATE_PASSED,
     MLFLOW_ARTIFACT_PATH_MODEL,
     TAG_DATASET_CONTENT_HASH,
     TAG_DATASET_SCHEMA_HASH,
@@ -43,9 +44,9 @@ def main() -> None:
     gate_ok_path = ART_DIR / ART_GATE_OK
 
     if not train_run_id_path.exists():
-        raise RuntimeError("TRAIN_RUN_ID artifact not found.")
+        raise RuntimeError(f"{ART_TRAIN_RUN_ID} artifact not found.")
     if not gate_ok_path.exists():
-        raise RuntimeError("gate_ok.txt artifact not found.")
+        raise RuntimeError(f"{ART_GATE_OK} artifact not found.")
 
     train_run_id = train_run_id_path.read_text(encoding="utf-8").strip()
     gate_ok = gate_ok_path.read_text(encoding="utf-8").strip().lower() == "true"
@@ -70,7 +71,7 @@ def main() -> None:
     client.set_model_version_tag(
         model_name, mv.version, TAG_SOURCE_RUN_ID, train_run_id
     )
-    client.set_model_version_tag(model_name, mv.version, TAG_GATE, "passed")
+    client.set_model_version_tag(model_name, mv.version, TAG_GATE, GATE_PASSED)
     client.set_model_version_tag(
         model_name, mv.version, TAG_RELEASE_STATUS, ALIAS_CANDIDATE
     )

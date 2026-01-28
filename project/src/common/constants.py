@@ -23,6 +23,11 @@ TAG_RELEASE_STATUS = "release_status"
 TAG_PROMOTED_FROM_ALIAS = "promoted_from_alias"
 TAG_PREVIOUS_PROD_VERSION = "previous_prod_version"
 
+# MLflow tag values
+GATE_PASSED = "passed"
+GATE_FAILED = "failed"  # for later - tests
+RELEASE_STATUS_PREVIOUS_PROD = "previous_prod"
+
 # Steps
 STEP_INGEST = "ingest"
 STEP_FEATURIZE = "featurize"
