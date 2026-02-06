@@ -2,10 +2,10 @@ from __future__ import annotations
 
 import json
 import logging
-import os
 import time
 import uuid
-from collections.abc import Awaitable, Callable
+from collections.abc import Awaitable, Callable, AsyncGenerator
+from contextlib import asynccontextmanager
 from typing import Any, Literal, cast
 
 import pandas as pd
@@ -21,14 +21,6 @@ except Exception:  # pragma: no cover
 from serving.constants import (
     ALIAS_CANDIDATE,
     ALIAS_PROD,
-    DEFAULT_MODEL_NAME,
-    ENV_CANARY_PCT,
-    ENV_CANDIDATE_ALIAS,
-    ENV_LOG_LEVEL,
-    ENV_MODEL_CACHE_TTL_SEC,
-    ENV_MODEL_NAME,
-    ENV_PROD_ALIAS,
-    ENV_UNIT_TESTING,
     HEADER_REQUEST_ID,
 )
 from serving.router import (
@@ -38,24 +30,33 @@ from serving.router import (
     choose_canary_bucket,
     decide_routing,
 )
+from serving.settings import Settings, get_settings
 
 logger = logging.getLogger("serving")
-logging.basicConfig(level=os.getenv(ENV_LOG_LEVEL, "INFO"))
 
-MODEL_NAME = os.getenv(ENV_MODEL_NAME, DEFAULT_MODEL_NAME)
-PROD_ALIAS = os.getenv(ENV_PROD_ALIAS, ALIAS_PROD)
-CANDIDATE_ALIAS = os.getenv(ENV_CANDIDATE_ALIAS, ALIAS_CANDIDATE)
-CANARY_PCT = int(os.getenv(ENV_CANARY_PCT, "10"))
-
-# Cache (module-level so tests can monkeypatch easily).
+# Cache (module-level so tests can use monkeypatch).
 model_prod: Any | None = None
 model_candidate: Any | None = None
 prod_version: str | None = None
 candidate_version: str | None = None
 _last_refresh_ts: float = 0.0
-CACHE_TTL_SEC = float(os.getenv(ENV_MODEL_CACHE_TTL_SEC, "60"))
 
-app = FastAPI()
+
+def _configure_logging(settings: Settings) -> None:
+    # Being called repeatedly, basicConfig is no-op after first call.
+    logging.basicConfig(level=settings.log_level)
+
+
+@asynccontextmanager
+async def lifespan(_app: FastAPI) -> AsyncGenerator[None, None]:
+    settings = get_settings()
+    _configure_logging(settings)
+    logger.info("serving started")
+    yield
+    logger.info("serving stopped")
+
+
+app = FastAPI(lifespan=lifespan)
 
 
 @app.middleware("http")
@@ -63,12 +64,7 @@ async def request_id_middleware(
     request: Request,
     call_next: Callable[[Request], Awaitable[Response]],
 ) -> Response:
-    """Ensure every request has a request-id and echo it back.
-
-    If the client supplies X-Request-Id we keep it and use it for deterministic
-    bucketing (stable across retries). Otherwise we generate a request id for
-    traceability only.
-    """
+    """Ensure every request has a request-id and send it back."""
     incoming = request.headers.get(HEADER_REQUEST_ID)
     if incoming and incoming.strip():
         request.state.request_id = incoming.strip()
@@ -98,35 +94,52 @@ class PredictResponse(BaseModel):
     bucket_seed_source: str | None = None
 
 
-def _models_uri(alias: str) -> str:
-    return f"models:/{MODEL_NAME}@{alias}"
+def _models_uri(settings: Settings, alias: str) -> str:
+    return f"models:/{settings.model_name}@{alias}"
 
 
-def _get_version(alias: str) -> str | None:
+def _registry_resolves_prod_alias(settings: Settings) -> tuple[bool, str | None]:
+    """Return (ok, detail). Simple MLflow call."""
+    if settings.unit_testing:
+        return True, None
+    if mlflow is None:
+        return False, "mlflow not available in serving image"
+
     try:
-        if mlflow is None:
-            return None
         client = mlflow.tracking.MlflowClient()
-        mv = client.get_model_version_by_alias(MODEL_NAME, alias)
+        _ = client.get_model_version_by_alias(settings.model_name, settings.prod_alias)
+        return True, None
+    except Exception as e:
+        return False, f"registry check failed: {e}"
+
+
+def _get_version(settings: Settings, alias: str) -> str | None:
+    if settings.unit_testing or mlflow is None:
+        return None
+    try:
+        client = mlflow.tracking.MlflowClient()
+        mv = client.get_model_version_by_alias(settings.model_name, alias)
         return str(mv.version)
     except Exception:
         return None
 
 
-def _load_model(alias: str) -> Any:
-    # Local unit tests may not have an MLflow server running.
-    if os.getenv(ENV_UNIT_TESTING, "").lower() in {"1", "true", "yes"}:
+def _load_model(settings: Settings, alias: str) -> Any | None:
+    if settings.unit_testing or mlflow is None:
         return None
-    if mlflow is None:
-        return None
-    return mlflow.pyfunc.load_model(_models_uri(alias))
+
+    # Defensive: sometimes people accidentally install a stub/namespace package named "mlflow".
+    pyfunc = getattr(mlflow, "pyfunc", None)
+    if pyfunc is None:
+        raise RuntimeError("mlflow.pyfunc is missing (mlflow install is broken)")
+
+    return pyfunc.load_model(_models_uri(settings, alias))
 
 
-def _refresh_models_if_needed(force: bool = False) -> None:
+def _refresh_models_if_needed(settings: Settings, force: bool = False) -> None:
     """Populate model_prod/model_candidate and versions.
 
-    The globals are intentionally module-level so unit tests can monkeypatch them
-    without depending on MLflow.
+    Globals are intentional: tests can monkeypatch without MLflow.
     """
     global \
         model_prod, \
@@ -136,36 +149,94 @@ def _refresh_models_if_needed(force: bool = False) -> None:
         _last_refresh_ts
 
     now = time.time()
-    if not force and (now - _last_refresh_ts) < CACHE_TTL_SEC:
+    if not force and (now - _last_refresh_ts) < settings.model_cache_ttl_sec:
         return
 
-    # Only load what isn't already present (e.g., tests monkeypatch the models).
     if model_prod is None:
-        model_prod = _load_model(PROD_ALIAS)
+        model_prod = _load_model(settings, settings.prod_alias)
     if model_candidate is None:
-        model_candidate = _load_model(CANDIDATE_ALIAS)
+        model_candidate = _load_model(settings, settings.candidate_alias)
 
-    prod_version = prod_version or _get_version(PROD_ALIAS)
-    candidate_version = candidate_version or _get_version(CANDIDATE_ALIAS)
+    prod_version = prod_version or _get_version(settings, settings.prod_alias)
+    candidate_version = candidate_version or _get_version(
+        settings, settings.candidate_alias
+    )
+
     _last_refresh_ts = now
 
 
-def _get_model(alias: Literal["prod", "candidate"], required: bool) -> Any | None:
-    _refresh_models_if_needed()
+def _get_model(
+    settings: Settings, alias: Literal["prod", "candidate"], required: bool
+) -> Any | None:
+    _refresh_models_if_needed(settings)
     model = model_prod if alias == ALIAS_PROD else model_candidate
     if required and model is None:
         raise RuntimeError(f"model for alias={alias} is not available")
     return model
 
 
+def _prod_model_loadable(settings: Settings) -> tuple[bool, str | None]:
+    """Return (ok, detail). Ensures prod model can be used for traffic."""
+    try:
+        _ = _get_model(settings, ALIAS_PROD, required=True)
+        return True, None
+    except Exception as e:
+        return False, f"prod model not loadable: {e}"
+
+
+@app.get("/livez")
+def livez() -> dict[str, str]:
+    # No dependencies, no MLflow calls.
+    return {"status": "alive"}
+
+
+@app.get("/readyz")
+def readyz() -> Response:
+    settings = get_settings()
+    _configure_logging(settings)
+
+    reg_ok, reg_detail = _registry_resolves_prod_alias(settings)
+    if not reg_ok:
+        return Response(
+            content=reg_detail or "not ready",
+            status_code=503,
+            media_type="text/plain",
+        )
+
+    model_ok, model_detail = _prod_model_loadable(settings)
+    if not model_ok:
+        return Response(
+            content=model_detail or "not ready",
+            status_code=503,
+            media_type="text/plain",
+        )
+
+    return Response(content="ready", status_code=200, media_type="text/plain")
+
+
 @app.get("/health")
 def health() -> dict[str, Any]:
-    _refresh_models_if_needed()
+    settings = get_settings()
+    _configure_logging(settings)
+
+    reg_ok, reg_detail = _registry_resolves_prod_alias(settings)
+    _refresh_models_if_needed(settings)
+
+    model_loaded = model_prod is not None
+    ready = bool(reg_ok and model_loaded)
+
     return {
         "status": "ok",
-        "model_name": MODEL_NAME,
+        "ready": ready,
+        "model_name": settings.model_name,
+        "prod_alias": settings.prod_alias,
+        "candidate_alias": settings.candidate_alias,
         "prod_version": prod_version,
         "candidate_version": candidate_version,
+        "registry_ok": reg_ok,
+        "registry_detail": reg_detail,
+        "prod_model_loaded": model_loaded,
+        "cache_ttl_sec": settings.model_cache_ttl_sec,
     }
 
 
@@ -175,6 +246,9 @@ async def predict(
     payload: PredictRequest,
     mode: Mode = Query(default="prod", description="prod|candidate|shadow|canary"),
 ) -> PredictResponse:
+    settings = get_settings()
+    _configure_logging(settings)
+
     bucket: int | None = None
     bucket_seed_source: SeedSource | None = None
 
@@ -190,10 +264,11 @@ async def predict(
         )
         bucket = bd.bucket
         bucket_seed_source = bd.seed_source
-        decision = decide_routing(mode=mode, canary_pct=CANARY_PCT, bucket=bucket)
+        decision = decide_routing(
+            mode=mode, canary_pct=settings.canary_pct, bucket=bucket
+        )
     else:
-        # bucket unused except for validation in canary mode
-        decision = decide_routing(mode=mode, canary_pct=CANARY_PCT, bucket=0)
+        decision = decide_routing(mode=mode, canary_pct=settings.canary_pct, bucket=0)
 
     primary_alias: Literal["prod", "candidate"] = decision.chosen
     shadow_alias = cast(
@@ -202,7 +277,7 @@ async def predict(
     )
 
     try:
-        model_primary = _get_model(primary_alias, required=True)
+        model_primary = _get_model(settings, primary_alias, required=True)
     except Exception as e:
         raise HTTPException(status_code=503, detail=str(e)) from e
 
@@ -212,7 +287,7 @@ async def predict(
 
     shadow_mae: float | None = None
     if decision.run_shadow:
-        model_shadow = _get_model(shadow_alias, required=False)
+        model_shadow = _get_model(settings, shadow_alias, required=False)
         if model_shadow is not None:
             try:
                 y_shadow = model_shadow.predict(df)
@@ -225,12 +300,11 @@ async def predict(
     log: dict[str, Any] = {
         "event": "predict",
         "request_id": getattr(request.state, "request_id", None),
-        "client": request.client.host if request.client else None,
         "mode": mode,
         "chosen": primary_alias,
         "bucket": bucket,
         "bucket_seed_source": str(bucket_seed_source) if bucket_seed_source else None,
-        "canary_pct": CANARY_PCT if mode == "canary" else None,
+        "canary_pct": settings.canary_pct if mode == "canary" else None,
         "shadow_mae": shadow_mae,
         "prod_version": prod_version,
         "candidate_version": candidate_version,
@@ -243,6 +317,6 @@ async def predict(
         proba=y_primary_list,
         chosen=primary_alias,
         bucket=bucket,
-        canary_pct=CANARY_PCT if mode == "canary" else None,
+        canary_pct=settings.canary_pct if mode == "canary" else None,
         bucket_seed_source=str(bucket_seed_source) if bucket_seed_source else None,
     )
