@@ -1,4 +1,5 @@
-[![ci](https://github.com/jellewillekes/model-release-platform/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/jellewillekes/model-release-platform/actions/workflows/ci.yml)
+[![CI](https://github.com/jellewillekes/model-release-platform/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/jellewillekes/model-release-platform/actions/workflows/ci.yml)
+[![E2E](https://github.com/jellewillekes/model-release-platform/actions/workflows/e2e.yml/badge.svg?branch=master)](https://github.com/jellewillekes/model-release-platform/actions/workflows/e2e.yml)
 
 Model Release Platform
 

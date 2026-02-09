@@ -1,11 +1,13 @@
 from __future__ import annotations
 
+from typing import Literal
+
 # Serving-side constants (serving is built as a separate image, we don't import from project/*)
 
 DEFAULT_MODEL_NAME = "breast_cancer_clf"
 
-ALIAS_PROD = "prod"
-ALIAS_CANDIDATE = "candidate"
+ALIAS_PROD: Literal["prod"] = "prod"
+ALIAS_CANDIDATE: Literal["candidate"] = "candidate"
 
 ENV_MODEL_NAME = "MODEL_NAME"
 ENV_PROD_ALIAS = "PROD_ALIAS"
