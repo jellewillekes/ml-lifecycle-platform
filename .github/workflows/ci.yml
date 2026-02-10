@@ -4,20 +4,33 @@ on:
   pull_request:
   push:
     branches: [master]
-  schedule:
-    - cron: "0 3 * * *"
-  workflow_dispatch:
+  workflow_dispatch: {}
 
 permissions:
   contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   checks:
     name: checks (ruff+mypy+pytest)
     runs-on: ubuntu-latest
+    timeout-minutes: 15
 
     steps:
       - uses: actions/checkout@v4
+
+      - name: Fail if forbidden paths are tracked
+        run: |
+          set -euo pipefail
+          forbidden_regex='(^mlruns/|^mlartifacts/|^\.venv/|^venv/|^\.pytest_cache/|^\.mypy_cache/|^\.ruff_cache/|^__pycache__/|\.DS_Store$|^data/|^artifacts/)'
+          if git ls-files | egrep -n "${forbidden_regex}"; then
+            echo ""
+            echo "ERROR: Forbidden files are tracked by git. Remove them from the index and add them to .gitignore."
+            exit 1
+          fi
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -31,60 +44,40 @@ jobs:
 
       - name: Install project + dev tools
         run: |
+          set -euo pipefail
           python -m pip install --upgrade pip
 
-          # Pipeline package (src/)
           python -m pip install -e ./project
 
-          # Dev tools (linting, typing, testing)
-          python -m pip install ruff mypy pytest types-requests
+          python -m pip install \
+            "ruff==0.9.6" \
+            "mypy==1.15.0" \
+            "pytest==8.3.4" \
+            "types-requests==2.32.0.20241016"
 
-          # Serving test deps (unit tests only; no docker/MLflow server)
-          python -m pip install "mlflow>=2.13,<4.0" fastapi httpx requests pandas
+          python -m pip install \
+            "mlflow>=2.13,<4.0" \
+            "fastapi>=0.110,<1.0" \
+            "httpx>=0.26,<1.0" \
+            "requests>=2.31,<3.0" \
+            "pandas>=2.0,<3.0"
 
-      - name: Ruff (format + lint)
+      - name: Ruff (format)
         run: |
+          set -euo pipefail
           ruff format --check .
-          ruff check .
+
+      - name: Ruff (lint)
+        run: |
+          set -euo pipefail
+          ruff check --output-format=github .
 
       - name: Mypy
         run: |
+          set -euo pipefail
           mypy --config-file mypy.ini project/src serving
 
       - name: Pytest
         run: |
+          set -euo pipefail
           pytest -q
-
-  smoke:
-    name: smoke (docker compose e2e)
-    runs-on: ubuntu-latest
-    needs: checks
-    if: github.event_name != 'pull_request'
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Build images
-        run: docker compose build
-
-      - name: Start infra
-        run: make up
-
-      - name: Run pipeline
-        run: make run-pipeline
-
-      - name: Promote
-        run: make promote
-
-      - name: Serve
-        run: make serve
-
-      - name: Smoke test
-        run: make smoke-test
-
-      - name: Tear down
-        if: always()
-        run: make down

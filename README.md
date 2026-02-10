@@ -1,144 +1,236 @@
+# Model Release Platform
+
 [![CI](https://github.com/jellewillekes/model-release-platform/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/jellewillekes/model-release-platform/actions/workflows/ci.yml)
 [![E2E](https://github.com/jellewillekes/model-release-platform/actions/workflows/e2e.yml/badge.svg?branch=master)](https://github.com/jellewillekes/model-release-platform/actions/workflows/e2e.yml)
 
-Model Release Platform
+A production-style model release platform that manages the full lifecycle of machine learning models with an emphasis on safety, reproducibility, and operational discipline.
 
-This repository implements a production-style model release platform that manages the full lifecycle of machine learning models:
+The platform supports:
 
-- Training
-- Evaluation
+- Training and evaluation
 - Quality gating
-- Registration
-- Promotion (alias-based)
-- Serving
-- Verification
+- Registry-based releases
+- Alias-based promotion
+- Progressive delivery (canary / shadow)
+- Deterministic rollback
+- Online serving
+- End-to-end verification
 
-The system is designed around release discipline, reproducibility, and artifact lineage.
+This repository serves as a reference implementation for ML platform engineering patterns.
 
-------------------------------------------------------------------------
+---
 
-System Guarantees
+## System Guarantees
 
-- Reproducible training — every run is tracked, versioned, and immutable.
-- Quality-gated releases — models are only registered if evaluation criteria are met.
-- Alias-based promotion workflow — models move through aliases rather than deprecated “stages”.
-- Rollback metadata — promotions record the previous production version via model version tags.
-- Artifact lineage — every model version links back to the source run id and metadata.
-- Serving separate from training — online inference loads only from the registry.
-- End-to-end automation — the entire lifecycle is executable via Make targets.
-- Verifiable production — smoke tests validate live deployments.
+The platform enforces the following guarantees by construction:
 
-------------------------------------------------------------------------
+- Reproducible training
+  Every training run is tracked, versioned, and immutable.
 
-Release Model (No Stages)
+- Quality-gated releases
+  Models are only registered and promoted when evaluation criteria are met.
 
-We do NOT use MLflow stages (“Staging”/“Production”). Instead we use:
+- Alias-based release workflow
+  Models move through aliases rather than deprecated MLflow stages.
 
-Aliases (pointers):
-- candidate: most recently registered + gated model version
-- prod: version currently served by the inference API
-- champion: synonym for prod (current best / current production)
+- Deterministic rollback
+  Each promotion records the previous production version.
 
-Model version tags (metadata):
-- release_status: candidate | prod | champion | previous_prod
-- source_run_id: originating MLflow run id
-- gate: passed | failed
-- previous_prod_version: (optional) version that prod used to point to
-- promoted_from_alias: candidate
+- Artifact lineage
+  Every model version links back to its source run and metadata.
 
-------------------------------------------------------------------------
+- Separation of concerns
+  Training and serving are decoupled.
 
-Architecture
+- End-to-end automation
+  The full lifecycle is executable via Make targets.
 
-    ┌────────────┐
-    │  Ingest    │
-    └─────┬──────┘
-          │
-    ┌─────▼──────┐
-    │ Featurize  │
-    └─────┬──────┘
-          │
-    ┌─────▼──────┐
-    │  Train     │───► logs model + metrics
-    └─────┬──────┘
-          │
-    ┌─────▼──────┐
-    │ Evaluate   │───► applies quality gates
-    └─────┬──────┘
-          │
-    ┌─────▼──────┐
-    │ Register   │───► registers model version + sets alias "candidate"
-    └─────┬──────┘
-          │
-    ┌─────▼──────┐
-    │ Promote    │───► moves alias "prod" (and "champion") to chosen version
-    └────────────┘
+- Verifiable production
+  Smoke and E2E tests validate deployments.
 
-    Serving:
-    Model Registry (models:/name@prod) → Inference API → Clients
+---
 
-------------------------------------------------------------------------
+## Release Model (Alias-Based, No Stages)
 
-Technology Stack
+MLflow stages are intentionally not used.
 
-- MLflow (experiment tracking + model registry)
-- PostgreSQL (metadata store)
-- MinIO (artifact store)
-- FastAPI (online inference)
-- Docker Compose (infrastructure)
-- Makefile (workflow automation)
+### Aliases
 
-------------------------------------------------------------------------
+candidate — Most recently gated version
+prod — Currently served version
+champion — Synonym for prod
 
-Repository Structure
+### Promotion Guardrails
 
-    .
-    ├── docker-compose.yml
-    ├── Makefile
-    ├── project/
-    │   └── src/              # pipeline steps + orchestration
-    ├── serving/
-    │   └── app.py            # FastAPI inference
-    └── smoke_test.py         # deployment verification
+Required tags:
 
-------------------------------------------------------------------------
+- dataset_fingerprint
+- git_sha
+- config_hash
+- training_run_id
 
-Operating the System
+Promotion is blocked if metadata is missing.
 
-Start infrastructure:
+### Rollback Metadata
 
-    make up
+previous_prod_version=<version>
 
-- MLflow UI: http://localhost:5050
-- MinIO Console: http://localhost:9001
+---
 
-Run full pipeline (train → evaluate → register):
+## Architecture Overview
 
-    make run-pipeline
+Ingest → Featurize → Train → Evaluate → Register → Promote → Serve
 
-Promote candidate to production (alias-based):
+Serving:
+models:/<name>@prod → FastAPI → Clients
 
-    make promote
+---
 
-Start inference service:
+## Technology Stack
 
-    make serve
+- MLflow
+- PostgreSQL
+- MinIO
+- FastAPI
+- Docker Compose
+- Makefile
 
-Verify deployment:
+---
 
-    make smoke-test
+## Repository Structure
 
-------------------------------------------------------------------------
+.
+docker-compose.yml
+Makefile
+project/
+serving/
+docs/
 
-Serving Modes (Canary + Shadow)
+---
 
-The inference API supports multiple runtime modes:
+## Quickstart (Local)
 
-    POST /predict?mode=prod|candidate|canary|shadow
+### Prerequisites
 
-- prod (default): always uses the model pointed to by alias `prod`
-- candidate: forces the model pointed to by alias `candidate`
-- canary: routes a percentage of requests to `candidate` and the rest to `prod` (controlled by `CANARY_PCT=0..100`)
-- shadow: always returns the `prod` prediction but also runs `candidate` and logs the comparison
+- Docker
+- Docker Compose
+- GNU Make
+- Python 3.11+
 
-Each request logs the selected alias, model versions, and prediction metadata for offline analysis.
+### Start Infrastructure
+
+make up
+
+MLflow UI: http://localhost:5050
+MinIO: http://localhost:9001
+
+### Run Training Pipeline
+
+make run-pipeline
+
+### Promote
+
+make promote
+
+### Serve
+
+make serve
+
+### Verify
+
+make smoke-test
+
+---
+
+## End-to-End Validation
+
+make e2e
+make e2e-keep
+
+---
+
+## Rollback
+
+make rollback-prod
+
+---
+
+## Serving Modes
+
+POST /predict?mode=prod|candidate|canary|shadow
+
+CANARY_PCT=10
+
+---
+
+## Local Development
+
+make check
+make fix
+
+---
+
+## Governance & Contribution
+
+This repository follows a lightweight governance model:
+
+- Code ownership is defined in `.github/CODEOWNERS`
+- All changes go through pull requests
+- PRs follow a standard template (What / Why / How / Testing / Risk / Rollback)
+- CI checks are required before merge
+
+See:
+
+- CONTRIBUTING.md for development and review guidelines
+- CODEOWNERS for ownership and review routing
+
+---
+
+## Reproducibility
+
+Models are reproducible from:
+
+- Dataset fingerprints
+- Config hashes
+- Git SHA
+- Source run ID
+
+---
+
+## Releases & Versioning
+
+This project follows Conventional Commits and automated releases.
+
+- Pull request titles follow `type: description`
+- Changelog entries are generated automatically
+- Releases are managed via Release Please
+
+See:
+
+- CHANGELOG.md for release history
+- .release-please-config.json for release configuration
+
+---
+
+## Operational Workflow
+
+make up
+make run-pipeline
+make promote
+make rollback-prod
+make serve
+make smoke-test
+make e2e
+
+---
+
+## Status
+
+Reference implementation for ML platform engineering patterns.
+
+---
+
+## Security & Licensing
+
+- Security issues: see SECURITY.md
+- License: MIT (see LICENSE)
