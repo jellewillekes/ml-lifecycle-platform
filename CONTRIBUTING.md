@@ -39,3 +39,13 @@ Before opening a PR:
 Dependabot opens weekly PRs for:
 - GitHub Actions versions
 - Python dependencies under `/project`
+
+### Pre-commit hooks
+
+Install hooks locally:
+
+```bash
+pip install pre-commit
+pre-commit install
+pre-commit install --hook-type pre-push
+```
