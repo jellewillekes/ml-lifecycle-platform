@@ -24,6 +24,7 @@ jobs:
             refactor
             test
             ci
+            deps
           requireScope: false
           subjectPattern: ^(?![A-Z]).+$
           subjectPatternError: >
