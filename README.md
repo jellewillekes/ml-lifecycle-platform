@@ -50,26 +50,28 @@ The platform enforces the following guarantees by construction:
 
 ---
 
-## Release Model (Alias-Based, No Stages)
+## Release Model (Alias-Based)
 
 MLflow stages are intentionally not used.
 
 ### Aliases
 
-candidate — Most recently gated version
-prod — Currently served version
-champion — Synonym for prod
+| Alias     | Description                    |
+|-----------|--------------------------------|
+| candidate | Most recent gated model         |
+| prod      | Current production model        |
+| champion  | Synonym for prod                |
 
 ### Promotion Guardrails
 
-Required tags:
+Required metadata:
 
 - dataset_fingerprint
 - git_sha
 - config_hash
 - training_run_id
 
-Promotion is blocked if metadata is missing.
+Promotion is blocked if any tag is missing.
 
 ### Rollback Metadata
 
@@ -79,9 +81,33 @@ previous_prod_version=<version>
 
 ## Architecture Overview
 
+### Control Plane
+
+- Make targets
+- CI/CD workflows
+- Promotion gates
+- Metadata validation
+
+### Data Plane
+
+- Training artifacts (MinIO)
+- Model registry (MLflow)
+- Evaluation reports
+- Prediction logs
+
+### Serving Plane
+
+- FastAPI inference service
+- Alias resolver
+- Canary router
+- Shadow traffic duplicator
+
+### Lifecycle
+
 Ingest → Featurize → Train → Evaluate → Register → Promote → Serve
 
-Serving:
+Serving Path:
+
 models:/<name>@prod → FastAPI → Clients
 
 ---
@@ -98,13 +124,14 @@ models:/<name>@prod → FastAPI → Clients
 ---
 
 ## Repository Structure
-
+```bash
 .
-docker-compose.yml
-Makefile
-project/
-serving/
-docs/
+├── project/      # Training, evaluation, promotion
+├── serving/      # Inference service
+├── docs/         # Architecture and runbooks
+├── scripts/      # Tooling and automation
+└── .github/      # CI governance
+```
 
 ---
 
@@ -119,70 +146,119 @@ docs/
 
 ### Start Infrastructure
 
+```bash
 make up
+```
 
-MLflow UI: http://localhost:5050
-MinIO: http://localhost:9001
+Service Endpoints:
+
+- MLflow UI: http://localhost:5050
+- MinIO Console: http://localhost:9001
 
 ### Run Training Pipeline
 
+```bash
 make run-pipeline
+```
 
-### Promote
+### Promote Model
 
+```bash
 make promote
+```
 
-### Serve
+### Start Serving
 
+```bash
 make serve
+```
 
-### Verify
+### Verify Deployment
 
+```bash
 make smoke-test
+```
 
 ---
 
 ## End-to-End Validation
 
+```bash
 make e2e
 make e2e-keep
+```
 
 ---
 
 ## Rollback
 
+```bash
 make rollback-prod
+```
 
 ---
 
 ## Serving Modes
 
-POST /predict?mode=prod|candidate|canary|shadow
+### Endpoint
 
-CANARY_PCT=10
+```bash
+POST /predict?mode=prod|candidate|canary|shadow
+```
+
+### Mode Semantics
+
+| Mode      | Behavior                               |
+|-----------|----------------------------------------|
+| prod      | Default production model               |
+| candidate | Staging model                          |
+| canary    | Partial traffic to new model           |
+| shadow    | Mirrored traffic (no user impact)      |
+
+### Canary Configuration
+
+```bash
+export CANARY_PCT=10
+```
 
 ---
 
+## Failure Handling
+
+### Promotion Failures
+
+- Missing metadata → promotion blocked
+- Metric regression → candidate rejected
+
+### Serving Failures
+
+- Registry unavailable → fallback to last prod
+- Canary instability → automatic rollback
+
+### Recovery
+
+```bash
+make rollback-prod
+```
+---
 ## Local Development
 
+```bash
 make check
 make fix
-
+```
 ---
 
 ## Governance & Contribution
 
-This repository follows a lightweight governance model:
-
-- Code ownership is defined in `.github/CODEOWNERS`
-- All changes go through pull requests
-- PRs follow a standard template (What / Why / How / Testing / Risk / Rollback)
-- CI checks are required before merge
+- Code ownership via CODEOWNERS
+- Mandatory pull requests
+- Standard PR templates
+- CI enforcement
 
 See:
-
-- CONTRIBUTING.md for development and review guidelines
-- CODEOWNERS for ownership and review routing
+- CONTRIBUTING.md
+- CODEOWNERS
 
 ---
 
@@ -199,34 +275,30 @@ Models are reproducible from:
 
 ## Releases & Versioning
 
-This project follows Conventional Commits and automated releases.
+This project follows Conventional Commits.
 
-- Pull request titles follow `type: description`
-- Changelog entries are generated automatically
-- Releases are managed via Release Please
-
-See:
-
-- CHANGELOG.md for release history
-- .release-please-config.json for release configuration
+- Automated changelogs
+- Semantic versioning
+- Release Please automation
 
 ---
 
 ## Operational Workflow
 
+```bash
 make up
 make run-pipeline
 make promote
-make rollback-prod
 make serve
 make smoke-test
 make e2e
+```
 
 ---
 
 ## Status
 
-Reference implementation for ML platform engineering patterns.
+Reference-grade ML platform implementation.
 
 ---
 
