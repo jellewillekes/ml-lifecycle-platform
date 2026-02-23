@@ -1,0 +1,23 @@
+[project]
+name = "ml-lifecycle-platform"
+version = "0.0.0"
+description = "ML lifecycle platform (training, registry, promotion, serving)"
+readme = "README.md"
+requires-python = ">=3.11"
+
+dependencies = []
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8",
+  "ruff>=0.6",
+  "mypy>=1.10",
+  "pre-commit>=3.7",
+]
+
+[build-system]
+requires = ["hatchling>=1.25"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/ml_lifecycle_platform"]
