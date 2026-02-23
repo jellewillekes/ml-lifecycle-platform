@@ -7,13 +7,11 @@ MAKEFLAGS += --no-builtin-rules
 
 PROJECT_NAME := ml-lifecycle-platform
 
-UV_PROJECT_DIR := project
-
 UV ?= uv
 DOCKER ?= docker
 COMPOSE ?= $(DOCKER) compose
 
-UV_RUN := $(UV) run --project $(UV_PROJECT_DIR)
+UV_RUN := $(UV) run
 PY := $(UV_RUN) python
 
 RUFF := $(PY) -m ruff
@@ -22,7 +20,12 @@ PYTEST := $(PY) -m pytest
 PRECOMMIT := $(PY) -m pre_commit
 
 MYPY_CONFIG ?= mypy.ini
+
+# NOTE (PR #15 transition):
+# Keep these paths until we physically move code into src/ml_lifecycle_platform.
+# After the move, switch to: MYPY_PATHS ?= src/ml_lifecycle_platform
 MYPY_PATHS ?= project/src serving
+
 PYTEST_ARGS ?= -q
 
 SVC_INFRA := postgres minio mlflow-server minio-init
