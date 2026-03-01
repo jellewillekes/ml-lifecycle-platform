@@ -6,6 +6,7 @@ MAKEFLAGS += --warn-undefined-variables
 MAKEFLAGS += --no-builtin-rules
 
 PROJECT_NAME := ml-lifecycle-platform
+export GIT_SHA ?= $(shell git rev-parse HEAD 2>/dev/null || echo dev)
 
 UV_PROJECT_DIR := .
 
@@ -62,6 +63,7 @@ help:
 	@echo "  make build             build runtime images ($(SVC_IMAGES))"
 	@echo "  make reset             down + no-cache rebuild"
 	@echo "  make run-pipeline      train+eval+register (candidate)"
+	@echo "  make reproduce         rebuild a registered model from the source training run"
 	@echo "  make policy-check      dry-run promotion gate check (fails if blocked)"
 	@echo "  make promote           candidate -> prod"
 	@echo "  make promote-dry-run   show dry-run JSON (no side effects)"
@@ -87,7 +89,7 @@ lint:
 	@$(RUFF) check .
 
 type:
-	@$(MYPY) --config-file $(MYPY_CONFIG) $(MYPY_PATHS)
+	@$(MYPY) --no-incremental --config-file $(MYPY_CONFIG) $(MYPY_PATHS)
 
 test:
 	@$(MAKE) test-unit
@@ -118,7 +120,7 @@ precommit:
 install-hooks:
 	@$(PRECOMMIT) install
 
-.PHONY: up down logs build reset run-pipeline policy-check promote promote-dry-run rollback-prod serve smoke-test test-e2e e2e e2e-keep
+.PHONY: up down logs build reset run-pipeline reproduce policy-check promote promote-dry-run rollback-prod serve smoke-test test-e2e e2e e2e-keep
 up:
 	@$(COMPOSE) up -d $(SVC_INFRA)
 	@echo "MLflow UI: http://localhost:5050"
@@ -139,24 +141,51 @@ reset: down
 run-pipeline: build
 	@$(COMPOSE) run --rm --use-aliases pipeline
 
-policy-check: build
+reproduce:
+	@set -euo pipefail; \
+	model_name="$${MODEL:-breast_cancer_clf}"; \
+	report_path="$${REPORT:-reproduce_report.json}"; \
+	tracking_uri="$${MLFLOW_TRACKING_URI:-http://localhost:5050}"; \
+	registry_uri="$${MLFLOW_REGISTRY_URI:-$$tracking_uri}"; \
+	s3_endpoint="$${MLFLOW_S3_ENDPOINT_URL:-http://localhost:9000}"; \
+	aws_access_key_id="$${AWS_ACCESS_KEY_ID:-minioadmin}"; \
+	aws_secret_access_key="$${AWS_SECRET_ACCESS_KEY:-minioadmin}"; \
+	if [[ -n "$${VERSION:-}" ]]; then \
+		selector=(--model-version "$${VERSION}"); \
+	elif [[ -n "$${ALIAS:-}" ]]; then \
+		selector=(--alias "$${ALIAS}"); \
+	else \
+		echo "Set VERSION=<model-version> or ALIAS=<alias> for make reproduce."; \
+		exit 2; \
+	fi; \
+	MLFLOW_TRACKING_URI="$$tracking_uri" \
+	MLFLOW_REGISTRY_URI="$$registry_uri" \
+	MLFLOW_S3_ENDPOINT_URL="$$s3_endpoint" \
+	AWS_ACCESS_KEY_ID="$$aws_access_key_id" \
+	AWS_SECRET_ACCESS_KEY="$$aws_secret_access_key" \
+	$(PY) -m ml_lifecycle_platform.registry.reproduce \
+		--model-name "$$model_name" \
+		"$${selector[@]}" \
+		--report-path "$$report_path"
+
+policy-check:
 	@$(assert_allowed_true)
 	@echo "✅ Policy gate passed (allowed=true)"
 
-promote: build
+promote:
 	@$(COMPOSE) run --rm --use-aliases promote
 
-promote-dry-run: build
+promote-dry-run:
 	@$(COMPOSE) run --rm --use-aliases promote python -m ml_lifecycle_platform.registry.promote --dry-run --format json
 
-rollback-prod: build
+rollback-prod:
 	@$(COMPOSE) run --rm --use-aliases rollback
 
 serve: build
 	@$(COMPOSE) up -d --build serving
 	@echo "Serving API: http://localhost:8000 (GET /health, POST /predict)"
 
-smoke-test: build
+smoke-test:
 	@$(COMPOSE) run --rm --use-aliases --build smoke
 
 test-e2e: build

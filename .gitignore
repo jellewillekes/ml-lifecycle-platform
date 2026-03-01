@@ -31,3 +31,4 @@ mlartifacts/
 # Local runtime artifacts (compose/dev)
 artifacts/
 data/
+reproduce_report.json

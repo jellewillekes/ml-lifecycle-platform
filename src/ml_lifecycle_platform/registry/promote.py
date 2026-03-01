@@ -9,6 +9,7 @@ import sys
 from mlflow.tracking import MlflowClient
 
 from ml_lifecycle_platform.common.config import get_model_name
+from ml_lifecycle_platform.common.mlflow_utils import client as mlflow_client
 from ml_lifecycle_platform.common.constants import (
     ALIAS_CANDIDATE,
     ALIAS_CHAMPION,
@@ -127,7 +128,7 @@ def main(argv: list[str] | None = None) -> None:
 
     args = parse_args(sys.argv[1:] if argv is None else argv)
 
-    client = MlflowClient()
+    client = mlflow_client()
     decision = evaluate_promotion_policy(
         client=client,
         model_name=args.model_name,
