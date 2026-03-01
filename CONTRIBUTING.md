@@ -76,4 +76,3 @@ Install hooks:
 python -m pip install pre-commit
 pre-commit install
 pre-commit install --hook-type pre-push
-```
