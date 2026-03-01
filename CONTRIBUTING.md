@@ -8,6 +8,7 @@ Common workflows:
 
 - `make check` — format + lint + type + fast unit tests
 - `make test` — default fast unit suite
+- `make test-coverage` — unit suite with coverage output
 - `make test-integration` — local sqlite/filesystem integration tests
 - `make e2e` — docker compose end-to-end flow
 

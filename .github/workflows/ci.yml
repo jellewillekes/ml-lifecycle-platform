@@ -137,7 +137,11 @@ jobs:
       - name: Run unit tests
         run: |
           set -euo pipefail
-          uv run pytest -q -m unit --maxfail=1 --disable-warnings | tee pytest.txt
+          uv run pytest -q -m unit --maxfail=1 --disable-warnings \
+            --cov=ml_lifecycle_platform \
+            --cov-report=term-missing:skip-covered \
+            --cov-report=xml:coverage.xml \
+            | tee pytest.txt
 
       - name: Upload pytest output
         if: failure()
@@ -145,6 +149,26 @@ jobs:
         with:
           name: pytest-output
           path: pytest.txt
+
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-xml
+          path: coverage.xml
+          if-no-files-found: error
+
+      - name: Upload coverage to Codecov
+        if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.fork == false
+        uses: codecov/codecov-action@v5
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+        with:
+          files: ./coverage.xml
+          flags: unit
+          name: unit-tests
+          fail_ci_if_error: false
+          verbose: true
 
   integration:
     name: Integration Tests (pytest)

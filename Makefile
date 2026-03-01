@@ -48,6 +48,7 @@ help:
 	@echo "  make check             format+lint+type+test"
 	@echo "  make test              run fast unit tests (default local path)"
 	@echo "  make test-unit         run hermetic unit tests"
+	@echo "  make test-coverage     run unit tests with coverage report"
 	@echo "  make test-integration  run local integration tests"
 	@echo "  make test-all          run unit + integration tests"
 	@echo "  make fix               format + safe autofix"
@@ -74,7 +75,7 @@ help:
 	@echo "  make clean             remove local caches"
 	@echo ""
 
-.PHONY: check format lint type test test-unit test-integration test-all fix
+.PHONY: check format lint type test test-unit test-coverage test-integration test-all fix
 check: format lint type test
 	@echo "✅ All checks passed"
 
@@ -92,6 +93,12 @@ test:
 
 test-unit:
 	@$(PYTEST) $(PYTEST_ARGS) -m unit
+
+test-coverage:
+	@$(PYTEST) $(PYTEST_ARGS) -m unit \
+		--cov=ml_lifecycle_platform \
+		--cov-report=term-missing:skip-covered \
+		--cov-report=xml:coverage.xml
 
 test-integration:
 	@$(PYTEST) $(PYTEST_ARGS) -m integration
