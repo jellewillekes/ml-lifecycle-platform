@@ -24,6 +24,7 @@ dev = [
     "mypy>=1.19.1",
     "pre-commit>=4.5.1",
     "pytest>=9.0.2",
+    "pytest-cov>=6.0.0",
     "ruff>=0.14.14",
     "types-requests>=2.32.4.20260107",
 ]
@@ -34,3 +35,24 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/ml_lifecycle_platform"]
+
+[tool.coverage.run]
+branch = true
+source = ["src/ml_lifecycle_platform"]
+omit = [
+    "src/ml_lifecycle_platform/__init__.py",
+    "src/ml_lifecycle_platform/serving/smoke_test.py",
+]
+
+[tool.coverage.report]
+precision = 1
+show_missing = true
+skip_covered = true
+exclude_lines = [
+    "pragma: no cover",
+    "if TYPE_CHECKING:",
+    "raise NotImplementedError",
+]
+
+[tool.coverage.xml]
+output = "coverage.xml"

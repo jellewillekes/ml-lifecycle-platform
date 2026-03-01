@@ -1,15 +1,16 @@
 from __future__ import annotations
 
+from collections.abc import Iterator
 
 import pytest
-from fastapi.testclient import TestClient
 from _pytest.monkeypatch import MonkeyPatch
+from fastapi.testclient import TestClient
 
 from ml_lifecycle_platform.serving.settings import get_settings
 
 
 @pytest.fixture()
-def client(monkeypatch: MonkeyPatch) -> TestClient:
+def client(monkeypatch: MonkeyPatch) -> Iterator[TestClient]:
     """
     Serve the FastAPI app in UNIT_TESTING mode so:
     - no real MLflow is called
@@ -30,4 +31,8 @@ def client(monkeypatch: MonkeyPatch) -> TestClient:
     app_module.candidate_version = None
     app_module._last_refresh_ts = 0.0
 
-    return TestClient(app_module.app)
+    try:
+        with TestClient(app_module.app) as test_client:
+            yield test_client
+    finally:
+        get_settings.cache_clear()

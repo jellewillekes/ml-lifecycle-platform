@@ -1,11 +1,15 @@
 from __future__ import annotations
 
+import pytest
+
 from ml_lifecycle_platform.serving.router import (
     BucketContext,
     SeedSource,
     choose_canary_bucket,
     decide_routing,
 )
+
+pytestmark = pytest.mark.unit
 
 
 def test_choose_canary_bucket_is_deterministic_for_request_id() -> None:

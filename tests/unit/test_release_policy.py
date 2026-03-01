@@ -19,6 +19,8 @@ from ml_lifecycle_platform.common.constants import (
 from ml_lifecycle_platform.policy.release_policy import evaluate_promotion_policy
 from ml_lifecycle_platform.registry.promote import main as promote_main
 
+pytestmark = pytest.mark.unit
+
 
 @dataclass
 class _ModelVersion:

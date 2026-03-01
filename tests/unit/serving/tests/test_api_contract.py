@@ -1,10 +1,11 @@
 from __future__ import annotations
 
-
 import pytest
 from starlette.testclient import TestClient
 
 from ml_lifecycle_platform.serving.constants import HEADER_REQUEST_ID
+
+pytestmark = pytest.mark.unit
 
 
 def test_livez_ok(client: TestClient) -> None:
