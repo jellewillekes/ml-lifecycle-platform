@@ -7,7 +7,7 @@ MAKEFLAGS += --no-builtin-rules
 
 PROJECT_NAME := ml-lifecycle-platform
 
-UV_PROJECT_DIR := project
+UV_PROJECT_DIR := .
 
 UV ?= uv
 DOCKER ?= docker
@@ -22,15 +22,15 @@ PYTEST := $(PY) -m pytest
 PRECOMMIT := $(PY) -m pre_commit
 
 MYPY_CONFIG ?= mypy.ini
-MYPY_PATHS ?= project/src serving
+MYPY_PATHS ?= src tests
 PYTEST_ARGS ?= -q
 
-SVC_INFRA := postgres minio mlflow-server minio-init
-SVC_IMAGES := pipeline promote rollback serving smoke
+SVC_INFRA := postgres minio minio-init mlflow-server
+SVC_IMAGES := mlflow-server pipeline promote rollback serving smoke
 
 # ---- helpers ----
 define assert_allowed_true
-	out="$$($(COMPOSE) run --rm promote python -m src.promote --dry-run --format json)"; \
+	out="$$($(COMPOSE) run --rm --use-aliases promote python -m ml_lifecycle_platform.registry.promote --dry-run --format json)"; \
 	echo "$$out"; \
 	if command -v jq >/dev/null 2>&1; then \
 		echo "$$out" | jq -e '.allowed == true' >/dev/null; \
@@ -56,15 +56,15 @@ help:
 	@echo "  make logs              tail logs"
 	@echo "  make build             build runtime images ($(SVC_IMAGES))"
 	@echo "  make reset             down + no-cache rebuild"
-	@echo "  make run-pipeline       train+eval+register (candidate)"
-	@echo "  make policy-check       dry-run promotion gate check (fails if blocked)"
-	@echo "  make promote            candidate -> prod"
-	@echo "  make promote-dry-run    show dry-run JSON (no side effects)"
-	@echo "  make rollback-prod      prod -> previous prod"
-	@echo "  make serve              start serving API"
-	@echo "  make smoke-test         smoke tests against serving"
-	@echo "  make e2e                pipeline -> gate -> promote -> serve -> smoke"
-	@echo "  make e2e-keep           like e2e, but keep stack up"
+	@echo "  make run-pipeline      train+eval+register (candidate)"
+	@echo "  make policy-check      dry-run promotion gate check (fails if blocked)"
+	@echo "  make promote           candidate -> prod"
+	@echo "  make promote-dry-run   show dry-run JSON (no side effects)"
+	@echo "  make rollback-prod     prod -> previous prod"
+	@echo "  make serve             start serving API"
+	@echo "  make smoke-test        smoke tests against serving"
+	@echo "  make e2e               pipeline -> gate -> promote -> serve -> smoke"
+	@echo "  make e2e-keep          like e2e, but keep stack up"
 	@echo ""
 	@echo "Housekeeping:"
 	@echo "  make clean             remove local caches"
@@ -116,53 +116,48 @@ reset: down
 	@$(COMPOSE) build --no-cache $(SVC_IMAGES)
 
 run-pipeline: build
-	@$(COMPOSE) run --rm pipeline
+	@$(COMPOSE) run --rm --use-aliases pipeline
 
-# CI friendly: fails if promotion not allowed
 policy-check: build
 	@$(assert_allowed_true)
 	@echo "✅ Policy gate passed (allowed=true)"
 
-# promotion 
 promote: build
-	@$(COMPOSE) run --rm promote python -m src.promote
+	@$(COMPOSE) run --rm --use-aliases promote
 
-# explicit dry run (prints JSON)
 promote-dry-run: build
-	@$(COMPOSE) run --rm promote python -m src.promote --dry-run --format json
+	@$(COMPOSE) run --rm --use-aliases promote python -m ml_lifecycle_platform.registry.promote --dry-run --format json
 
 rollback-prod: build
-	@$(COMPOSE) run --rm rollback
+	@$(COMPOSE) run --rm --use-aliases rollback
 
 serve: build
 	@$(COMPOSE) up -d --build serving
 	@echo "Serving API: http://localhost:8000 (GET /health, POST /predict)"
 
 smoke-test: build
-	@$(COMPOSE) run --rm --build smoke
+	@$(COMPOSE) run --rm --use-aliases --build smoke
 
-# E2E: prove the system end-to-end
 e2e: build
 	@set -euo pipefail; \
 	cleanup() { $(COMPOSE) down -v; }; \
 	trap cleanup EXIT; \
 	$(COMPOSE) up -d $(SVC_INFRA); \
-	$(COMPOSE) run --rm pipeline; \
+	$(COMPOSE) run --rm --use-aliases pipeline; \
 	$(assert_allowed_true); \
-	$(COMPOSE) run --rm promote; \
+	$(COMPOSE) run --rm --use-aliases promote; \
 	$(COMPOSE) up -d --build serving; \
-	$(COMPOSE) run --rm --build smoke; \
+	$(COMPOSE) run --rm --use-aliases --build smoke; \
 	echo "✅ E2E passed"
 
-# Same as e2e but keeps infra+serving up for manual investigtion
 e2e-keep: build
 	@set -euo pipefail; \
 	$(COMPOSE) up -d $(SVC_INFRA); \
-	$(COMPOSE) run --rm pipeline; \
+	$(COMPOSE) run --rm --use-aliases pipeline; \
 	$(assert_allowed_true); \
-	$(COMPOSE) run --rm promote; \
+	$(COMPOSE) run --rm --use-aliases promote; \
 	$(COMPOSE) up -d --build serving; \
-	$(COMPOSE) run --rm --build smoke; \
+	$(COMPOSE) run --rm --use-aliases --build smoke; \
 	echo "✅ E2E passed (stack kept up). Use 'make logs' or 'make down' when done."
 
 .PHONY: clean

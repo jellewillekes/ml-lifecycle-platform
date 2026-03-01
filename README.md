@@ -1,7 +1,7 @@
 # ML Lifecycle Platform
 
-[![CI](https://github.com/jellewillekes/model-release-platform/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/jellewillekes/model-release-platform/actions/workflows/ci.yml)
-[![E2E](https://github.com/jellewillekes/model-release-platform/actions/workflows/e2e.yml/badge.svg?branch=master)](https://github.com/jellewillekes/model-release-platform/actions/workflows/e2e.yml)
+[![CI](https://github.com/jellewillekes/ml-lifecycle-platform/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/jellewillekes/ml-lifecycle-platform/actions/workflows/ci.yml)
+[![E2E](https://github.com/jellewillekes/ml-lifecycle-platform/actions/workflows/e2e.yml/badge.svg?branch=master)](https://github.com/jellewillekes/ml-lifecycle-platform/actions/workflows/e2e.yml)
 
 A production-style model release platform that manages the full lifecycle of machine learning models with an emphasis on safety, reproducibility, and operational discipline.
 
@@ -24,25 +24,25 @@ This repository serves as a reference implementation for ML platform engineering
 
 The platform enforces the following invariants:
 
-- Reproducible runs  
+- Reproducible runs
   Every training run logs dataset fingerprint, config hash, git SHA, and is immutable.
 
-- Quality-gated promotion  
+- Quality-gated promotion
   `candidate → prod` promotion only happens when evaluation gates pass and all required metadata is present.
 
-- Alias-first registry model  
+- Alias-first registry model
   Deployment is driven by MLflow aliases (`candidate`, `prod`, `champion`). Stages are not used.
 
-- Deterministic rollback  
+- Deterministic rollback
   Each promotion records `previous_prod_version`. Rollback is a based on alias mutation.
 
-- Artifact lineage  
+- Artifact lineage
   Every model version links to its source training run and metadata.
 
-- Control-plane / data-plane separation  
+- Control-plane / data-plane separation
   Training, registry policy, and serving are independent.
 
-- End-to-end verifiability  
+- End-to-end verifiability
   CI and E2E validate training, policy checks, promotion, serving, and rollback.
 
 ---
@@ -140,7 +140,7 @@ models:/<name>@prod → FastAPI → Clients
 ### Execution Flow
 
 ```
-Train/Evaluate (project/)
+Train/Evaluate (`src/ml_lifecycle_platform.pipeline`)
         |
         v
 MLflow Registry (PostgreSQL backend)
@@ -192,16 +192,23 @@ Clients
 
 ```bash
 .
-├── project/      # Training, evaluation, promotion
-├── serving/      # Inference service
-├── docs/         # Architecture and runbooks
-├── scripts/      # Tooling and automation
-└── .github/      # CI governance
+├── src/ml_lifecycle_platform/
+│   ├── common/        # Shared config, constants, MLflow helpers
+│   ├── contracts/     # Metadata and lineage contracts
+│   ├── pipeline/      # Ingest, featurize, train, evaluate, orchestrate
+│   ├── policy/        # Promotion policy checks
+│   ├── registry/      # Register, promote, rollback
+│   └── serving/       # FastAPI inference service
+├── tests/             # Unit and integration tests
+├── scripts/           # Tooling and automation
+├── docker/            # Container assets
+├── mlflow_server/     # MLflow tracking server image
+└── .github/           # CI governance
 ```
 
 ---
 
-## Local Execution 
+## Local Execution
 
 ```bash
 make down && make clean && make up && make run-pipeline && make policy-check && make promote && make serve && make smoke-test && make e2e

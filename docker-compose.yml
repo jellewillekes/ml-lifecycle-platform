@@ -5,8 +5,6 @@ services:
       POSTGRES_USER: mlflow
       POSTGRES_PASSWORD: mlflow
       POSTGRES_DB: mlflow
-    ports:
-      - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
@@ -63,16 +61,29 @@ services:
       AWS_ACCESS_KEY_ID: minioadmin
       AWS_SECRET_ACCESS_KEY: minioadmin
       MLFLOW_S3_ENDPOINT_URL: http://minio:9000
-      MLFLOW_TRACKING_URI: http://mlflow-server:5000
     ports:
       - "5050:5000"
 
+    # ✅ IMPORTANT: use a health endpoint that definitely exists.
+    # MLflow responds on "/" once it’s up.
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:5000/"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+
+    # NOTE: your mlflow_server image already uses ENTRYPOINT ["/start.sh"].
+    # If you ever switch away from ENTRYPOINT, the correct command would be:
+    # command: ["/start.sh"]
+
   pipeline:
     build:
-      context: ./project
+      context: .
+      dockerfile: Dockerfile
+      target: platform
     depends_on:
       mlflow-server:
-        condition: service_started
+        condition: service_healthy
     environment:
       MLFLOW_TRACKING_URI: http://mlflow-server:5000
       AWS_ACCESS_KEY_ID: minioadmin
@@ -81,42 +92,51 @@ services:
       MODEL_NAME: breast_cancer_clf
       EXPERIMENT_NAME: breast-cancer-platform
       GIT_SHA: ${GIT_SHA:-dev}
-    command: ["python", "-m", "src.orchestrate"]
+    command: ["python", "-m", "ml_lifecycle_platform.pipeline.orchestrate"]
+    restart: "no"
 
   promote:
     build:
-      context: ./project
+      context: .
+      dockerfile: Dockerfile
+      target: platform
     depends_on:
       mlflow-server:
-        condition: service_started
+        condition: service_healthy
     environment:
       MLFLOW_TRACKING_URI: http://mlflow-server:5000
       AWS_ACCESS_KEY_ID: minioadmin
       AWS_SECRET_ACCESS_KEY: minioadmin
       MLFLOW_S3_ENDPOINT_URL: http://minio:9000
       MODEL_NAME: breast_cancer_clf
-    command: ["python", "-m", "src.promote"]
+    command: ["python", "-m", "ml_lifecycle_platform.registry.promote"]
+    restart: "no"
 
   rollback:
     build:
-      context: ./project
+      context: .
+      dockerfile: Dockerfile
+      target: platform
     depends_on:
       mlflow-server:
-        condition: service_started
+        condition: service_healthy
     environment:
       MLFLOW_TRACKING_URI: http://mlflow-server:5000
       AWS_ACCESS_KEY_ID: minioadmin
       AWS_SECRET_ACCESS_KEY: minioadmin
       MLFLOW_S3_ENDPOINT_URL: http://minio:9000
       MODEL_NAME: breast_cancer_clf
-    command: ["python", "-m", "src.rollback"]
+    command: ["python", "-m", "ml_lifecycle_platform.registry.rollback"]
+    restart: "no"
 
   serving:
     build:
-      context: ./serving
+      context: .
+      dockerfile: Dockerfile
+      target: serving
     depends_on:
       mlflow-server:
-        condition: service_started
+        condition: service_healthy
     environment:
       MLFLOW_TRACKING_URI: http://mlflow-server:5000
       AWS_ACCESS_KEY_ID: minioadmin
@@ -141,13 +161,16 @@ services:
 
   smoke:
     build:
-      context: ./serving
+      context: .
+      dockerfile: Dockerfile
+      target: serving
     depends_on:
       serving:
         condition: service_healthy
     environment:
       SERVE_URL: http://serving:8000
-    command: ["python", "-m", "serving.smoke_test"]
+    command: ["python", "-m", "ml_lifecycle_platform.serving.smoke_test"]
+    restart: "no"
 
 volumes:
   pgdata:
