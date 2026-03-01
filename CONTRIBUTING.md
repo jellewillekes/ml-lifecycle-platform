@@ -6,8 +6,16 @@ This repo uses `uv` for deterministic dependency management.
 
 Common workflows:
 
-- `make check` — format + lint + type + tests
+- `make check` — format + lint + type + fast unit tests
+- `make test` — default fast unit suite
+- `make test-integration` — local sqlite/filesystem integration tests
 - `make e2e` — docker compose end-to-end flow
+
+Pytest test tiers:
+
+- `unit` — hermetic, fast, default on PRs
+- `integration` — local component boundaries without secrets
+- `e2e` — dockerized golden path; kept separate from pytest by design
 
 ## Branching & PRs
 
@@ -32,6 +40,7 @@ PR titles follow Conventional Commits:
 Before opening a PR:
 
 - `make check`
+- If you add integration coverage: `make test-integration`
 - If your change touches docker/services: `make e2e` (or explain why not)
 
 ## Dependency updates
@@ -39,7 +48,7 @@ Before opening a PR:
 Dependabot opens weekly PRs for:
 
 - GitHub Actions versions
-- Python dependencies under `/project`
+- Python dependencies at repo root
 
 ## Pre-commit hooks (optional)
 

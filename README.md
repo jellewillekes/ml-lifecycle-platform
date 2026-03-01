@@ -289,6 +289,21 @@ make check
 make fix
 ```
 
+### Testing
+
+- `unit`: fast tests, this is the default local pytest path
+- `integration`: local multi-component tests using sqlite-backed MLflow or filesystem boundaries
+- `e2e`: Docker-based golden-path verification via `make e2e`
+
+Common commands:
+
+```bash
+make test
+make test-unit
+make test-integration
+make e2e
+```
+
 ---
 
 ## Reproducibility

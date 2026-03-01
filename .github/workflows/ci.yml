@@ -98,7 +98,7 @@ jobs:
 
 
   test:
-    name: Tests (pytest)
+    name: Unit Tests (pytest)
     runs-on: ubuntu-latest
     timeout-minutes: 15
     needs: typecheck
@@ -134,10 +134,10 @@ jobs:
           set -euo pipefail
           uv sync --frozen --group dev
 
-      - name: Run tests
+      - name: Run unit tests
         run: |
           set -euo pipefail
-          uv run pytest -q --maxfail=1 --disable-warnings | tee pytest.txt
+          uv run pytest -q -m unit --maxfail=1 --disable-warnings | tee pytest.txt
 
       - name: Upload pytest output
         if: failure()
@@ -145,3 +145,43 @@ jobs:
         with:
           name: pytest-output
           path: pytest.txt
+
+  integration:
+    name: Integration Tests (pytest)
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: test
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          enable-cache: true
+          cache-dependency-glob: |
+            uv.lock
+            pyproject.toml
+
+      - name: Sync (locked)
+        run: |
+          set -euo pipefail
+          uv sync --frozen --group dev
+
+      - name: Run integration tests
+        run: |
+          set -euo pipefail
+          uv run pytest -q -m integration --maxfail=1 --disable-warnings | tee pytest-integration.txt
+
+      - name: Upload integration pytest output
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pytest-integration-output
+          path: pytest-integration.txt

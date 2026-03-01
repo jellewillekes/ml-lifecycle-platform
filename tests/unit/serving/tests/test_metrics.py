@@ -2,7 +2,10 @@ from __future__ import annotations
 
 import re
 
+import pytest
 from starlette.testclient import TestClient
+
+pytestmark = pytest.mark.unit
 
 
 def _parse_labels(label_blob: str) -> dict[str, str]:
