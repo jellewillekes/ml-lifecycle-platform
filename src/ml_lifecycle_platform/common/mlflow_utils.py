@@ -7,6 +7,8 @@ from typing import Any
 import mlflow
 from mlflow.tracking import MlflowClient
 
+from ml_lifecycle_platform.common.config import get_registry_uri, get_tracking_uri
+
 
 def ensure_experiment(name: str) -> str:
     exp = mlflow.get_experiment_by_name(name)
@@ -16,7 +18,10 @@ def ensure_experiment(name: str) -> str:
 
 
 def client() -> MlflowClient:
-    return MlflowClient()
+    return MlflowClient(
+        tracking_uri=get_tracking_uri(),
+        registry_uri=get_registry_uri(),
+    )
 
 
 def write_json(path: Path, payload: dict[str, Any]) -> None:

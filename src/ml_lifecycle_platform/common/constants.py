@@ -6,6 +6,7 @@ from __future__ import annotations
 DATASET_FINGERPRINT_SCHEMA_VERSION = "dataset_fingerprint/v1"
 MODEL_REF_SCHEMA_VERSION = "model_ref/v1"
 FEATURE_STATS_SCHEMA_VERSION = "feature_stats/v1"
+REPRO_CONTRACT_SCHEMA_VERSION = "repro_contract/v1"
 
 # MLflow tags (keys)
 TAG_STEP = "step"
@@ -23,6 +24,9 @@ TAG_DATA_SOURCE_URI = "data_source_uri"
 TAG_DATASET_FINGERPRINT = "dataset_fingerprint"
 TAG_CONFIG_HASH = "config_hash"
 TAG_TRAINING_RUN_ID = "training_run_id"
+TAG_ENV_LOCK_HASH = "env_lock_hash"
+TAG_DETERMINISTIC_SEED = "deterministic_seed"
+TAG_REPRO_SCHEMA_VERSION = "repro_schema_version"
 
 TAG_SOURCE_RUN_ID = "source_run_id"
 TAG_GATE = "gate"
@@ -51,10 +55,16 @@ ART_DATASET_FINGERPRINT_JSON = "dataset_fingerprint.json"
 ART_EVALUATION_JSON = "evaluation.json"
 ART_ROC_CURVE_PNG = "roc_curve.png"
 ART_TRAIN_SUMMARY_JSON = "train_summary.json"
+ART_REPRO_CONTRACT_JSON = "repro_contract.json"
+ART_REPRO_PROBE_INPUTS_CSV = "probe_inputs.csv"
+ART_REPRO_EXPECTED_PREDICTIONS_JSON = "expected_predictions.json"
+ART_REPRO_REPORT_JSON = "reproduce_report.json"
+ART_UV_LOCK = "uv.lock"
 
 # Artifact paths (within MLflow)
 MLFLOW_ARTIFACT_PATH_REPORTS = "reports"
 MLFLOW_ARTIFACT_PATH_MODEL = "model"
+MLFLOW_ARTIFACT_PATH_REPRO = "repro"
 
 # Aliases
 ALIAS_CANDIDATE = "candidate"

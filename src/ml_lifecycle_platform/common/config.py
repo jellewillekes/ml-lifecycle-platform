@@ -9,7 +9,11 @@ def env(name: str, default: str | None = None) -> str:
 
 
 def get_tracking_uri() -> str:
-    return env("MLFLOW_TRACKING_URI", "http://localhost:5000")
+    return env("MLFLOW_TRACKING_URI", "http://localhost:5050")
+
+
+def get_registry_uri() -> str:
+    return env("MLFLOW_REGISTRY_URI", get_tracking_uri())
 
 
 def get_experiment_name() -> str:

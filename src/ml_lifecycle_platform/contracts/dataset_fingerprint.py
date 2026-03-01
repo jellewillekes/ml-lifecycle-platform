@@ -128,11 +128,12 @@ def compute_fingerprint(
     test_df: pd.DataFrame,
     data_source_uri: str,
     index_cols: Sequence[str] | None = None,
+    git_sha: str | None = None,
 ) -> DatasetFingerprint:
     """Fingerprint over training+test membership."""
     combined = pd.concat([train_df, test_df], axis=0, ignore_index=True)
     return DatasetFingerprint(
-        git_sha=get_git_sha(),
+        git_sha=get_git_sha() if git_sha is None else git_sha,
         dataset_content_hash=content_hash(combined, index_cols=index_cols),
         dataset_schema_hash=schema_hash(combined),
         row_count=int(len(combined)),

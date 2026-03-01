@@ -149,10 +149,10 @@ def test_dry_run_mode_has_zero_mutations(monkeypatch: pytest.MonkeyPatch) -> Non
     client.put_version("m", "1", tags)
     client.set_alias("m", ALIAS_CANDIDATE, "1")
 
-    # Patch MlflowClient used in ml_lifecycle_platform.registry.promote to our stub instance
+    # Patch the configured MLflow client helper to return our stub instance.
     import ml_lifecycle_platform.registry.promote as promote_mod
 
-    monkeypatch.setattr(promote_mod, "MlflowClient", lambda: client)
+    monkeypatch.setattr(promote_mod, "mlflow_client", lambda: client)
 
     # Run promote in dry-run mode: must exit 0 and must not mutate
     with pytest.raises(SystemExit) as e:

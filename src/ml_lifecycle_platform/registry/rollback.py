@@ -6,6 +6,7 @@ import os
 from mlflow.tracking import MlflowClient
 
 from ml_lifecycle_platform.common.constants import ALIAS_PROD, TAG_PREVIOUS_PROD_VERSION
+from ml_lifecycle_platform.common.mlflow_utils import client as mlflow_client
 
 logger = logging.getLogger(__name__)
 
@@ -54,7 +55,7 @@ def get_model_name() -> str:
 
 def main() -> None:
     logging.basicConfig(level=os.environ.get("LOG_LEVEL", "INFO"))
-    rollback_prod(MlflowClient(), get_model_name())
+    rollback_prod(mlflow_client(), get_model_name())
 
 
 if __name__ == "__main__":
