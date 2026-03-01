@@ -12,6 +12,7 @@ This repository uses three CI lanes with intentionally different scopes:
 
 Recommended required status checks for `master` branch protection:
 
+- `PR Title`
 - `Repo Hygiene`
 - `Lint (ruff)`
 - `Typecheck (mypy)`
@@ -35,9 +36,11 @@ Do not require `Integration Tests (pytest)` or nightly `E2E` on pull requests. T
 GitHub branch protection settings for `master`:
 
 - Require a pull request before merging.
-- Require the four presubmit checks listed above to pass.
+- Require the five presubmit checks listed above to pass.
 - Require branches to be up to date before merging.
 - Require conversation resolution before merging.
+- Allow squash merge and prefer it as the default merge strategy.
+- If possible in repo settings, disable merge strategies that bypass the PR-title-as-canonical-signal model.
 - Do not require nightly `E2E` or push-only integration checks for PR mergeability.
 
 ## Failure Artifacts
@@ -55,3 +58,4 @@ When CI fails, use these uploaded artifacts first:
 - Presubmit is optimized for fast feedback. After the cheap repo-hygiene gate, lint, typecheck, and unit tests run in parallel.
 - Integration tests are deterministic but intentionally non-blocking for PR iteration.
 - Nightly E2E stays separate because it validates the dockerized golden path rather than the fast developer loop.
+- Conventional Commit PR titles are part of the presubmit contract because squash merges make the PR title the canonical commit message on `master`.

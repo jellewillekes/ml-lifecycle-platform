@@ -1,3 +1,5 @@
+<!-- PR title must follow Conventional Commits, e.g. "fix: correct release manifest sync". -->
+
 ## What
 <!-- What changed? -->
 
