@@ -24,25 +24,25 @@ This repository serves as a reference implementation for ML platform engineering
 
 The platform enforces the following invariants:
 
-- Reproducible runs  
+- Reproducible runs
   Every training run logs dataset fingerprint, config hash, git SHA, and is immutable.
 
-- Quality-gated promotion  
+- Quality-gated promotion
   `candidate → prod` promotion only happens when evaluation gates pass and all required metadata is present.
 
-- Alias-first registry model  
+- Alias-first registry model
   Deployment is driven by MLflow aliases (`candidate`, `prod`, `champion`). Stages are not used.
 
-- Deterministic rollback  
+- Deterministic rollback
   Each promotion records `previous_prod_version`. Rollback is a based on alias mutation.
 
-- Artifact lineage  
+- Artifact lineage
   Every model version links to its source training run and metadata.
 
-- Control-plane / data-plane separation  
+- Control-plane / data-plane separation
   Training, registry policy, and serving are independent.
 
-- End-to-end verifiability  
+- End-to-end verifiability
   CI and E2E validate training, policy checks, promotion, serving, and rollback.
 
 ---
@@ -208,7 +208,7 @@ Clients
 
 ---
 
-## Local Execution 
+## Local Execution
 
 ```bash
 make down && make clean && make up && make run-pipeline && make policy-check && make promote && make serve && make smoke-test && make e2e

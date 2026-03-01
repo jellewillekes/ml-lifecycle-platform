@@ -216,8 +216,10 @@ def _refresh_models_if_needed(
         model_candidate is None or candidate_version is None
     )
 
-    if not force and cache_is_warm and not (
-        needs_prod_refresh or needs_candidate_refresh
+    if (
+        not force
+        and cache_is_warm
+        and not (needs_prod_refresh or needs_candidate_refresh)
     ):
         return
 
