@@ -5,6 +5,7 @@
 This repo uses `uv` for dependency management.
 
 For CI lanes, required checks, and branch-protection guidance, see `docs/ci.md`.
+For release behavior and Release Please expectations, see `docs/releases.md`.
 
 Common workflows:
 
@@ -47,6 +48,10 @@ Allowed PR title types:
 
 Commit messages inside the PR do not need separate enforcement as long as the
 repository uses squash merge consistently.
+
+Not every valid PR title type produces a release PR. In normal operation, expect
+release PRs for releasable changes such as `feat` and `fix`, while `docs`,
+`chore`, `refactor`, `test`, and `ci` may merge without any new release.
 
 ## Presubmit expectations
 

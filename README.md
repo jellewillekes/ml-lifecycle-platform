@@ -327,6 +327,9 @@ This project follows Conventional Commits.
 - Semantic versioning
 - Release Please automation
 
+Release Please does not create a new release for every merged PR. For the
+release model and failure-handling notes, see `docs/releases.md`.
+
 ---
 
 ## Security & Licensing
