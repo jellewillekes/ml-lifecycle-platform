@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from enum import StrEnum
 from typing import Any, Final, Literal, cast
 
-from serving.constants import ALIAS_CANDIDATE, ALIAS_PROD
+from .constants import ALIAS_CANDIDATE, ALIAS_PROD
 
 MODE_PROD: Final[str] = "prod"
 MODE_CANDIDATE: Final[str] = "candidate"

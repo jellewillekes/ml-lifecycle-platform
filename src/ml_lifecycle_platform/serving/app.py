@@ -20,16 +20,16 @@ try:
 except Exception:  # pragma: no cover
     mlflow = None  # type: ignore[assignment]
 
-from serving.constants import ALIAS_CANDIDATE, ALIAS_PROD, HEADER_REQUEST_ID
-from serving.metrics import PREDICT_LATENCY_SECONDS, REQUESTS_TOTAL, SHADOW_DIFF_MAE
-from serving.router import (
+from .constants import ALIAS_CANDIDATE, ALIAS_PROD, HEADER_REQUEST_ID
+from .metrics import PREDICT_LATENCY_SECONDS, REQUESTS_TOTAL, SHADOW_DIFF_MAE
+from .router import (
     BucketContext,
     Mode,
     SeedSource,
     choose_canary_bucket,
     decide_routing,
 )
-from serving.settings import Settings, get_settings
+from .settings import Settings, get_settings
 
 logger = logging.getLogger("serving")
 
@@ -210,17 +210,26 @@ def _refresh_models_if_needed(
         _last_refresh_ts
 
     now = time.time()
-    if not force and (now - _last_refresh_ts) < settings.model_cache_ttl_sec:
+    cache_is_warm = (now - _last_refresh_ts) < settings.model_cache_ttl_sec
+    needs_prod_refresh = model_prod is None or prod_version is None
+    needs_candidate_refresh = load_candidate and (
+        model_candidate is None or candidate_version is None
+    )
+
+    if not force and cache_is_warm and not (
+        needs_prod_refresh or needs_candidate_refresh
+    ):
         return
 
-    if model_prod is None:
+    if needs_prod_refresh and model_prod is None:
         model_prod = _load_model(settings, settings.prod_alias)
 
-    if load_candidate and model_candidate is None:
+    if needs_candidate_refresh and model_candidate is None:
         model_candidate = _load_model(settings, settings.candidate_alias)
 
-    prod_version = prod_version or _get_version(settings, settings.prod_alias)
-    if load_candidate:
+    if needs_prod_refresh:
+        prod_version = prod_version or _get_version(settings, settings.prod_alias)
+    if needs_candidate_refresh:
         candidate_version = candidate_version or _get_version(
             settings, settings.candidate_alias
         )

@@ -5,7 +5,7 @@ from functools import lru_cache
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-from serving.constants import (
+from .constants import (
     ALIAS_CANDIDATE,
     ALIAS_PROD,
     DEFAULT_MODEL_NAME,

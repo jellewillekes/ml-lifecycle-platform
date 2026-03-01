@@ -35,26 +35,23 @@ jobs:
         with:
           enable-cache: true
           cache-dependency-glob: |
-            project/uv.lock
-            project/pyproject.toml
+            uv.lock
+            pyproject.toml
 
       - name: Sync (locked)
-        working-directory: project
         run: |
           set -euo pipefail
           uv sync --frozen --group dev
 
       - name: Ruff format
-        working-directory: project
         run: |
           set -euo pipefail
-          uv run ruff format --check ..
+          uv run ruff format --check .
 
       - name: Ruff lint
-        working-directory: project
         run: |
           set -euo pipefail
-          uv run ruff check --output-format=github ..
+          uv run ruff check --output-format=github .
 
 
   typecheck:
@@ -76,23 +73,21 @@ jobs:
         with:
           enable-cache: true
           cache-dependency-glob: |
-            project/uv.lock
-            project/pyproject.toml
+            uv.lock
+            pyproject.toml
 
       - name: Sync (locked)
-        working-directory: project
         run: |
           set -euo pipefail
           uv sync --frozen --group dev
 
       - name: Mypy
-        working-directory: project
         run: |
           set -euo pipefail
           uv run mypy \
-            --config-file ../mypy.ini \
-            src ../serving \
-            | tee ../mypy.txt
+            --config-file mypy.ini \
+            src tests \
+            | tee mypy.txt
 
       - name: Upload mypy output
         if: failure()
@@ -131,20 +126,18 @@ jobs:
         with:
           enable-cache: true
           cache-dependency-glob: |
-            project/uv.lock
-            project/pyproject.toml
+            uv.lock
+            pyproject.toml
 
       - name: Sync (locked)
-        working-directory: project
         run: |
           set -euo pipefail
           uv sync --frozen --group dev
 
       - name: Run tests
-        working-directory: project
         run: |
           set -euo pipefail
-          uv run pytest -q --maxfail=1 --disable-warnings | tee ../pytest.txt
+          uv run pytest -q --maxfail=1 --disable-warnings | tee pytest.txt
 
       - name: Upload pytest output
         if: failure()

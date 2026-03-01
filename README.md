@@ -1,7 +1,7 @@
 # ML Lifecycle Platform
 
-[![CI](https://github.com/jellewillekes/model-release-platform/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/jellewillekes/model-release-platform/actions/workflows/ci.yml)
-[![E2E](https://github.com/jellewillekes/model-release-platform/actions/workflows/e2e.yml/badge.svg?branch=master)](https://github.com/jellewillekes/model-release-platform/actions/workflows/e2e.yml)
+[![CI](https://github.com/jellewillekes/ml-lifecycle-platform/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/jellewillekes/ml-lifecycle-platform/actions/workflows/ci.yml)
+[![E2E](https://github.com/jellewillekes/ml-lifecycle-platform/actions/workflows/e2e.yml/badge.svg?branch=master)](https://github.com/jellewillekes/ml-lifecycle-platform/actions/workflows/e2e.yml)
 
 A production-style model release platform that manages the full lifecycle of machine learning models with an emphasis on safety, reproducibility, and operational discipline.
 
@@ -140,7 +140,7 @@ models:/<name>@prod → FastAPI → Clients
 ### Execution Flow
 
 ```
-Train/Evaluate (project/)
+Train/Evaluate (`src/ml_lifecycle_platform.pipeline`)
         |
         v
 MLflow Registry (PostgreSQL backend)
@@ -192,11 +192,18 @@ Clients
 
 ```bash
 .
-├── project/      # Training, evaluation, promotion
-├── serving/      # Inference service
-├── docs/         # Architecture and runbooks
-├── scripts/      # Tooling and automation
-└── .github/      # CI governance
+├── src/ml_lifecycle_platform/
+│   ├── common/        # Shared config, constants, MLflow helpers
+│   ├── contracts/     # Metadata and lineage contracts
+│   ├── pipeline/      # Ingest, featurize, train, evaluate, orchestrate
+│   ├── policy/        # Promotion policy checks
+│   ├── registry/      # Register, promote, rollback
+│   └── serving/       # FastAPI inference service
+├── tests/             # Unit and integration tests
+├── scripts/           # Tooling and automation
+├── docker/            # Container assets
+├── mlflow_server/     # MLflow tracking server image
+└── .github/           # CI governance
 ```
 
 ---
