@@ -33,35 +33,10 @@ jobs:
 
       - uses: docker/setup-buildx-action@v3
 
-      - name: Build images
+      - name: Run E2E
         run: |
           set -euo pipefail
-          docker compose build
-
-      - name: Start infra
-        run: |
-          set -euo pipefail
-          make up
-
-      - name: Run pipeline
-        run: |
-          set -euo pipefail
-          make run-pipeline
-
-      - name: Promote
-        run: |
-          set -euo pipefail
-          make promote
-
-      - name: Serve
-        run: |
-          set -euo pipefail
-          make serve
-
-      - name: Smoke test
-        run: |
-          set -euo pipefail
-          make smoke-test
+          make test-e2e
 
       - name: Dump docker state (on failure)
         if: failure()

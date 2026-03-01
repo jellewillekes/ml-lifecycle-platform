@@ -4,6 +4,8 @@
 
 This repo uses `uv` for deterministic dependency management.
 
+For CI lanes, required checks, and branch-protection guidance, see `docs/ci.md`.
+
 Common workflows:
 
 - `make check` — format + lint + type + fast unit tests

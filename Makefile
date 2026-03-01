@@ -68,6 +68,7 @@ help:
 	@echo "  make rollback-prod     prod -> previous prod"
 	@echo "  make serve             start serving API"
 	@echo "  make smoke-test        smoke tests against serving"
+	@echo "  make test-e2e          run the golden path without automatic teardown"
 	@echo "  make e2e               pipeline -> gate -> promote -> serve -> smoke"
 	@echo "  make e2e-keep          like e2e, but keep stack up"
 	@echo ""
@@ -117,7 +118,7 @@ precommit:
 install-hooks:
 	@$(PRECOMMIT) install
 
-.PHONY: up down logs build reset run-pipeline policy-check promote promote-dry-run rollback-prod serve smoke-test e2e e2e-keep
+.PHONY: up down logs build reset run-pipeline policy-check promote promote-dry-run rollback-prod serve smoke-test test-e2e e2e e2e-keep
 up:
 	@$(COMPOSE) up -d $(SVC_INFRA)
 	@echo "MLflow UI: http://localhost:5050"
@@ -158,26 +159,25 @@ serve: build
 smoke-test: build
 	@$(COMPOSE) run --rm --use-aliases --build smoke
 
-e2e: build
+test-e2e: build
+	@set -euo pipefail; \
+	$(COMPOSE) up -d $(SVC_INFRA); \
+	$(COMPOSE) run --rm --use-aliases pipeline; \
+	$(assert_allowed_true); \
+	$(COMPOSE) run --rm --use-aliases promote; \
+	$(COMPOSE) up -d --build serving; \
+	$(COMPOSE) run --rm --use-aliases --build smoke
+
+e2e:
 	@set -euo pipefail; \
 	cleanup() { $(COMPOSE) down -v; }; \
 	trap cleanup EXIT; \
-	$(COMPOSE) up -d $(SVC_INFRA); \
-	$(COMPOSE) run --rm --use-aliases pipeline; \
-	$(assert_allowed_true); \
-	$(COMPOSE) run --rm --use-aliases promote; \
-	$(COMPOSE) up -d --build serving; \
-	$(COMPOSE) run --rm --use-aliases --build smoke; \
+	$(MAKE) test-e2e; \
 	echo "✅ E2E passed"
 
-e2e-keep: build
+e2e-keep:
 	@set -euo pipefail; \
-	$(COMPOSE) up -d $(SVC_INFRA); \
-	$(COMPOSE) run --rm --use-aliases pipeline; \
-	$(assert_allowed_true); \
-	$(COMPOSE) run --rm --use-aliases promote; \
-	$(COMPOSE) up -d --build serving; \
-	$(COMPOSE) run --rm --use-aliases --build smoke; \
+	$(MAKE) test-e2e; \
 	echo "✅ E2E passed (stack kept up). Use 'make logs' or 'make down' when done."
 
 .PHONY: clean

@@ -17,10 +17,29 @@ env:
   PYTHON_VERSION: "3.11"
 
 jobs:
+  hygiene:
+    name: Repo Hygiene
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Fail if forbidden paths are tracked
+        shell: bash
+        run: |
+          set -euo pipefail
+          forbidden_regex='(^mlruns/|^mlartifacts/|^\.venv/|^venv/|^\.pytest_cache/|^\.mypy_cache/|^\.ruff_cache/|^__pycache__/|\.DS_Store$|^data/|^artifacts/)'
+          if git ls-files | egrep -n "${forbidden_regex}"; then
+            echo "Forbidden files are tracked by git. Remove from the index and add to .gitignore."
+            exit 1
+          fi
+
   lint:
     name: Lint (ruff)
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    needs: hygiene
 
     steps:
       - uses: actions/checkout@v4
@@ -58,7 +77,7 @@ jobs:
     name: Typecheck (mypy)
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    needs: lint
+    needs: hygiene
 
     steps:
       - uses: actions/checkout@v4
@@ -97,24 +116,14 @@ jobs:
           path: mypy.txt
 
 
-  test:
+  unit:
     name: Unit Tests (pytest)
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    needs: typecheck
+    needs: hygiene
 
     steps:
       - uses: actions/checkout@v4
-
-      - name: Fail if forbidden paths are tracked
-        shell: bash
-        run: |
-          set -euo pipefail
-          forbidden_regex='(^mlruns/|^mlartifacts/|^\.venv/|^venv/|^\.pytest_cache/|^\.mypy_cache/|^\.ruff_cache/|^__pycache__/|\.DS_Store$|^data/|^artifacts/)'
-          if git ls-files | egrep -n "${forbidden_regex}"; then
-            echo "Forbidden files are tracked by git. Remove from the index and add to .gitignore."
-            exit 1
-          fi
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -175,7 +184,7 @@ jobs:
     if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    needs: test
+    needs: [lint, typecheck, unit]
 
     steps:
       - uses: actions/checkout@v4
