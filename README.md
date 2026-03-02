@@ -19,6 +19,9 @@ The platform supports:
 
 This repository serves as a reference implementation for ML platform engineering patterns.
 
+For the verified baseline architecture and current capabilities, start with
+`docs/architecture/current-state.md`.
+
 ---
 
 ## System Guarantees
