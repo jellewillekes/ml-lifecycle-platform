@@ -4,6 +4,18 @@ All notable changes to this project are documented here.
 
 This repo follows Conventional Commits and uses Release Please to generate release PRs.
 
+## [0.3.0](https://github.com/jellewillekes/ml-lifecycle-platform/compare/v0.2.1...v0.3.0) (2026-03-02)
+
+
+### Features
+
+* reproduce registered models from source runs ([#35](https://github.com/jellewillekes/ml-lifecycle-platform/issues/35)) ([bc98ed8](https://github.com/jellewillekes/ml-lifecycle-platform/commit/bc98ed8bba36d920aecacccd212193c1e9617019))
+
+
+### Dependencies
+
+* **actions:** bump the github-actions group with 4 updates ([#37](https://github.com/jellewillekes/ml-lifecycle-platform/issues/37)) ([f7632f8](https://github.com/jellewillekes/ml-lifecycle-platform/commit/f7632f8001f535b2e20e1414010ea5b4f93b50eb))
+
 ## [0.2.1](https://github.com/jellewillekes/ml-lifecycle-platform/compare/v0.2.0...v0.2.1) (2026-03-01)
 
 
