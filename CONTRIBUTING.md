@@ -6,6 +6,8 @@ This repo uses `uv` for dependency management.
 
 For CI lanes, required checks, and branch-protection guidance, see `docs/ci.md`.
 For release behavior and Release Please expectations, see `docs/releases.md`.
+For the verified baseline system shape before the M0 refactor, see
+`docs/architecture/current-state.md`.
 
 Common workflows:
 
