@@ -31,6 +31,38 @@ Pytest test tiers:
 - Use squash merges for pull requests.
 - Treat the PR title as the canonical release-note and changelog signal.
 
+## Issues, milestones, and roadmap work
+
+- Use GitHub Issues for planned work, bugs, feature requests, and documentation
+  follow-ups.
+- Link implementation PRs to issues when possible using `Closes #<issue>` or
+  `Related to #<issue>`.
+- Group roadmap work with milestones such as `M0`, `M1`, and later phases instead
+  of encoding long-term status only in docs.
+- Keep issue scope crisp. One issue should usually map to one reviewable PR or one
+  small sequence of tightly related PRs.
+- Prefer public issue discussion for design clarification unless the topic is
+  security-sensitive.
+
+## Contribution expectations
+
+- Start with a GitHub issue for non-trivial changes before opening a large PR.
+- Keep changes single-purpose. Avoid mixing refactor, infra, and behavior changes in
+  one PR unless there is no safe separation.
+- If you change user-visible behavior, include tests and a clear rollback note.
+- If you touch docker/services or the local golden path, explain how you validated
+  `make e2e` or why it was not run.
+- If your change is part of a roadmap work package, reference the issue and preserve
+  the documented scope and non-goals.
+
+## Maintainer response model
+
+- This project is currently maintained on a best-effort basis by a small maintainer
+  set.
+- Issues and PRs may not receive an immediate response.
+- Small, well-scoped, well-tested contributions are significantly easier to review
+  and merge than large speculative changes.
+
 ## Commit / PR title conventions
 
 This repository enforces Conventional Commit PR titles. With squash merges, the PR
@@ -68,7 +100,7 @@ Before opening a PR:
 Dependabot opens weekly PRs for:
 
 - GitHub Actions versions
-- Python dependencies at repo root
+- Dockerfiles in supported repository paths
 
 ## Pre-commit hooks (optional)
 

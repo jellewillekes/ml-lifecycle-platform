@@ -1,0 +1,25 @@
+name: Documentation update
+description: Report missing, incorrect, or stale documentation
+title: "docs: "
+labels:
+  - documentation
+body:
+  - type: textarea
+    id: summary
+    attributes:
+      label: Documentation problem
+      description: What is missing, incorrect, or stale?
+    validations:
+      required: true
+  - type: textarea
+    id: location
+    attributes:
+      label: Affected page or file
+      description: Link the page, file, or section if possible.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Suggested fix
+      description: Optional. Describe the correction or addition you expect.

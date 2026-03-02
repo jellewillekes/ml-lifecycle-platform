@@ -1,0 +1,40 @@
+name: Feature request
+description: Propose a scoped feature or roadmap-aligned enhancement
+title: "feat: "
+labels:
+  - enhancement
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this template for a scoped feature request.
+        For larger roadmap changes, explain the problem and the expected operator or developer value.
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem statement
+      description: What problem are you trying to solve?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed approach
+      description: Describe the preferred solution or direction.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Optional. Describe alternatives or trade-offs.
+  - type: textarea
+    id: scope
+    attributes:
+      label: Scope and non-goals
+      description: What should this include, and what should it explicitly not include?
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      description: What does done look like?
