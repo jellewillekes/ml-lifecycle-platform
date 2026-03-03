@@ -4,6 +4,23 @@ All notable changes to this project are documented here.
 
 This repo follows Conventional Commits and uses Release Please to generate release PRs.
 
+## [0.3.1](https://github.com/jellewillekes/ml-lifecycle-platform/compare/v0.3.0...v0.3.1) (2026-03-03)
+
+
+### Bug Fixes
+
+* **ci:** pin Python 3.11.7 for uv in GitHub Actions ([#38](https://github.com/jellewillekes/ml-lifecycle-platform/issues/38)) ([f00f853](https://github.com/jellewillekes/ml-lifecycle-platform/commit/f00f853f5182240d40500ddef7adb8b86f393733))
+
+
+### Dependencies
+
+* **docker:** bump python from 3.11-slim to 3.14-slim ([#42](https://github.com/jellewillekes/ml-lifecycle-platform/issues/42)) ([a989897](https://github.com/jellewillekes/ml-lifecycle-platform/commit/a989897c83245b4021b79ca8a4c95c42897c4323))
+
+
+### Documentation
+
+* add verified current-state architecture baseline ([#40](https://github.com/jellewillekes/ml-lifecycle-platform/issues/40)) ([d84c353](https://github.com/jellewillekes/ml-lifecycle-platform/commit/d84c353d2c14f5c821adf79851f5aec796a2592c))
+
 ## [0.3.0](https://github.com/jellewillekes/ml-lifecycle-platform/compare/v0.2.1...v0.3.0) (2026-03-02)
 
 
