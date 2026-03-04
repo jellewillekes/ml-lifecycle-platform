@@ -10,7 +10,7 @@ SERVE_URL = os.getenv("SERVE_URL", "http://localhost:8000")
 
 
 def _wait_for_service() -> None:
-    """Wait until the service becomes healthy or raise."""
+    """Wait for the service to become healthy."""
     last_status: int | None = None
     last_body: str | None = None
 
@@ -31,11 +31,7 @@ def _wait_for_service() -> None:
 
 
 def _payload() -> dict[str, Any]:
-    """Return a minimal valid prediction payload.
-
-    IMPORTANT: feature names must match the training dataset schema.
-    sklearn breast_cancer uses spaces in column names (e.g. 'mean radius').
-    """
+    """Return a minimal valid prediction payload."""
     return {
         "rows": [
             {
@@ -87,13 +83,13 @@ def _assert_prediction_response(body: dict[str, Any]) -> None:
 def _call(mode: str, *, required: bool) -> None:
     r = requests.post(f"{SERVE_URL}/predict?mode={mode}", json=_payload(), timeout=15)
 
-    # In many deployments, only prod is guaranteed.
+    # Many deployments only guarantee prod.
     if r.status_code == 503 and not required:
         print(f"[smoke] mode={mode} SKIP (503): {r.text[:300]!r}")
         return
 
     if r.status_code >= 400:
-        # Make failures actionable in CI logs.
+        # Keep CI failures actionable.
         try:
             detail = r.json()
         except Exception:
@@ -114,7 +110,7 @@ def main() -> None:
     # prod must always work
     _call("prod", required=True)
 
-    # optional depending on deployment policy
+    # optional by deployment policy
     for mode in ["candidate", "shadow", "canary"]:
         _call(mode, required=False)
 

@@ -31,11 +31,7 @@ def _run_step(module: str) -> None:
 
 
 def _latest_train_run_id(experiment_id: str) -> str:
-    """Return the most recent train run id for an experiment.
-
-    MLflow has changed the return type of `search_runs` across versions
-    (DataFrame vs. list[Run]). Handle both to keep the orchestrator stable.
-    """
+    """Return the most recent train run id for an experiment."""
     runs = mlflow.search_runs(
         experiment_ids=[experiment_id],
         filter_string=f"tags.{TAG_STEP} = '{STEP_TRAIN}'",
@@ -43,7 +39,7 @@ def _latest_train_run_id(experiment_id: str) -> str:
         max_results=1,
     )
 
-    # MLflow <=2.x returns a pandas DataFrame.
+    # MLflow <=2.x returns a DataFrame.
     if hasattr(runs, "empty") and hasattr(runs, "iloc"):
         if runs.empty:  # type: ignore[attr-defined]
             raise RuntimeError("No train run found after training step.")

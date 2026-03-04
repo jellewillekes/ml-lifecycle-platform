@@ -10,7 +10,7 @@ from ml_lifecycle_platform.common.constants import FEATURE_STATS_SCHEMA_VERSION
 
 @dataclass(frozen=True)
 class FeatureStats:
-    """Skeleton contract for feature distribution stats."""
+    """Feature distribution stats contract."""
 
     stats: dict[str, dict[str, float]]
     schema_version: str = FEATURE_STATS_SCHEMA_VERSION

@@ -64,16 +64,16 @@ services:
     ports:
       - "5050:5000"
 
-    # ✅ IMPORTANT: use a health endpoint that definitely exists.
-    # MLflow responds on "/" once it’s up.
+    # Use a health endpoint that always exists.
+    # MLflow responds on "/" once it is up.
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://localhost:5000/"]
       interval: 5s
       timeout: 3s
       retries: 30
 
-    # NOTE: your mlflow_server image already uses ENTRYPOINT ["/start.sh"].
-    # If you ever switch away from ENTRYPOINT, the correct command would be:
+    # The mlflow_server image already uses ENTRYPOINT ["/start.sh"].
+    # If that changes, use:
     # command: ["/start.sh"]
 
   pipeline:

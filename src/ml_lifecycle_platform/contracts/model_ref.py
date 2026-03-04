@@ -10,7 +10,7 @@ from ml_lifecycle_platform.common.constants import MODEL_REF_SCHEMA_VERSION
 
 @dataclass(frozen=True)
 class ModelRef:
-    """Reference to a model in the registry or a specific run artifact."""
+    """Reference to a registry model or run artifact."""
 
     model_name: str
     alias: str | None = None

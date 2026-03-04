@@ -85,7 +85,7 @@ def main() -> None:
 
     mv = mlflow.register_model(model_uri=model_uri, name=model_name)
 
-    # Minimum traceability for the model version.
+    # Minimum traceability tags.
     client.set_model_version_tag(
         model_name, mv.version, TAG_SOURCE_RUN_ID, train_run_id
     )
@@ -94,7 +94,7 @@ def main() -> None:
         model_name, mv.version, TAG_RELEASE_STATUS, ALIAS_CANDIDATE
     )
 
-    # Copy fingerprint/config tags from the training run onto the model version.
+    # Copy fingerprint and config tags from the training run.
     for key in FINGERPRINT_TAG_KEYS:
         value = str(run_tags.get(key, "")).strip()
         if value:

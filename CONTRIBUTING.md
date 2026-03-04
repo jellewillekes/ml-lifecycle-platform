@@ -2,12 +2,14 @@
 
 ## Development setup
 
-This repo uses `uv` for dependency management.
+This repo uses `uv`.
 
 For CI lanes, required checks, and branch-protection guidance, see `docs/ci.md`.
 For release behavior and Release Please expectations, see `docs/releases.md`.
 For the verified baseline system shape before the M0 refactor, see
 `docs/architecture/current-state.md`.
+For the frozen M0 target shape and portability scope that roadmap PRs must
+follow, see `docs/architecture/m0-portability-charter.md`.
 
 Common workflows:
 
@@ -52,8 +54,10 @@ Pytest test tiers:
 - If you change user-visible behavior, include tests and a clear rollback note.
 - If you touch docker/services or the local golden path, explain how you validated
   `make e2e` or why it was not run.
-- If your change is part of a roadmap work package, reference the issue and preserve
-  the documented scope and non-goals.
+- If your change is part of a roadmap work package, reference the issue and keep
+  the documented scope and non-goals intact.
+- If your change is part of `M0`, keep the package moves and new files aligned
+  with `docs/architecture/m0-portability-charter.md` and the ADRs it references.
 
 ## Maintainer response model
 

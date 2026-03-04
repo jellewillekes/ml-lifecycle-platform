@@ -31,7 +31,7 @@ def test_predict_modes_ok(client: TestClient, mode: str) -> None:
 
 
 def test_predict_invalid_payload_422(client: TestClient) -> None:
-    # send invalid JSON for Pydantic model
+    # Send invalid JSON for the Pydantic model.
     r = client.post(
         "/predict?mode=prod",
         content=b"not-json",
@@ -57,7 +57,7 @@ def test_request_id_header_is_generated_if_missing(client: TestClient) -> None:
         json={"rows": [{"f1": 1.0, "f2": 2.0, "f3": 3.0}]},
     )
     assert r.status_code == 200, r.text
-    # Middleware should add it
+    # Middleware should add it.
     rid = r.headers.get(HEADER_REQUEST_ID)
     assert isinstance(rid, str)
     assert rid != ""

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-# Backwards-compatible import path.
-# New canonical location: ml_lifecycle_platform.contracts.dataset_fingerprint
+# Backward-compatible import path.
+# Canonical location: ml_lifecycle_platform.contracts.dataset_fingerprint
 from ml_lifecycle_platform.contracts.dataset_fingerprint import (  # noqa: F401
     DatasetFingerprint,
     compute_fingerprint,

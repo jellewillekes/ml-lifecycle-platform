@@ -1,7 +1,7 @@
 # Release Process
 
-This repository uses Release Please to manage version bumps, changelog updates,
-release PRs, and Git tags.
+This repo uses Release Please for versioning, changelog updates, release PRs,
+and Git tags.
 
 ## Source Of Truth
 
@@ -61,12 +61,12 @@ If Release Please reports that a tag already exists:
   - `CHANGELOG.md`
   - `.release-please-manifest.json`
 
-If the tag exists and the manifest is stale, fix the manifest to the published
-version and rerun the workflow.
+If the tag exists and the manifest is stale, update the manifest to the
+published version and rerun the workflow.
 
 ## Operator Rules
 
-- Keep `pyproject.toml` version, `CHANGELOG.md`, and
+- Keep `pyproject.toml`, `CHANGELOG.md`, and
   `.release-please-manifest.json` aligned.
 - Use squash merge consistently.
 - Do not assume every merged PR will result in a release PR.

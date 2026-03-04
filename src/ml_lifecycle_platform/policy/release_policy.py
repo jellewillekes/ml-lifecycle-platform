@@ -37,7 +37,7 @@ class PromotionPolicyClient(Protocol):
 
 @dataclass(frozen=True)
 class Violation:
-    """A single policy violation or warning."""
+    """Policy violation or warning."""
 
     code: str
     message: str
@@ -46,11 +46,7 @@ class Violation:
 
 @dataclass(frozen=True)
 class PolicyDecision:
-    """Structured policy outcome for promotion gating.
-
-    - errors: hard blocks (allowed=False)
-    - warnings: allowed can still be True, but operator should be aware
-    """
+    """Result of promotion policy evaluation."""
 
     allowed: bool
     errors: tuple[Violation, ...]
@@ -87,12 +83,7 @@ def evaluate_promotion_policy(
     from_alias: str = ALIAS_CANDIDATE,
     to_alias: str = ALIAS_PROD,
 ) -> PolicyDecision:
-    """Evaluate promotion policy with zero side effects.
-
-    This function must remain PURE:
-      - no set_registered_model_alias
-      - no set_model_version_tag
-    """
+    """Evaluate promotion policy without side effects."""
     errors: list[Violation] = []
     warnings: list[Violation] = []
 
@@ -122,11 +113,10 @@ def evaluate_promotion_policy(
             context=context,
         )
 
-    # Load candidate model version
     candidate = client.get_model_version(model_name, candidate_version)
     candidate_tags = candidate.tags or {}
 
-    # Helpful context for debugging
+    # Debug context.
     context["candidate_tags_subset"] = {
         TAG_GATE: candidate_tags.get(TAG_GATE, ""),
         TAG_RELEASE_STATUS: candidate_tags.get(TAG_RELEASE_STATUS, ""),
@@ -137,7 +127,7 @@ def evaluate_promotion_policy(
         TAG_TRAINING_RUN_ID: candidate_tags.get(TAG_TRAINING_RUN_ID, ""),
     }
 
-    # Policy: must have required metadata tags
+    # Required metadata tags.
     missing = _missing_required_tags(candidate_tags)
     if missing:
         errors.append(
@@ -148,7 +138,7 @@ def evaluate_promotion_policy(
             )
         )
 
-    # Policy: gate must be passed
+    # Gate must pass.
     gate_val = str(candidate_tags.get(TAG_GATE, "")).strip()
     if gate_val != GATE_PASSED:
         errors.append(
@@ -159,7 +149,7 @@ def evaluate_promotion_policy(
             )
         )
 
-    # Policy: release_status must match the from_alias (candidate)
+    # release_status must match the source alias.
     rs_val = str(candidate_tags.get(TAG_RELEASE_STATUS, "")).strip()
     if rs_val != from_alias:
         errors.append(
@@ -170,7 +160,7 @@ def evaluate_promotion_policy(
             )
         )
 
-    # Policy: prevent no-op promotions (candidate already prod)
+    # Block no-op promotions.
     if current_prod_version is not None and str(current_prod_version) == str(
         candidate_version
     ):
@@ -185,7 +175,7 @@ def evaluate_promotion_policy(
             )
         )
 
-    # Warnings (non-blocking) — auditability / traceability
+    # Non-blocking auditability checks.
     if not str(candidate_tags.get(TAG_SOURCE_RUN_ID, "")).strip():
         warnings.append(
             Violation(
@@ -195,7 +185,7 @@ def evaluate_promotion_policy(
             )
         )
     else:
-        # Optional: validate the run exists (auditability)
+        # Best-effort run lookup.
         run_id = str(candidate_tags.get(TAG_SOURCE_RUN_ID, "")).strip()
         try:
             client.get_run(run_id)

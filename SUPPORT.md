@@ -2,7 +2,7 @@
 
 ## How to get help
 
-Use the following paths depending on the kind of request:
+Use these paths:
 
 - bug reports: open a GitHub issue using the bug template
 - feature requests: open a GitHub issue using the feature template
@@ -11,7 +11,7 @@ Use the following paths depending on the kind of request:
 
 ## Before opening an issue
 
-Please check:
+Please check these first:
 
 - [`README.md`](README.md) for the project overview and local commands
 - [`CONTRIBUTING.md`](CONTRIBUTING.md) for contribution expectations
@@ -21,12 +21,9 @@ Please check:
 
 ## What maintainers can help with
 
-This repository is currently maintained as a small open source project. Maintainer
-support is best-effort and focused on:
+This is a small OSS project. Maintainer support is best-effort and focused on:
 
-- reproducible bugs in the current supported local workflow
+- possible bugs or new features in the current local workflow
+- contributions aligned with the active roadmap
 - documentation corrections
-- scoped contributions aligned with the active roadmap
-
-Support is not a guarantee of custom design consulting, immediate turnaround, or
-private feature implementation.
+- planning deployment in GCP / AWS

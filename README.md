@@ -4,7 +4,7 @@
 [![E2E](https://github.com/jellewillekes/ml-lifecycle-platform/actions/workflows/e2e.yml/badge.svg?event=schedule)](https://github.com/jellewillekes/ml-lifecycle-platform/actions/workflows/e2e.yml)
 [![Coverage](https://codecov.io/gh/jellewillekes/ml-lifecycle-platform/branch/master/graph/badge.svg)](https://codecov.io/gh/jellewillekes/ml-lifecycle-platform)
 
-A production-style model release platform that manages the full lifecycle of machine learning models with an emphasis on safety, reproducibility, and operational discipline.
+A production ML platform for safe, reproducible model promotion and serving, composed of modular, industry-standard infra services.
 
 The platform supports:
 
@@ -17,37 +17,30 @@ The platform supports:
 - Online serving
 - End-to-end verification
 
-This repository serves as a reference implementation for ML platform engineering patterns.
+This repo is a reference implementation for ML platform engineering patterns, mainly for personal use.
 
-For the verified baseline architecture and current capabilities, start with
-`docs/architecture/current-state.md`.
+See `docs/architecture/current-state.md` for the verified baseline.
+See `docs/architecture/m0-portability-charter.md` for the frozen `M0` target.
 
 ---
 
 ## System Guarantees
 
-The platform enforces the following invariants:
+The platform guarantees the following properties:
 
-- Reproducible runs
-  Every training run logs dataset fingerprint, config hash, git SHA, and is immutable.
-
-- Quality-gated promotion
-  `candidate → prod` promotion only happens when evaluation gates pass and all required metadata is present.
-
-- Alias-first registry model
-  Deployment is driven by MLflow aliases (`candidate`, `prod`, `champion`). Stages are not used.
-
-- Deterministic rollback
-  Each promotion records `previous_prod_version`. Rollback is a based on alias mutation.
-
-- Artifact lineage
-  Every model version links to its source training run and metadata.
-
-- Control-plane / data-plane separation
-  Training, registry policy, and serving are independent.
-
-- End-to-end verifiability
-  CI and E2E validate training, policy checks, promotion, serving, and rollback.
+- Reproducible runs: every training run logs dataset fingerprint, config hash,
+  and git SHA.
+- Quality-gated promotion: `candidate -> prod` only happens after evaluation
+  passes and required metadata is present.
+- Alias-first registry model: deployment is driven by MLflow aliases
+  (`candidate`, `prod`, `champion`), not stages.
+- Deterministic rollback: each promotion records `previous_prod_version`.
+  Rollback is alias mutation.
+- Artifact lineage: every model version links back to its source training run.
+- Control-plane / data-plane separation: training, registry policy, and serving
+  are separate.
+- End-to-end verifiability: CI and E2E validate training, policy checks,
+  promotion, serving, and rollback.
 
 ---
 
@@ -76,12 +69,12 @@ Promotion is blocked if any tag is missing.
 
 ### Policy Check (Non-Mutating)
 
-Promotion can be executed in dry-run mode.
+Promotion supports dry-run mode.
 
-- Evaluates metadata requirements
-- Verifies evaluation gate status
-- Returns a structured JSON decision report
-- Performs no registry writes or state changes
+- checks required metadata
+- checks evaluation gate status
+- returns a structured JSON decision report
+- performs no registry writes
 
 Example:
 
@@ -100,7 +93,7 @@ The output contract:
 }
 ```
 
-CI and E2E rely on this contract.
+CI and E2E rely on this output.
 
 ### Rollback Metadata
 
@@ -133,10 +126,13 @@ previous_prod_version=<version>
 - Shadow traffic duplicator
 
 ### Lifecycle
+
 ```
 Ingest → Featurize → Train → Evaluate → Register → Promote → Serve
 ```
-Serving Path:
+
+Serving path:
+
 ```
 models:/<name>@prod → FastAPI → Clients
 ```
@@ -218,7 +214,7 @@ Clients
 make down && make clean && make up && make run-pipeline && make policy-check && make promote && make serve && make smoke-test && make e2e
 ```
 
-Service Endpoints:
+Service endpoints:
 
 - MLflow UI: http://localhost:5050
 - MinIO Console: http://localhost:9001
@@ -260,7 +256,7 @@ POST /predict?mode=prod|candidate|canary|shadow
 | canary    | Deterministic traffic split between prod and candidate                   |
 | shadow    | Executes candidate in parallel; response derived from prod               |
 
-Canary routing is deterministic per request (bucketed by payload hash).
+Canary routing is deterministic per request.
 
 ---
 
@@ -278,7 +274,7 @@ Canary routing is deterministic per request (bucketed by payload hash).
 
 ### Recovery
 
-Rollback is explicit and deterministic:
+Rollback is explicit:
 
 ```bash
 make rollback-prod
@@ -337,5 +333,5 @@ release model and failure-handling notes, see `docs/releases.md`.
 
 ## Security & Licensing
 
-- Security issues: see SECURITY.md
-- License: MIT (see LICENSE)
+- Security issues: see `SECURITY.md`
+- License: MIT in `LICENSE`

@@ -34,7 +34,7 @@ from .settings import Settings, get_settings
 logger = logging.getLogger("serving")
 
 
-# Model cache (module-level so tests can monkeypatch)
+# Module-level cache. Tests monkeypatch it.
 model_prod: Any | None = None
 model_candidate: Any | None = None
 prod_version: str | None = None
@@ -42,9 +42,8 @@ candidate_version: str | None = None
 _last_refresh_ts: float = 0.0
 
 
-# App lifecycle
 def _configure_logging(settings: Settings) -> None:
-    # Being called repeatedly, basicConfig is a no-op after first call.
+    # Safe to call more than once.
     logging.basicConfig(level=settings.log_level)
 
 
@@ -60,17 +59,12 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None, None]:
 app = FastAPI(lifespan=lifespan)
 
 
-# Middleware
 @app.middleware("http")
 async def request_id_middleware(
     request: Request,
     call_next: Callable[[Request], Awaitable[Response]],
 ) -> Response:
-    """Ensure every request has a request-id.
-
-    If client supplies X-Request-Id, keep it for deterministic bucketing.
-    Otherwise generate one.
-    """
+    """Set or preserve the request ID."""
     incoming = request.headers.get(HEADER_REQUEST_ID)
     if incoming and incoming.strip():
         request.state.request_id = incoming.strip()
@@ -89,11 +83,11 @@ async def coarse_metrics_middleware(
     request: Request,
     call_next: Callable[[Request], Awaitable[Response]],
 ) -> Response:
-    """Count all requests (bounded labels)."""
+    """Count requests with bounded labels."""
 
     endpoint = request.url.path
 
-    # Avoid self-scrape recursion / noise.
+    # Skip self-scrape noise.
     if endpoint == "/metrics":
         return await call_next(request)
 
@@ -116,7 +110,6 @@ async def coarse_metrics_middleware(
     return response
 
 
-# Schemas
 class PredictRequest(BaseModel):
     rows: list[dict[str, Any]] = Field(
         ..., description="List of feature dicts (one per row)"
@@ -133,15 +126,11 @@ class PredictResponse(BaseModel):
     bucket_seed_source: str | None = None
 
 
-# Registry / model helpers
 class _UnitTestModel:
-    """Minimal model stub for unit tests.
-
-    Keeps /predict behavior stable without requiring MLflow.
-    """
+    """Deterministic stub for unit tests."""
 
     def predict(self, df: pd.DataFrame) -> list[float]:
-        # Return deterministic "probabilities" in [0,1].
+        # Return deterministic probabilities in [0, 1].
         n = len(df)
         return [1.0] * n
 
@@ -151,7 +140,7 @@ def _models_uri(settings: Settings, alias: str) -> str:
 
 
 def _registry_resolves_prod_alias(settings: Settings) -> tuple[bool, str | None]:
-    """Return (ok, detail). Simple MLflow call."""
+    """Return whether the prod alias resolves."""
     if settings.unit_testing:
         return True, None
     if mlflow is None:
@@ -177,14 +166,14 @@ def _get_version(settings: Settings, alias: str) -> str | None:
 
 
 def _load_model(settings: Settings, alias: str) -> Any:
-    # In unit tests, always return a deterministic stub model.
+    # Unit tests always use a deterministic stub.
     if settings.unit_testing:
         return _UnitTestModel()
 
     if mlflow is None:
         raise RuntimeError("mlflow not available in serving image")
 
-    # Defensive: sometimes people accidentally install a stub/namespace package named "mlflow".
+    # Guard against broken or stub MLflow installs.
     pyfunc = getattr(mlflow, "pyfunc", None)
     if pyfunc is None:
         raise RuntimeError("mlflow.pyfunc is missing (mlflow install is broken)")
@@ -198,10 +187,7 @@ def _refresh_models_if_needed(
     force: bool = False,
     load_candidate: bool = False,
 ) -> None:
-    """Populate model_prod/model_candidate and versions.
-
-    Globals are intentional: tests can monkeypatch without MLflow.
-    """
+    """Refresh cached models and versions."""
     global \
         model_prod, \
         model_candidate, \
@@ -250,7 +236,7 @@ def _get_model(
 
 
 def _prod_model_loadable(settings: Settings) -> tuple[bool, str | None]:
-    """Return (ok, detail). Ensures prod model can be used for traffic."""
+    """Return whether the prod model is loadable."""
     try:
         _ = _get_model(settings, ALIAS_PROD, required=True)
         return True, None
@@ -258,10 +244,9 @@ def _prod_model_loadable(settings: Settings) -> tuple[bool, str | None]:
         return False, f"prod model not loadable: {e}"
 
 
-# Health / metrics
 @app.get("/livez")
 def livez() -> dict[str, str]:
-    # No dependencies, no MLflow calls.
+    # No dependencies.
     return {"status": "alive"}
 
 
@@ -319,7 +304,6 @@ def metrics() -> Response:
     return Response(payload, media_type=CONTENT_TYPE_LATEST)
 
 
-# Prediction
 @app.post("/predict", response_model=PredictResponse)
 async def predict(
     request: Request,
@@ -338,7 +322,7 @@ async def predict(
     shadow_mae: float | None = None
 
     try:
-        # Routing decision (deterministic bucket only in canary mode)
+        # Bucket only matters in canary mode.
         if mode == "canary":
             bd = choose_canary_bucket(
                 BucketContext(
@@ -371,13 +355,13 @@ async def predict(
             ALIAS_CANDIDATE if primary_alias == ALIAS_PROD else ALIAS_PROD,
         )
 
-        # Important: ensure candidate is loaded only when needed (candidate traffic or shadow run).
+        # Load candidate only when needed.
         _refresh_models_if_needed(
             settings,
             load_candidate=(primary_alias == ALIAS_CANDIDATE or decision.run_shadow),
         )
 
-        # Primary model must exist for prod/candidate routes.
+        # Primary model must exist.
         model_primary = _get_model(settings, primary_alias, required=True)
         if model_primary is None:
             status_code = 503
@@ -389,7 +373,7 @@ async def predict(
         y_primary = model_primary.predict(df)  # type: ignore[union-attr]
         y_primary_list = [float(x) for x in list(y_primary)]
 
-        # Optional shadow prediction (best-effort, never fails request)
+        # Shadow prediction is best-effort.
         if decision.run_shadow:
             model_shadow = _get_model(settings, shadow_alias, required=False)
             if model_shadow is not None:

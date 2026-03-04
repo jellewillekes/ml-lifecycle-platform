@@ -1,8 +1,8 @@
 # Changelog
 
-All notable changes to this project are documented here.
+All important changes and updates to this project are documented here.
 
-This repo follows Conventional Commits and uses Release Please to generate release PRs.
+This repo uses Conventional Commits and Release Please.
 
 ## [0.3.0](https://github.com/jellewillekes/ml-lifecycle-platform/compare/v0.2.1...v0.3.0) (2026-03-02)
 
@@ -35,13 +35,14 @@ This repo follows Conventional Commits and uses Release Please to generate relea
 
 The sections above are managed by Release Please.
 
-The section below is a manually preserved historical note for the initial platform release.
+The section below contains the initial platform release notes.
 
 ## [0.1.0](https://github.com/jellewillekes/ml-lifecycle-platform/releases/tag/v0.1.0)
 
 Initial Platform Release
 
-This release bootstraps a production-style model release platform with safe promotion, progressive delivery, reproducibility, and operational foundations.
+This release introduced the core model release platform with safe promotion,
+progressive delivery, reproducibility, and operational basics.
 
 ### Highlights
 

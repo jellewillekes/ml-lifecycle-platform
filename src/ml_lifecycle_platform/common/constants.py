@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-# Centralized constants across pipeline steps.
+# Shared constants.
 
 # Contracts schema versions
 DATASET_FINGERPRINT_SCHEMA_VERSION = "dataset_fingerprint/v1"
@@ -8,7 +8,7 @@ MODEL_REF_SCHEMA_VERSION = "model_ref/v1"
 FEATURE_STATS_SCHEMA_VERSION = "feature_stats/v1"
 REPRO_CONTRACT_SCHEMA_VERSION = "repro_contract/v1"
 
-# MLflow tags (keys)
+# MLflow tag keys
 TAG_STEP = "step"
 TAG_MODEL_NAME = "model_name"
 
@@ -19,8 +19,8 @@ TAG_ROW_COUNT = "row_count"
 TAG_DATA_SOURCE_URI = "data_source_uri"
 
 # Promotion guardrail tags
-# NOTE: Dataset lineage already exists as multiple tags (content/schema hashes, row_count, uri).
-# For promotion safety we additionally compute a single stable fingerprint hash.
+# Dataset lineage already exists as several tags. Promotion also uses one stable
+# fingerprint hash.
 TAG_DATASET_FINGERPRINT = "dataset_fingerprint"
 TAG_CONFIG_HASH = "config_hash"
 TAG_TRAINING_RUN_ID = "training_run_id"
@@ -36,7 +36,7 @@ TAG_PREVIOUS_PROD_VERSION = "previous_prod_version"
 
 # MLflow tag values
 GATE_PASSED = "passed"
-GATE_FAILED = "failed"  # for later - tests
+GATE_FAILED = "failed"  # Used in tests.
 RELEASE_STATUS_PREVIOUS_PROD = "previous_prod"
 
 # Steps
@@ -47,7 +47,7 @@ STEP_EVALUATE = "evaluate"
 STEP_REGISTER = "register"
 STEP_PROMOTE = "promote"
 
-# Artifacts (filenames)
+# Artifact file names
 ART_TRAIN_RUN_ID = "TRAIN_RUN_ID"
 ART_GATE_OK = "gate_ok.txt"
 ART_REGISTERED_VERSION = "REGISTERED_VERSION"
@@ -61,7 +61,7 @@ ART_REPRO_EXPECTED_PREDICTIONS_JSON = "expected_predictions.json"
 ART_REPRO_REPORT_JSON = "reproduce_report.json"
 ART_UV_LOCK = "uv.lock"
 
-# Artifact paths (within MLflow)
+# Artifact paths inside MLflow
 MLFLOW_ARTIFACT_PATH_REPORTS = "reports"
 MLFLOW_ARTIFACT_PATH_MODEL = "model"
 MLFLOW_ARTIFACT_PATH_REPRO = "repro"
@@ -71,7 +71,7 @@ ALIAS_CANDIDATE = "candidate"
 ALIAS_PROD = "prod"
 ALIAS_CHAMPION = "champion"
 
-# Target file names
+# Dataset file names
 LABEL_COL = "target"
 RAW_CSV = "raw.csv"
 TRAIN_CSV = "train.csv"
