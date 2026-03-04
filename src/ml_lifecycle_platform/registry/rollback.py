@@ -12,18 +12,7 @@ logger = logging.getLogger(__name__)
 
 
 def rollback_prod(client: MlflowClient, model_name: str) -> None:
-    """Rolls back prod to the previously recorded prod version.
-
-    Contract (strict):
-      - prod alias must exist
-      - current prod version must have TAG_PREVIOUS_PROD_VERSION
-      - rollback flips prod alias to the previous version
-      - after rollback, we set TAG_PREVIOUS_PROD_VERSION on the restored version so the
-        user can "undo" the rollback once (swap back).
-
-    Raises:
-      RuntimeError: if rollback metadata is missing.
-    """
+    """Roll back prod to the recorded previous prod version."""
     current_prod = client.get_model_version_by_alias(model_name, ALIAS_PROD)
     tags = current_prod.tags or {}
     prev = str(tags.get(TAG_PREVIOUS_PROD_VERSION, "")).strip()
@@ -36,7 +25,7 @@ def rollback_prod(client: MlflowClient, model_name: str) -> None:
 
     client.set_registered_model_alias(model_name, ALIAS_PROD, prev)
 
-    # Allow a one-step "undo": after rollback to prev, set prev's pointer to the version we came from.
+    # Allow a one-step undo.
     client.set_model_version_tag(
         name=model_name,
         version=prev,

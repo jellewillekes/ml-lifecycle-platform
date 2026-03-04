@@ -43,7 +43,7 @@ def test_choose_canary_bucket_falls_back_to_payload_hash_when_no_request_id() ->
 
 
 def test_decide_routing_is_deterministic_given_bucket() -> None:
-    # routing is a pure function of (mode, canary_pct, bucket)
+    # Routing is a pure function of (mode, canary_pct, bucket).
     bucket = 10
     r1 = decide_routing(mode="canary", canary_pct=20, bucket=bucket)
     r2 = decide_routing(mode="canary", canary_pct=20, bucket=bucket)

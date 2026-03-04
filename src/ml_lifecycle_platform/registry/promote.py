@@ -32,7 +32,7 @@ def _print_decision(decision: PolicyDecision, fmt: str) -> None:
         print(json.dumps(decision.to_dict(), indent=2, sort_keys=True))
         return
 
-    # text format
+    # Text output.
     print(f"allowed={decision.allowed}")
     for v in decision.errors:
         print(f"ERROR {v.code}: {v.message} {v.details}")
@@ -52,14 +52,14 @@ def _try_get_prod_version(client: MlflowClient, model_name: str) -> str | None:
 def apply_promotion(
     client: MlflowClient, model_name: str, candidate_version: str, from_alias: str
 ) -> None:
-    """Apply promotion side effects. Call only after policy allows it."""
+    """Apply promotion side effects after policy allows it."""
     prev_prod_version = _try_get_prod_version(client, model_name)
 
-    # 1) Set aliases
+    # Set aliases.
     client.set_registered_model_alias(model_name, ALIAS_PROD, candidate_version)
     client.set_registered_model_alias(model_name, ALIAS_CHAMPION, candidate_version)
 
-    # 2) Promotion evidence tags on the new prod version
+    # Tag the new prod version.
     client.set_model_version_tag(
         name=model_name,
         version=candidate_version,
@@ -73,7 +73,7 @@ def apply_promotion(
         value=from_alias,
     )
 
-    # 3) Persist previous prod version for deterministic rollback
+    # Store the previous prod version for rollback.
     if prev_prod_version is not None:
         client.set_model_version_tag(
             name=model_name,
@@ -82,7 +82,7 @@ def apply_promotion(
             value=prev_prod_version,
         )
 
-        # Optional: mark old prod release_status as previous_prod (nice audit trail)
+        # Best-effort audit tag on the old prod version.
         try:
             client.set_model_version_tag(
                 name=model_name,
@@ -91,7 +91,7 @@ def apply_promotion(
                 value=RELEASE_STATUS_PREVIOUS_PROD,
             )
         except Exception:
-            # Best-effort only; do not break promotion if we can't tag old prod.
+            # Do not fail promotion if this tag write fails.
             logger.info(
                 "Could not mark old prod version %s as %s",
                 prev_prod_version,
@@ -139,11 +139,11 @@ def main(argv: list[str] | None = None) -> None:
     _print_decision(decision, args.format)
 
     if args.dry_run:
-        # IMPORTANT: no side effects in dry-run
+        # Dry-run must not mutate state.
         raise SystemExit(0 if decision.allowed else 2)
 
     if not decision.allowed:
-        # Not allowed: do not mutate anything
+        # Blocked. Do not mutate state.
         raise SystemExit(2)
 
     candidate_version = str(decision.context["candidate_version"])

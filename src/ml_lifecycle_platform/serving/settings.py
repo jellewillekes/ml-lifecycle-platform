@@ -20,10 +20,7 @@ from .constants import (
 
 
 class Settings(BaseSettings):
-    """Serving configuration.
-
-    Small and operationally relevant.
-    """
+    """Serving configuration."""
 
     model_config = SettingsConfigDict(extra="ignore")
 
@@ -40,11 +37,11 @@ class Settings(BaseSettings):
 
     log_level: str = Field(default="INFO", validation_alias=ENV_LOG_LEVEL)
 
-    # Used to disable real MLflow loads during unit tests.
+    # Disable real MLflow loads in unit tests.
     unit_testing: bool = Field(default=False, validation_alias=ENV_UNIT_TESTING)
 
 
 @lru_cache(maxsize=1)
 def get_settings() -> Settings:
-    # Cached for stability + to avoid reparsing env vars on each request.
+    # Avoid reparsing env vars on every request.
     return Settings()

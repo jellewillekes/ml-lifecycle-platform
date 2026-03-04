@@ -35,7 +35,7 @@ def main() -> None:
     X_test = test_df.drop(columns=[LABEL_COL])
     y_test = test_df[LABEL_COL].astype(int)
 
-    # Orchestrator passes TRAIN_RUN_ID
+    # The orchestrator writes TRAIN_RUN_ID.
     train_run_id = (ART_DIR / ART_TRAIN_RUN_ID).read_text(encoding="utf-8").strip()
 
     model_uri = f"runs:/{train_run_id}/{MLFLOW_ARTIFACT_PATH_MODEL}"
@@ -54,7 +54,7 @@ def main() -> None:
     report_path = ART_DIR / ART_EVALUATION_JSON
     write_json(report_path, metrics)
 
-    # ROC curve
+    # ROC curve.
     fig_path = ART_DIR / ART_ROC_CURVE_PNG
     plt.figure()
     RocCurveDisplay.from_predictions(y_test, proba)
@@ -69,7 +69,7 @@ def main() -> None:
         )
         mlflow.log_artifact(str(fig_path), artifact_path=MLFLOW_ARTIFACT_PATH_REPORTS)
 
-        # Gate decision (simple): roc_auc >= 0.95
+        # Simple gate: roc_auc >= 0.95.
         gate_ok = metrics["eval_roc_auc"] >= 0.95
         gate_path = ART_DIR / ART_GATE_OK
         gate_path.write_text("true" if gate_ok else "false", encoding="utf-8")

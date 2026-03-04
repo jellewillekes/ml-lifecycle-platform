@@ -4,10 +4,10 @@
 <!-- What changed? -->
 
 ## Why
-<!-- Why now? What user/system impact? Link issue(s) if applicable. -->
+<!-- Why now? What user or system impact? Link issue(s) if applicable. -->
 
 ## How
-<!-- Key decisions / tradeoffs. Call out anything non-obvious. -->
+<!-- Key decisions and trade-offs. Explain changes and anything non-obvious. -->
 
 ## Testing
 - [ ] Unit
@@ -15,7 +15,7 @@
 - [ ] Manual (describe)
 
 ## Risk
-<!-- Blast radius and failure modes. -->
+<!-- How can the change result in mal functioning of the platform?. -->
 
 ## Rollback
-<!-- Concrete rollback: revert SHA / command / config change. -->
+<!-- Clear rollback option: revert SHA / command / config change. -->

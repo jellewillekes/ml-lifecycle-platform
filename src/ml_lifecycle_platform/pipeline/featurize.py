@@ -64,7 +64,7 @@ def main() -> None:
     train_df.to_csv(train_path, index=False)
     test_df.to_csv(test_path, index=False)
 
-    # Keep it simple + compatible with your train.py which loads this artifact.
+    # Keep this compatible with train.py, which loads this artifact.
     preprocessor = Pipeline(
         steps=[
             ("scale", StandardScaler(with_mean=True, with_std=True)),

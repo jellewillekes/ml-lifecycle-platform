@@ -9,7 +9,7 @@ pytestmark = pytest.mark.unit
 
 
 def _parse_labels(label_blob: str) -> dict[str, str]:
-    # a="b",c="d"
+    # Example: a="b",c="d"
     out: dict[str, str] = {}
     if not label_blob.strip():
         return out
@@ -20,7 +20,7 @@ def _parse_labels(label_blob: str) -> dict[str, str]:
 
 
 def _get_counter_value(text: str, metric_name: str, want: dict[str, str]) -> float:
-    # accept any label order
+    # Accept any label order.
     pat = re.compile(rf"^{re.escape(metric_name)}\{{([^}}]*)\}}\s+([0-9eE\.\+\-]+)$")
     for line in text.splitlines():
         m = pat.match(line)
@@ -35,7 +35,7 @@ def _get_counter_value(text: str, metric_name: str, want: dict[str, str]) -> flo
 def test_predict_increments_metrics(client: TestClient) -> None:
     base = client.get("/metrics").text
 
-    # middleware labels: endpoint, mode, status
+    # Middleware labels are endpoint, mode, and status.
     labels = {"endpoint": "/predict", "mode": "prod", "status": "200"}
     base_count = _get_counter_value(base, "requests_total", labels)
 

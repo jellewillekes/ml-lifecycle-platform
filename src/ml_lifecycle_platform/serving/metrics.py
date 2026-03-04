@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from prometheus_client import Counter, Histogram
 
-# Labels are bounded, we do not label by request_id, model_name, etc.
+# Labels stay bounded. Do not label by request_id, model_name, or similar.
 REQUESTS_TOTAL = Counter(
     "requests_total",
     "Total HTTP requests handled by the serving API.",
@@ -13,7 +13,7 @@ PREDICT_LATENCY_SECONDS = Histogram(
     "predict_latency_seconds",
     "Latency of /predict requests in seconds.",
     labelnames=("mode", "status", "chosen"),
-    # Optional buckets, Prometheus defaults work good for now.
+    # Prometheus defaults are fine for now.
 )
 
 SHADOW_DIFF_MAE = Histogram(

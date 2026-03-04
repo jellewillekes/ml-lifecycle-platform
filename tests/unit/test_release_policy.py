@@ -29,13 +29,13 @@ class _ModelVersion:
 
 
 class MlflowClientStub:
-    """Tiny stub for policy and promote dry-run tests."""
+    """Small stub for policy and promote dry-run tests."""
 
     def __init__(self) -> None:
         self._aliases: dict[tuple[str, str], str] = {}
         self._versions: dict[tuple[str, str], _ModelVersion] = {}
 
-        # Mutation call tracking
+        # Track mutation calls.
         self.set_registered_model_alias_calls: list[
             tuple[tuple[Any, ...], dict[str, Any]]
         ] = []
@@ -51,7 +51,7 @@ class MlflowClientStub:
     def set_alias(self, model_name: str, alias: str, version: str) -> None:
         self._aliases[(model_name, alias)] = version
 
-    # --- Read APIs used by policy ---
+    # Read APIs used by policy.
     def get_model_version_by_alias(self, model_name: str, alias: str) -> _ModelVersion:
         v = self._aliases[(model_name, alias)]
         return self._versions[(model_name, v)]
@@ -60,10 +60,10 @@ class MlflowClientStub:
         return self._versions[(model_name, version)]
 
     def get_run(self, run_id: str) -> dict[str, str]:
-        # default: pretend it exists
+        # Default: pretend it exists.
         return {"run_id": run_id}
 
-    # --- Write APIs used by apply_promotion (should not be called in dry-run) ---
+    # Write APIs used by apply_promotion. Dry-run must not call them.
     def set_registered_model_alias(self, *args: Any, **kwargs: Any) -> None:
         self.set_registered_model_alias_calls.append((args, kwargs))
 
@@ -149,12 +149,12 @@ def test_dry_run_mode_has_zero_mutations(monkeypatch: pytest.MonkeyPatch) -> Non
     client.put_version("m", "1", tags)
     client.set_alias("m", ALIAS_CANDIDATE, "1")
 
-    # Patch the configured MLflow client helper to return our stub instance.
+    # Return the stub from the configured MLflow client helper.
     import ml_lifecycle_platform.registry.promote as promote_mod
 
     monkeypatch.setattr(promote_mod, "mlflow_client", lambda: client)
 
-    # Run promote in dry-run mode: must exit 0 and must not mutate
+    # Dry-run must exit 0 and must not mutate.
     with pytest.raises(SystemExit) as e:
         promote_main(["--model-name", "m", "--dry-run", "--format", "json"])
     assert e.value.code == 0

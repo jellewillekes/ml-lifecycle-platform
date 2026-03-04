@@ -2,14 +2,14 @@
 
 ## Current model
 
-This project is currently maintained by a single primary maintainer.
+This project currently has one primary maintainer.
 
 See [`.github/CODEOWNERS`](.github/CODEOWNERS) for the current review owner.
 
 ## Decision model
 
-Until the maintainer group expands, repository decisions are made by the primary
-maintainer with the following priorities:
+Until the maintainer group expands, the primary maintainer makes repo
+decisions with these priorities:
 
 - keep the local golden path working
 - keep changes small and reviewable
@@ -18,13 +18,13 @@ maintainer with the following priorities:
 
 ## Contribution model
 
-External contributions are welcome through issues and pull requests.
+External contributions are welcome.
 
-The best contributions are:
+Good contributions are:
 
 - small in scope
 - linked to an issue or clearly motivated in the PR description
 - tested appropriately for their blast radius
 - aligned with the current roadmap and architecture constraints
 
-As the project grows, this file can evolve into a fuller governance document.
+This file might become a larger governance document later.

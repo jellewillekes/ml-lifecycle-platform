@@ -23,7 +23,7 @@ from ml_lifecycle_platform.common.constants import (
 
 @dataclass(frozen=True)
 class DatasetFingerprint:
-    """Minimal dataset lineage contract for a model training run."""
+    """Dataset lineage contract for one training run."""
 
     git_sha: str
     dataset_content_hash: str
@@ -80,13 +80,7 @@ def _sha256_bytes(payload: bytes) -> str:
 
 
 def get_git_sha() -> str:
-    """Return current git SHA if available.
-
-    Order of precedence:
-      1) GIT_SHA env var (recommended in CI)
-      2) `git rev-parse HEAD` if repo is present in container
-      3) "unknown"
-    """
+    """Return the current git SHA if available."""
     env_sha = os.getenv("GIT_SHA")
     if env_sha:
         return env_sha.strip()
@@ -101,14 +95,14 @@ def get_git_sha() -> str:
 
 
 def schema_hash(df: pd.DataFrame) -> str:
-    """Hash only schema: column names + dtypes."""
+    """Hash only the schema: column names and dtypes."""
     schema = [(str(c), str(df[c].dtype)) for c in df.columns]
     payload = json.dumps(schema, separators=(",", ":"), sort_keys=False).encode("utf-8")
     return _sha256_bytes(payload)
 
 
 def content_hash(df: pd.DataFrame, *, index_cols: Sequence[str] | None = None) -> str:
-    """Hash dataset content in a deterministic way."""
+    """Hash dataset content deterministically."""
     df2 = df.copy()
     df2 = df2.reindex(sorted(df2.columns), axis=1)
 
@@ -130,7 +124,7 @@ def compute_fingerprint(
     index_cols: Sequence[str] | None = None,
     git_sha: str | None = None,
 ) -> DatasetFingerprint:
-    """Fingerprint over training+test membership."""
+    """Fingerprint the combined train and test data."""
     combined = pd.concat([train_df, test_df], axis=0, ignore_index=True)
     return DatasetFingerprint(
         git_sha=get_git_sha() if git_sha is None else git_sha,

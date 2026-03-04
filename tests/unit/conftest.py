@@ -7,7 +7,7 @@ from pathlib import Path
 import mlflow
 import pytest
 
-# Allow running tests without requiring an editable install (useful for local dev).
+# Allow tests to run without an editable install.
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
@@ -15,11 +15,7 @@ if str(PROJECT_ROOT) not in sys.path:
 
 @pytest.fixture()
 def mlflow_sqlite(tmp_path: Path):
-    """Provide a local MLflow tracking+registry backend for unit tests.
-
-    We use sqlite as a backend store because the MLflow file store does not support
-    the model registry.
-    """
+    """Provide a local MLflow tracking and registry backend for unit tests."""
     db_path = tmp_path / "mlflow.db"
     artifacts = tmp_path / "artifacts"
     artifacts.mkdir(parents=True, exist_ok=True)

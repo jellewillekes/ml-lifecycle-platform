@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Literal
 
-# Serving-side constants (serving is built as a separate image, we don't import from project/*)
+# Serving builds as a separate image. Keep local constants here.
 
 DEFAULT_MODEL_NAME = "breast_cancer_clf"
 

@@ -4,12 +4,12 @@ Last verified: 2026-03-02
 
 ## Purpose
 
-This document is a verified snapshot of what is built in the repository today. It
-describes the current product shape, package layout, operational model, release
-history, and known gaps before the M0 portability refactor begins.
+This document is a verified snapshot of the repo today. It covers the current
+product shape, package layout, operating model, release history, and known gaps
+before the `M0` portability refactor.
 
-Use this page as the baseline for future architecture work. It describes the system
-as it exists now, not the target shape proposed for M0 and beyond.
+Use it as the baseline for future architecture work. It describes the current
+system, not the target `M0+` shape.
 
 ## Verification basis
 
@@ -28,10 +28,10 @@ This snapshot is based on:
 
 ## Executive summary
 
-This repository is a real Python package, not a placeholder scaffold. The package is
-published as `ml-lifecycle-platform` in [`pyproject.toml`](../../pyproject.toml),
-with implementation code under [`src/ml_lifecycle_platform/`](../../src/ml_lifecycle_platform/)
-and tests under [`tests/`](../../tests/).
+This is a real Python package, not a scaffold. It is published as
+`ml-lifecycle-platform` in [`pyproject.toml`](../../pyproject.toml), with code
+under [`src/ml_lifecycle_platform/`](../../src/ml_lifecycle_platform/) and tests
+under [`tests/`](../../tests/).
 
 Today the platform implements:
 
@@ -46,10 +46,10 @@ Today the platform implements:
 - professional repository governance with CI lanes, PR-title enforcement, release
   automation, and security/legal baselines
 
-The repository is already a serious local-first reference implementation for safe ML
-model release operations. It is not yet a hosted production platform, and it does
-not yet have the M0 portability split, handbook/runbook set, drift pipeline, or
-environment-aware deployment workflow.
+The repo is already a local-first reference implementation for safe ML model
+release operations. It is not yet a hosted platform. It does not yet have the
+`M0` portability split, handbook/runbook set, drift pipeline, or
+environment-aware deployment flow.
 
 ## Product and system shape
 
@@ -77,8 +77,8 @@ The current architecture is organized around these package areas:
 
 ### Local operational model
 
-The canonical local system today is a Docker Compose stack plus Makefile command
-wrappers. The stack includes:
+The canonical local system today is Docker Compose plus Makefile wrappers. The
+stack includes:
 
 - MLflow
 - PostgreSQL
@@ -87,7 +87,7 @@ wrappers. The stack includes:
 - Docker Compose
 - `make` targets for operator workflows
 
-The key local entrypoints are defined in [`Makefile`](../../Makefile) and backed by
+The key local entrypoints are in [`Makefile`](../../Makefile) and backed by
 [`docker-compose.yml`](../../docker-compose.yml).
 
 ### Runtime flow
@@ -254,9 +254,9 @@ The repository uses an intentionally split CI model:
 - pushes to `master` add integration tests
 - nightly or manual execution runs the dockerized E2E lane
 
-Release management is Conventional-Commit-driven and handled through Release Please.
-The release source of truth is the squash-merged PR history on `master`, not an
-ad hoc manual changelog process.
+Release management is driven by Conventional Commits and handled by Release
+Please. The release source of truth is the squash-merged PR history on
+`master`, not a manual changelog process.
 
 ## What is not done yet
 
@@ -279,18 +279,18 @@ These are not platform gaps, but they are real repository follow-ups:
 
 - [`.github/dependabot.yml`](../../.github/dependabot.yml) still contains stale
   directories such as `/project` and `/serving`
-- repository health files are not complete for a public OSS workflow yet; there is
-  no `CODE_OF_CONDUCT.md`, issue-template set, or maintainer/governance doc
+- repository health files are still incomplete for a public OSS workflow; there
+  is no `CODE_OF_CONDUCT.md`, and the maintainer/governance model is still
+  minimal
 - some comments still reflect older layout assumptions and should be scrubbed during
   the OSS workflow cleanup
 
 ## Relationship to the roadmap
 
-This page documents the baseline that future M0 work must preserve while changing
-structure. The next architecture documents should answer a different question:
+This page documents the baseline that future `M0` work must preserve while it
+changes structure. The next architecture docs answer a different question:
 
 - this page: what exists today
-- M0 charter and ADRs: what shape the repository is allowed to move toward
+- `M0` charter and ADRs: what shape the repo may move toward
 
-Contributors should use this page to understand the current system before reading
-future portability or cloud-roadmap documents.
+Read this page first, then read future portability or cloud-roadmap docs.
