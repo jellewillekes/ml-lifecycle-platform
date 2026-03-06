@@ -14,7 +14,11 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import accuracy_score, f1_score, roc_auc_score
 from sklearn.pipeline import Pipeline
 
-from ml_lifecycle_platform.common.config import get_experiment_name, get_model_name
+from ml_lifecycle_platform.common.config import (
+    get_experiment_name,
+    get_log_level,
+    get_model_name,
+)
 from ml_lifecycle_platform.common.constants import (
     ART_DATASET_FINGERPRINT_JSON,
     ART_PREPROCESSOR,
@@ -51,6 +55,7 @@ from ml_lifecycle_platform.contracts.dataset_fingerprint import (
     write_fingerprint_json,
 )
 from ml_lifecycle_platform.contracts.repro_contract import ReproContract
+from ml_lifecycle_platform.runtime.bootstrap import configure_mlflow
 
 logger = logging.getLogger(__name__)
 
@@ -188,7 +193,8 @@ def _write_json(path: Path, payload: Mapping[str, Any]) -> None:
 
 
 def main() -> None:
-    logging.basicConfig(level="INFO")
+    logging.basicConfig(level=get_log_level())
+    configure_mlflow()
 
     experiment_name = get_experiment_name()
     ensure_experiment(experiment_name)

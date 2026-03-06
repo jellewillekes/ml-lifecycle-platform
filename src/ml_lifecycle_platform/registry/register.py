@@ -5,7 +5,6 @@ from pathlib import Path
 from typing import Final
 
 import mlflow
-from mlflow.tracking import MlflowClient
 
 from ml_lifecycle_platform.common.config import get_experiment_name, get_model_name
 from ml_lifecycle_platform.common.constants import (
@@ -30,7 +29,9 @@ from ml_lifecycle_platform.common.constants import (
     TAG_SOURCE_RUN_ID,
     TAG_TRAINING_RUN_ID,
 )
+from ml_lifecycle_platform.common.mlflow_utils import client as mlflow_client
 from ml_lifecycle_platform.common.mlflow_utils import ensure_experiment
+from ml_lifecycle_platform.runtime.bootstrap import configure_mlflow
 
 logger = logging.getLogger(__name__)
 
@@ -59,13 +60,14 @@ def _read_required_artifact_text(path: Path, artifact_name: str) -> str:
 
 def main() -> None:
     logging.basicConfig(level="INFO")
+    configure_mlflow()
 
     experiment_name = get_experiment_name()
     ensure_experiment(experiment_name)
     mlflow.set_experiment(experiment_name)
 
     model_name = get_model_name()
-    client = MlflowClient()
+    client = mlflow_client()
 
     train_run_id = _read_required_artifact_text(
         ART_DIR / ART_TRAIN_RUN_ID, ART_TRAIN_RUN_ID

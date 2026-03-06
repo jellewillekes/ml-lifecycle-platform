@@ -3,7 +3,6 @@ from __future__ import annotations
 import argparse
 import json
 import logging
-import os
 import sys
 import tempfile
 from dataclasses import dataclass
@@ -14,7 +13,7 @@ import numpy as np
 import pandas as pd
 from mlflow.tracking import MlflowClient
 
-from ml_lifecycle_platform.common.config import get_model_name
+from ml_lifecycle_platform.common.config import get_log_level, get_model_name
 from ml_lifecycle_platform.common.constants import (
     ART_REPRO_CONTRACT_JSON,
     ART_REPRO_REPORT_JSON,
@@ -368,7 +367,7 @@ def reproduce_model(
 
 
 def main(argv: list[str] | None = None) -> None:
-    logging.basicConfig(level=os.environ.get("LOG_LEVEL", "INFO"))
+    logging.basicConfig(level=get_log_level())
     args = parse_args(sys.argv[1:] if argv is None else argv)
     report_path = Path(args.report_path)
 

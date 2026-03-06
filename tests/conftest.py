@@ -8,6 +8,8 @@ import mlflow
 import numpy as np
 import pytest
 
+from ml_lifecycle_platform.runtime.bootstrap import reset_runtime_context
+
 TEST_TIER_MARKERS = ("unit", "integration", "e2e")
 
 
@@ -40,6 +42,15 @@ def pytest_collection_modifyitems(
 def deterministic_test_state() -> None:
     random.seed(0)
     np.random.seed(0)
+
+
+@pytest.fixture(autouse=True)
+def reset_cached_runtime_state() -> Iterator[None]:
+    reset_runtime_context()
+    try:
+        yield
+    finally:
+        reset_runtime_context()
 
 
 @pytest.fixture()

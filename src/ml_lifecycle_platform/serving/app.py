@@ -20,6 +20,9 @@ try:
 except Exception:  # pragma: no cover
     mlflow = None  # type: ignore[assignment]
 
+from ml_lifecycle_platform.common.mlflow_utils import client as get_mlflow_client
+from ml_lifecycle_platform.runtime.bootstrap import configure_mlflow
+
 from .constants import ALIAS_CANDIDATE, ALIAS_PROD, HEADER_REQUEST_ID
 from .metrics import PREDICT_LATENCY_SECONDS, REQUESTS_TOTAL, SHADOW_DIFF_MAE
 from .router import (
@@ -51,6 +54,7 @@ def _configure_logging(settings: Settings) -> None:
 async def lifespan(_app: FastAPI) -> AsyncGenerator[None, None]:
     settings = get_settings()
     _configure_logging(settings)
+    configure_mlflow()
     logger.info("serving started")
     yield
     logger.info("serving stopped")
@@ -147,7 +151,7 @@ def _registry_resolves_prod_alias(settings: Settings) -> tuple[bool, str | None]
         return False, "mlflow not available in serving image"
 
     try:
-        client = mlflow.tracking.MlflowClient()
+        client = get_mlflow_client()
         _ = client.get_model_version_by_alias(settings.model_name, settings.prod_alias)
         return True, None
     except Exception as e:
@@ -158,7 +162,7 @@ def _get_version(settings: Settings, alias: str) -> str | None:
     if settings.unit_testing or mlflow is None:
         return None
     try:
-        client = mlflow.tracking.MlflowClient()
+        client = get_mlflow_client()
         mv = client.get_model_version_by_alias(settings.model_name, alias)
         return str(mv.version)
     except Exception:
@@ -178,6 +182,7 @@ def _load_model(settings: Settings, alias: str) -> Any:
     if pyfunc is None:
         raise RuntimeError("mlflow.pyfunc is missing (mlflow install is broken)")
 
+    configure_mlflow()
     return pyfunc.load_model(_models_uri(settings, alias))
 
 

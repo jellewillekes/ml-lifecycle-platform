@@ -1,10 +1,10 @@
 from __future__ import annotations
 
 import logging
-import os
 
 from mlflow.tracking import MlflowClient
 
+from ml_lifecycle_platform.common.config import get_log_level, get_model_name
 from ml_lifecycle_platform.common.constants import ALIAS_PROD, TAG_PREVIOUS_PROD_VERSION
 from ml_lifecycle_platform.common.mlflow_utils import client as mlflow_client
 
@@ -38,12 +38,8 @@ def rollback_prod(client: MlflowClient, model_name: str) -> None:
     )
 
 
-def get_model_name() -> str:
-    return os.environ.get("MODEL_NAME", "breast_cancer_clf")
-
-
 def main() -> None:
-    logging.basicConfig(level=os.environ.get("LOG_LEVEL", "INFO"))
+    logging.basicConfig(level=get_log_level())
     rollback_prod(mlflow_client(), get_model_name())
 
 

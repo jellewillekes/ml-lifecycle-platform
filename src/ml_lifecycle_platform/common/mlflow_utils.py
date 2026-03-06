@@ -7,10 +7,14 @@ from typing import Any
 import mlflow
 from mlflow.tracking import MlflowClient
 
-from ml_lifecycle_platform.common.config import get_registry_uri, get_tracking_uri
+from ml_lifecycle_platform.runtime.bootstrap import (
+    configure_mlflow,
+    get_runtime_context,
+)
 
 
 def ensure_experiment(name: str) -> str:
+    configure_mlflow()
     exp = mlflow.get_experiment_by_name(name)
     if exp is None:
         return mlflow.create_experiment(name)
@@ -18,12 +22,22 @@ def ensure_experiment(name: str) -> str:
 
 
 def client() -> MlflowClient:
+    configure_mlflow()
+    runtime = get_runtime_context()
     return MlflowClient(
-        tracking_uri=get_tracking_uri(),
-        registry_uri=get_registry_uri(),
+        tracking_uri=runtime.metadata.tracking_uri,
+        registry_uri=runtime.metadata.registry_uri,
     )
 
 
 def write_json(path: Path, payload: dict[str, Any]) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(payload, indent=2, sort_keys=True))
+    runtime = get_runtime_context()
+    content = json.dumps(payload, indent=2, sort_keys=True).encode("utf-8")
+    try:
+        relative_path = path.relative_to(runtime.artifacts_dir).as_posix()
+    except ValueError:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(content)
+        return
+
+    runtime.artifact_store.write_bytes(relative_path, content)
