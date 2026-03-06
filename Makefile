@@ -9,10 +9,12 @@ PROJECT_NAME := ml-lifecycle-platform
 export GIT_SHA ?= $(shell git rev-parse HEAD 2>/dev/null || echo dev)
 
 UV_PROJECT_DIR := .
+DEPLOYMENTS_LOCAL_DIR ?= deployments/local
+COMPOSE_FILE ?= $(DEPLOYMENTS_LOCAL_DIR)/docker-compose.yml
 
 UV ?= uv
 DOCKER ?= docker
-COMPOSE ?= $(DOCKER) compose
+COMPOSE ?= $(DOCKER) compose -f $(COMPOSE_FILE)
 
 UV_RUN := $(UV) run --project $(UV_PROJECT_DIR)
 PY := $(UV_RUN) python
