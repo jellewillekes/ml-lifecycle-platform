@@ -4,6 +4,19 @@ All important changes and updates to this project are documented here.
 
 This repo uses Conventional Commits and Release Please.
 
+## [0.4.0](https://github.com/jellewillekes/ml-lifecycle-platform/compare/v0.3.1...v0.4.0) (2026-03-06)
+
+
+### Features
+
+* **local-runtime-profile-cli:** implement local profile loader and CLI ([#64](https://github.com/jellewillekes/ml-lifecycle-platform/issues/64)) ([2f2c055](https://github.com/jellewillekes/ml-lifecycle-platform/commit/2f2c0553003da16d4fc9f713723f3d4c99aef2a5))
+* **runtime:** add local backend adapter interfaces ([#62](https://github.com/jellewillekes/ml-lifecycle-platform/issues/62)) ([2f3bdc8](https://github.com/jellewillekes/ml-lifecycle-platform/commit/2f3bdc8d364e5361cd13519934c73cbd27c98433))
+
+
+### Bug Fixes
+
+* **ci:** guard Docker Python version and add PR docker builds ([#59](https://github.com/jellewillekes/ml-lifecycle-platform/issues/59)) ([518788e](https://github.com/jellewillekes/ml-lifecycle-platform/commit/518788e8e8e73ed6756f4604c0c3a59d4ea16e38))
+
 ## [0.3.1](https://github.com/jellewillekes/ml-lifecycle-platform/compare/v0.3.0...v0.3.1) (2026-03-04)
 
 
