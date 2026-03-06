@@ -25,6 +25,7 @@ COPY --from=ghcr.io/astral-sh/uv:0.9.5 /uv /uvx /bin/
 COPY pyproject.toml /app/pyproject.toml
 COPY uv.lock /app/uv.lock
 COPY README.md /app/README.md
+COPY configs /app/configs
 COPY src /app/src
 
 # Install the package and runtime dependencies from the root lockfile.

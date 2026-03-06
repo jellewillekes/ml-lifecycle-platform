@@ -54,13 +54,13 @@ services:
       minio-init:
         condition: service_completed_successfully
     environment:
-      MLFLOW_HOST: 0.0.0.0
-      MLFLOW_PORT: 5000
-      BACKEND_STORE_URI: postgresql://mlflow:mlflow@postgres:5432/mlflow
-      ARTIFACT_ROOT: s3://mlflow/
-      AWS_ACCESS_KEY_ID: minioadmin
-      AWS_SECRET_ACCESS_KEY: minioadmin
-      MLFLOW_S3_ENDPOINT_URL: http://minio:9000
+      MLFLOW_HOST: ${MLFLOW_HOST:-0.0.0.0}
+      MLFLOW_PORT: ${MLFLOW_PORT:-5000}
+      BACKEND_STORE_URI: ${BACKEND_STORE_URI:-postgresql://mlflow:mlflow@postgres:5432/mlflow}
+      ARTIFACT_ROOT: ${ARTIFACT_ROOT:-s3://mlflow/}
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-minioadmin}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-minioadmin}
+      MLFLOW_S3_ENDPOINT_URL: ${MLP_COMPOSE_S3_ENDPOINT_URL:-http://minio:9000}
     ports:
       - "5050:5000"
 
@@ -83,12 +83,15 @@ services:
       mlflow-server:
         condition: service_healthy
     environment:
-      MLFLOW_TRACKING_URI: http://mlflow-server:5000
-      AWS_ACCESS_KEY_ID: minioadmin
-      AWS_SECRET_ACCESS_KEY: minioadmin
-      MLFLOW_S3_ENDPOINT_URL: http://minio:9000
-      MODEL_NAME: breast_cancer_clf
-      EXPERIMENT_NAME: breast-cancer-platform
+      MLP_ENV: ${MLP_ENV:-local}
+      MLFLOW_TRACKING_URI: ${MLP_COMPOSE_TRACKING_URI:-http://mlflow-server:5000}
+      MLFLOW_REGISTRY_URI: ${MLP_COMPOSE_REGISTRY_URI:-http://mlflow-server:5000}
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-minioadmin}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-minioadmin}
+      MLFLOW_S3_ENDPOINT_URL: ${MLP_COMPOSE_S3_ENDPOINT_URL:-http://minio:9000}
+      MODEL_NAME: ${MODEL_NAME:-breast_cancer_clf}
+      EXPERIMENT_NAME: ${EXPERIMENT_NAME:-breast-cancer-platform}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
       GIT_SHA: ${GIT_SHA:-dev}
     command: ["python", "-m", "ml_lifecycle_platform.pipeline.orchestrate"]
     restart: "no"
@@ -102,11 +105,14 @@ services:
       mlflow-server:
         condition: service_healthy
     environment:
-      MLFLOW_TRACKING_URI: http://mlflow-server:5000
-      AWS_ACCESS_KEY_ID: minioadmin
-      AWS_SECRET_ACCESS_KEY: minioadmin
-      MLFLOW_S3_ENDPOINT_URL: http://minio:9000
-      MODEL_NAME: breast_cancer_clf
+      MLP_ENV: ${MLP_ENV:-local}
+      MLFLOW_TRACKING_URI: ${MLP_COMPOSE_TRACKING_URI:-http://mlflow-server:5000}
+      MLFLOW_REGISTRY_URI: ${MLP_COMPOSE_REGISTRY_URI:-http://mlflow-server:5000}
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-minioadmin}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-minioadmin}
+      MLFLOW_S3_ENDPOINT_URL: ${MLP_COMPOSE_S3_ENDPOINT_URL:-http://minio:9000}
+      MODEL_NAME: ${MODEL_NAME:-breast_cancer_clf}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
     command: ["python", "-m", "ml_lifecycle_platform.registry.promote"]
     restart: "no"
 
@@ -119,11 +125,14 @@ services:
       mlflow-server:
         condition: service_healthy
     environment:
-      MLFLOW_TRACKING_URI: http://mlflow-server:5000
-      AWS_ACCESS_KEY_ID: minioadmin
-      AWS_SECRET_ACCESS_KEY: minioadmin
-      MLFLOW_S3_ENDPOINT_URL: http://minio:9000
-      MODEL_NAME: breast_cancer_clf
+      MLP_ENV: ${MLP_ENV:-local}
+      MLFLOW_TRACKING_URI: ${MLP_COMPOSE_TRACKING_URI:-http://mlflow-server:5000}
+      MLFLOW_REGISTRY_URI: ${MLP_COMPOSE_REGISTRY_URI:-http://mlflow-server:5000}
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-minioadmin}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-minioadmin}
+      MLFLOW_S3_ENDPOINT_URL: ${MLP_COMPOSE_S3_ENDPOINT_URL:-http://minio:9000}
+      MODEL_NAME: ${MODEL_NAME:-breast_cancer_clf}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
     command: ["python", "-m", "ml_lifecycle_platform.registry.rollback"]
     restart: "no"
 
@@ -136,13 +145,15 @@ services:
       mlflow-server:
         condition: service_healthy
     environment:
-      MLFLOW_TRACKING_URI: http://mlflow-server:5000
-      AWS_ACCESS_KEY_ID: minioadmin
-      AWS_SECRET_ACCESS_KEY: minioadmin
-      MLFLOW_S3_ENDPOINT_URL: http://minio:9000
-      MODEL_NAME: breast_cancer_clf
-      CANARY_PCT: "10"
-      LOG_LEVEL: "INFO"
+      MLP_ENV: ${MLP_ENV:-local}
+      MLFLOW_TRACKING_URI: ${MLP_COMPOSE_TRACKING_URI:-http://mlflow-server:5000}
+      MLFLOW_REGISTRY_URI: ${MLP_COMPOSE_REGISTRY_URI:-http://mlflow-server:5000}
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-minioadmin}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-minioadmin}
+      MLFLOW_S3_ENDPOINT_URL: ${MLP_COMPOSE_S3_ENDPOINT_URL:-http://minio:9000}
+      MODEL_NAME: ${MODEL_NAME:-breast_cancer_clf}
+      CANARY_PCT: ${CANARY_PCT:-10}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
     ports:
       - "8000:8000"
     healthcheck:
@@ -166,11 +177,10 @@ services:
       serving:
         condition: service_healthy
     environment:
-      SERVE_URL: http://serving:8000
+      SERVE_URL: ${MLP_COMPOSE_SERVE_URL:-http://serving:8000}
     command: ["python", "-m", "ml_lifecycle_platform.serving.smoke_test"]
     restart: "no"
 
 volumes:
   pgdata:
   miniodata:
-
