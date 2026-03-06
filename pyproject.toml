@@ -13,10 +13,14 @@ dependencies = [
     "prometheus-client>=0.20,<1.0",
     "pydantic>=2.12.5",
     "pydantic-settings>=2.12.0",
+    "pyyaml>=6.0.3",
     "requests>=2.32.5",
     "scikit-learn>=1.8.0",
     "uvicorn>=0.40.0",
 ]
+
+[project.scripts]
+mlp = "ml_lifecycle_platform.cli.main:main"
 
 [dependency-groups]
 dev = [

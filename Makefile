@@ -15,8 +15,10 @@ COMPOSE_FILE ?= $(DEPLOYMENTS_LOCAL_DIR)/docker-compose.yml
 UV ?= uv
 DOCKER ?= docker
 COMPOSE ?= $(DOCKER) compose -f $(COMPOSE_FILE)
+MLP_ENV_NAME ?= local
 
 UV_RUN := $(UV) run --project $(UV_PROJECT_DIR)
+MLP := $(UV_RUN) mlp --env $(MLP_ENV_NAME)
 PY := $(UV_RUN) python
 
 RUFF := $(PY) -m ruff
@@ -30,17 +32,6 @@ PYTEST_ARGS ?= -q
 
 SVC_INFRA := postgres minio minio-init mlflow-server
 SVC_IMAGES := mlflow-server pipeline promote rollback serving smoke
-
-# ---- helpers ----
-define assert_allowed_true
-	out="$$($(COMPOSE) run --rm --use-aliases promote python -m ml_lifecycle_platform.registry.promote --dry-run --format json)"; \
-	echo "$$out"; \
-	if command -v jq >/dev/null 2>&1; then \
-		echo "$$out" | jq -e '.allowed == true' >/dev/null; \
-	else \
-		echo "$$out" | grep -Eq '"allowed"[[:space:]]*:[[:space:]]*true'; \
-	fi
-endef
 
 .PHONY: help
 help:
@@ -124,34 +115,27 @@ install-hooks:
 
 .PHONY: up down logs build reset run-pipeline reproduce policy-check promote promote-dry-run rollback-prod serve smoke-test test-e2e e2e e2e-keep
 up:
-	@$(COMPOSE) up -d $(SVC_INFRA)
-	@echo "MLflow UI: http://localhost:5050"
-	@echo "MinIO Console: http://localhost:9001 (user: minioadmin / pass: minioadmin)"
+	@$(MLP) infra up
 
 down:
-	@$(COMPOSE) down -v
+	@$(MLP) infra down
 
 logs:
-	@$(COMPOSE) logs -f --tail=200
+	@$(MLP) infra logs
 
 build:
-	@$(COMPOSE) build $(SVC_IMAGES)
+	@$(MLP) infra build
 
 reset: down
-	@$(COMPOSE) build --no-cache $(SVC_IMAGES)
+	@$(MLP) infra build --no-cache
 
-run-pipeline: build
-	@$(COMPOSE) run --rm --use-aliases pipeline
+run-pipeline:
+	@$(MLP) pipeline run
 
 reproduce:
 	@set -euo pipefail; \
 	model_name="$${MODEL:-breast_cancer_clf}"; \
 	report_path="$${REPORT:-reproduce_report.json}"; \
-	tracking_uri="$${MLFLOW_TRACKING_URI:-http://localhost:5050}"; \
-	registry_uri="$${MLFLOW_REGISTRY_URI:-$$tracking_uri}"; \
-	s3_endpoint="$${MLFLOW_S3_ENDPOINT_URL:-http://localhost:9000}"; \
-	aws_access_key_id="$${AWS_ACCESS_KEY_ID:-minioadmin}"; \
-	aws_secret_access_key="$${AWS_SECRET_ACCESS_KEY:-minioadmin}"; \
 	if [[ -n "$${VERSION:-}" ]]; then \
 		selector=(--model-version "$${VERSION}"); \
 	elif [[ -n "$${ALIAS:-}" ]]; then \
@@ -160,56 +144,39 @@ reproduce:
 		echo "Set VERSION=<model-version> or ALIAS=<alias> for make reproduce."; \
 		exit 2; \
 	fi; \
-	MLFLOW_TRACKING_URI="$$tracking_uri" \
-	MLFLOW_REGISTRY_URI="$$registry_uri" \
-	MLFLOW_S3_ENDPOINT_URL="$$s3_endpoint" \
-	AWS_ACCESS_KEY_ID="$$aws_access_key_id" \
-	AWS_SECRET_ACCESS_KEY="$$aws_secret_access_key" \
-	$(PY) -m ml_lifecycle_platform.registry.reproduce \
+	$(MLP) registry reproduce \
 		--model-name "$$model_name" \
 		"$${selector[@]}" \
 		--report-path "$$report_path"
 
 policy-check:
-	@$(assert_allowed_true)
-	@echo "✅ Policy gate passed (allowed=true)"
+	@$(MLP) registry promote --dry-run --format json
+	@echo "Policy gate passed (allowed=true)"
 
 promote:
-	@$(COMPOSE) run --rm --use-aliases promote
+	@$(MLP) registry promote
 
 promote-dry-run:
-	@$(COMPOSE) run --rm --use-aliases promote python -m ml_lifecycle_platform.registry.promote --dry-run --format json
+	@$(MLP) registry promote --dry-run --format json
 
 rollback-prod:
-	@$(COMPOSE) run --rm --use-aliases rollback
+	@$(MLP) registry rollback
 
-serve: build
-	@$(COMPOSE) up -d --build serving
-	@echo "Serving API: http://localhost:8000 (GET /health, POST /predict)"
+serve:
+	@$(MLP) serve api
 
 smoke-test:
-	@$(COMPOSE) run --rm --use-aliases --build smoke
+	@$(MLP) serve smoke
 
-test-e2e: build
-	@set -euo pipefail; \
-	$(COMPOSE) up -d $(SVC_INFRA); \
-	$(COMPOSE) run --rm --use-aliases pipeline; \
-	$(assert_allowed_true); \
-	$(COMPOSE) run --rm --use-aliases promote; \
-	$(COMPOSE) up -d --build serving; \
-	$(COMPOSE) run --rm --use-aliases --build smoke
+test-e2e:
+	@$(MLP) e2e --keep-stack
 
 e2e:
-	@set -euo pipefail; \
-	cleanup() { $(COMPOSE) down -v; }; \
-	trap cleanup EXIT; \
-	$(MAKE) test-e2e; \
-	echo "✅ E2E passed"
+	@$(MLP) e2e
 
 e2e-keep:
-	@set -euo pipefail; \
-	$(MAKE) test-e2e; \
-	echo "✅ E2E passed (stack kept up). Use 'make logs' or 'make down' when done."
+	@$(MLP) e2e --keep-stack
+	@echo "E2E passed (stack kept up). Use 'make logs' or 'make down' when done."
 
 .PHONY: clean
 clean:
