@@ -1,11 +1,9 @@
-# syntax=docker/dockerfile:1.6
-
 # One Dockerfile for the app repo.
 # Use build targets from docker-compose:
 #   - target: platform
 #   - target: serving
 
-FROM python:3.14-slim AS base
+FROM python:3.11-slim AS base
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
@@ -16,7 +14,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 
-# Practical base: git for registry URIs, curl for healthchecks, uv for locked installs.
+# Base: git for registry URIs, curl for healthchecks, uv for locked installs.
 RUN apt-get update \
   && apt-get install -y --no-install-recommends git curl \
   && rm -rf /var/lib/apt/lists/*
@@ -32,14 +30,14 @@ COPY src /app/src
 # Install the package and runtime dependencies from the root lockfile.
 RUN uv sync --frozen --no-dev
 
-# --- Serving image ----------------------------------------------------------
+# Serving image
 FROM base AS serving
 
 EXPOSE 8000
 CMD ["uv", "run", "--no-dev", "uvicorn", "ml_lifecycle_platform.serving.app:app", "--host", "0.0.0.0", "--port", "8000"]
 
-# --- Platform image (pipeline/promote/rollback one-shot jobs) ---------------
+# Platform image (pipeline/promote/rollback one-shot jobs)
 FROM base AS platform
 
-# docker-compose overrides CMD per service; keep a sane default.
+# docker-compose overrides CMD per service.
 CMD ["uv", "run", "--no-dev", "python", "-m", "ml_lifecycle_platform.pipeline.orchestrate"]
