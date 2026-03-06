@@ -3,12 +3,11 @@ from __future__ import annotations
 import argparse
 import json
 import logging
-import os
 import sys
 
 from mlflow.tracking import MlflowClient
 
-from ml_lifecycle_platform.common.config import get_model_name
+from ml_lifecycle_platform.common.config import get_log_level, get_model_name
 from ml_lifecycle_platform.common.mlflow_utils import client as mlflow_client
 from ml_lifecycle_platform.common.constants import (
     ALIAS_CANDIDATE,
@@ -124,7 +123,7 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
 
 
 def main(argv: list[str] | None = None) -> None:
-    logging.basicConfig(level=os.environ.get("LOG_LEVEL", "INFO"))
+    logging.basicConfig(level=get_log_level())
 
     args = parse_args(sys.argv[1:] if argv is None else argv)
 

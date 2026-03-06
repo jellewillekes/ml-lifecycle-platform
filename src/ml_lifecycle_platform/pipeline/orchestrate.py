@@ -1,17 +1,20 @@
 from __future__ import annotations
 
-import subprocess
 from pathlib import Path
 
 import mlflow
 
-from ml_lifecycle_platform.common.config import get_experiment_name, get_tracking_uri
+from ml_lifecycle_platform.common.config import get_experiment_name
 from ml_lifecycle_platform.common.constants import (
     ART_TRAIN_RUN_ID,
     STEP_TRAIN,
     TAG_STEP,
 )
 from ml_lifecycle_platform.common.mlflow_utils import ensure_experiment
+from ml_lifecycle_platform.runtime.bootstrap import (
+    configure_mlflow,
+    get_runtime_context,
+)
 
 ART_DIR = Path("/app/artifacts")
 
@@ -27,7 +30,10 @@ STEP_MODULES = {
 def _run_step(module: str) -> None:
     print(f"[orchestrate] Running step: {module}")
     module_path = STEP_MODULES[module]
-    subprocess.check_call(["python", "-m", module_path])
+    runtime = get_runtime_context()
+    return_code = runtime.job_runner.run_module(module_path)
+    if return_code != 0:
+        raise RuntimeError(f"Step {module} failed with exit code {return_code}.")
 
 
 def _latest_train_run_id(experiment_id: str) -> str:
@@ -59,10 +65,12 @@ def _latest_train_run_id(experiment_id: str) -> str:
 
 
 def main() -> None:
-    mlflow.set_tracking_uri(get_tracking_uri())
+    runtime = get_runtime_context()
+    configure_mlflow(runtime)
     ensure_experiment(get_experiment_name())
     mlflow.set_experiment(get_experiment_name())
-    ART_DIR.mkdir(parents=True, exist_ok=True)
+    art_dir = runtime.artifacts_dir
+    art_dir.mkdir(parents=True, exist_ok=True)
 
     _run_step("ingest")
     _run_step("featurize")
@@ -72,7 +80,7 @@ def main() -> None:
     assert exp is not None
 
     train_run_id = _latest_train_run_id(exp.experiment_id)
-    (ART_DIR / ART_TRAIN_RUN_ID).write_text(str(train_run_id), encoding="utf-8")
+    (art_dir / ART_TRAIN_RUN_ID).write_text(str(train_run_id), encoding="utf-8")
     print(f"[orchestrate] Captured {ART_TRAIN_RUN_ID}={train_run_id}")
 
     _run_step("evaluate")
