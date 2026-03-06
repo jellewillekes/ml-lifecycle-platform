@@ -73,8 +73,6 @@ services:
       retries: 30
 
     # The mlflow_server image already uses ENTRYPOINT ["/start.sh"].
-    # If that changes, use:
-    # command: ["/start.sh"]
 
   pipeline:
     build:

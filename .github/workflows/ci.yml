@@ -15,6 +15,7 @@ concurrency:
 
 env:
   PYTHON_VERSION: "3.11.7"
+  SUPPORTED_PYTHON_MM: "3.11"
   UV_PYTHON_DOWNLOADS: never
 
 jobs:
@@ -73,6 +74,42 @@ jobs:
           set -euo pipefail
           uv run ruff check --output-format=github .
 
+  docker-python-version-check:
+    name: Docker Python Version Check
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    needs: hygiene
+    permissions:
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Check Docker runtime Python version
+        run: |
+          set -euo pipefail
+          scripts/check_docker_python_version.sh "${{ env.SUPPORTED_PYTHON_MM }}"
+
+  docker-build:
+    name: Docker Build (platform + serving)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: docker-python-version-check
+    permissions:
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Build platform image
+        run: |
+          set -euo pipefail
+          docker build --target platform --tag mlp-platform:ci .
+
+      - name: Build serving image
+        run: |
+          set -euo pipefail
+          docker build --target serving --tag mlp-serving:ci .
 
   typecheck:
     name: Typecheck (mypy)
@@ -185,7 +222,7 @@ jobs:
     if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    needs: [lint, typecheck, unit]
+    needs: [lint, typecheck, unit, docker-build]
 
     steps:
       - uses: actions/checkout@v6
