@@ -20,18 +20,21 @@ from ml_lifecycle_platform.common.constants import (
     ALIAS_CHAMPION,
     ALIAS_PROD,
     ART_GATE_OK,
+    ART_RELEASE_MANIFEST_JSON,
     ART_REGISTERED_VERSION,
     ART_REPRO_REPORT_JSON,
     ART_TRAIN_RUN_ID,
     STEP_TRAIN,
     TAG_DETERMINISTIC_SEED,
     TAG_ENV_LOCK_HASH,
+    TAG_RELEASE_MANIFEST_PATH,
     TAG_PROMOTED_FROM_ALIAS,
     TAG_REPRO_SCHEMA_VERSION,
     TAG_RELEASE_STATUS,
     TAG_SOURCE_RUN_ID,
     TAG_STEP,
 )
+from ml_lifecycle_platform.registry.release_evidence import artifact_root
 
 pytestmark = pytest.mark.integration
 
@@ -177,6 +180,25 @@ def test_reproduce_from_registered_model_version_matches_training_run(
     assert report["status"] == "matched"
     assert report["checks"]["prediction_parity"]["matched"] is True
     assert report["checks"]["env_lock_hash"]["matched"] is True
+
+    client = MlflowClient()
+    reproduced = client.get_model_version(model_name, version)
+    release_root = artifact_root(
+        operation="reproduce",
+        model_name=model_name,
+        model_version=version,
+    )
+    assert reproduced.tags[TAG_RELEASE_MANIFEST_PATH] == (
+        f"{release_root}/{ART_RELEASE_MANIFEST_JSON}"
+    )
+    manifest_path = client.download_artifacts(
+        run_id=reproduced.tags[TAG_SOURCE_RUN_ID],
+        path=f"{release_root}/{ART_RELEASE_MANIFEST_JSON}",
+    )
+    manifest = json.loads(Path(manifest_path).read_text(encoding="utf-8"))
+    assert manifest["operation"] == "reproduce"
+    assert manifest["model_version"] == version
+    assert manifest["result"]["status"] == "matched"
 
 
 def test_reproduce_fails_with_precise_reason_when_env_lock_does_not_match(

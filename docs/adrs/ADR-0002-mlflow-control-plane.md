@@ -12,7 +12,8 @@ The repo already uses MLflow as the release-control system:
 - aliases `candidate`, `prod`, and `champion` define release state
 - promotion policy reads MLflow model-version metadata
 - promotion mutates MLflow aliases and tags
-- rollback uses MLflow alias metadata such as `previous_prod_version`
+- promotion, rollback, and reproduce write release evidence artifacts into MLflow
+- rollback resolves from recorded release manifests and can fall back to `previous_prod_version`
 - serving resolves `models:/<name>@prod`
 
 That is already reflected in the Makefile workflows, Docker Compose runtime,
@@ -30,8 +31,8 @@ In `M0`:
 
 - MLflow registered model versions remain the authoritative release records
 - MLflow aliases remain the authoritative release pointers
-- MLflow model-version tags remain the authoritative promotion and rollback
-  metadata
+- MLflow artifacts and model-version tags remain the authoritative promotion,
+  rollback, and reproduce evidence
 - serving continues to resolve models from MLflow aliases
 - policy evaluation continues to read its decision inputs from MLflow metadata
 
@@ -44,7 +45,9 @@ These behaviors stay concrete and MLflow-backed in `M0`:
 
 - `candidate -> prod -> champion` alias flow
 - promotion dry-run and allow-or-block decisions
-- rollback via `previous_prod_version`
+- release evidence bundles under `reports/releases/...`
+- rollback via recorded `release_manifest.json` with `previous_prod_version`
+  compatibility fallback
 - source training run linkage
 - dataset fingerprint, config hash, git SHA, and training run metadata checks
 

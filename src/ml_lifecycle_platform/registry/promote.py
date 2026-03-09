@@ -4,6 +4,7 @@ import argparse
 import json
 import logging
 import sys
+from typing import Any
 
 from mlflow.tracking import MlflowClient
 
@@ -18,19 +19,34 @@ from ml_lifecycle_platform.common.constants import (
     ALIAS_CHAMPION,
     ALIAS_PROD,
     RELEASE_STATUS_PREVIOUS_PROD,
+    TAG_CONFIG_HASH,
+    TAG_DATASET_FINGERPRINT,
+    TAG_GIT_SHA,
     TAG_PREVIOUS_PROD_VERSION,
     TAG_PROMOTED_FROM_ALIAS,
     TAG_RELEASE_STATUS,
+    TAG_SOURCE_RUN_ID,
 )
 from ml_lifecycle_platform.core.model_specs import (
     PolicySpec,
     default_policy_spec,
     load_model_spec,
 )
+from ml_lifecycle_platform.core.release_reports import (
+    OperationResult,
+    PolicyOutcome,
+    PromotionDecisionReport,
+    ReleaseManifest,
+    ReleaseReportBundle,
+    RollbackTargetReport,
+    render_model_card,
+    utc_now_iso,
+)
 from ml_lifecycle_platform.policy.release_policy import (
     PolicyDecision,
     evaluate_promotion_policy,
 )
+from ml_lifecycle_platform.registry.release_evidence import emit_release_evidence
 
 logger = logging.getLogger(__name__)
 
@@ -69,8 +85,117 @@ def _try_get_prod_version(client: MlflowClient, model_name: str) -> str | None:
     return str(prod.version)
 
 
+def _model_version_source_run_id(model_version: Any) -> str:
+    return str((model_version.tags or {}).get(TAG_SOURCE_RUN_ID, "")).strip()
+
+
+def _source_run_metrics(client: MlflowClient, run_id: str) -> dict[str, float]:
+    try:
+        run = client.get_run(run_id)
+    except Exception:
+        return {}
+    metrics = getattr(getattr(run, "data", None), "metrics", {}) or {}
+    return {str(key): float(value) for key, value in metrics.items()}
+
+
+def _build_promotion_bundle(
+    *,
+    client: MlflowClient,
+    decision: PolicyDecision,
+    model_name: str,
+    candidate_version: str,
+    current_prod_version: str | None,
+    previous_prod_version: str | None,
+) -> tuple[str, ReleaseReportBundle]:
+    candidate = client.get_model_version(model_name, candidate_version)
+    candidate_tags = candidate.tags or {}
+    source_run_id = _model_version_source_run_id(candidate)
+    if not source_run_id:
+        raise RuntimeError(
+            "Promotion evidence emission requires source_run_id on the candidate "
+            f"model version. Expected tag '{TAG_SOURCE_RUN_ID}'."
+        )
+
+    target_source_run_id: str | None = None
+    if previous_prod_version is not None:
+        try:
+            previous_prod = client.get_model_version(model_name, previous_prod_version)
+            target_source_run_id = _model_version_source_run_id(previous_prod) or None
+        except Exception:
+            target_source_run_id = None
+
+    generated_at = utc_now_iso()
+    policy_outcome = PolicyOutcome.from_policy_decision(decision)
+    result = OperationResult(
+        status="succeeded",
+        code="promotion_applied",
+        message="Candidate alias promoted to prod and champion.",
+        details={
+            "from_alias": str(decision.context.get("from_alias", "")),
+            "to_alias": str(decision.context.get("to_alias", "")),
+        },
+    )
+    manifest = ReleaseManifest(
+        generated_at=generated_at,
+        operation="promote",
+        model_name=model_name,
+        model_version=candidate_version,
+        source_run_id=source_run_id,
+        dataset_fingerprint=str(candidate_tags.get(TAG_DATASET_FINGERPRINT, "")).strip()
+        or None,
+        config_hash=str(candidate_tags.get(TAG_CONFIG_HASH, "")).strip() or None,
+        git_sha=str(candidate_tags.get(TAG_GIT_SHA, "")).strip() or None,
+        current_prod_version=current_prod_version,
+        previous_prod_version=previous_prod_version,
+        policy_outcome=policy_outcome,
+        result=result,
+        metrics=_source_run_metrics(client, source_run_id),
+    )
+    bundle = ReleaseReportBundle(
+        decision=PromotionDecisionReport(
+            generated_at=generated_at,
+            operation="promote",
+            model_name=model_name,
+            model_version=candidate_version,
+            source_run_id=source_run_id,
+            policy_outcome=policy_outcome,
+            result=result,
+        ),
+        manifest=manifest,
+        rollback_target=RollbackTargetReport(
+            generated_at=generated_at,
+            operation="promote",
+            model_name=model_name,
+            model_version=candidate_version,
+            source_run_id=source_run_id,
+            current_prod_version=current_prod_version,
+            previous_prod_version=previous_prod_version,
+            target_version=previous_prod_version,
+            target_source_run_id=target_source_run_id,
+            result=OperationResult(
+                status="recorded",
+                code="rollback_target_recorded",
+                message="Rollback target recorded from the previous prod version.",
+                details={},
+            ),
+        ),
+        model_card="",
+    )
+    return source_run_id, ReleaseReportBundle(
+        decision=bundle.decision,
+        manifest=bundle.manifest,
+        rollback_target=bundle.rollback_target,
+        model_card=render_model_card(bundle),
+    )
+
+
 def apply_promotion(
-    client: MlflowClient, model_name: str, candidate_version: str, from_alias: str
+    client: MlflowClient,
+    *,
+    model_name: str,
+    candidate_version: str,
+    from_alias: str,
+    decision: PolicyDecision,
 ) -> None:
     """Promote one candidate version and record rollback metadata."""
 
@@ -123,6 +248,25 @@ def apply_promotion(
         ALIAS_CHAMPION,
     )
 
+    source_run_id, bundle = _build_promotion_bundle(
+        client=client,
+        decision=decision,
+        model_name=model_name,
+        candidate_version=candidate_version,
+        current_prod_version=candidate_version,
+        previous_prod_version=prev_prod_version,
+    )
+    emit_release_evidence(
+        client,
+        source_run_id=source_run_id,
+        operation="promote",
+        model_name=model_name,
+        model_version=candidate_version,
+        bundle=bundle,
+        tag_target_version=candidate_version,
+        event_type="release.promoted",
+    )
+
 
 def parse_args(argv: list[str]) -> argparse.Namespace:
     p = argparse.ArgumentParser(
@@ -168,6 +312,7 @@ def main(argv: list[str] | None = None) -> None:
         model_name=args.model_name,
         candidate_version=candidate_version,
         from_alias=args.from_alias,
+        decision=decision,
     )
 
 

@@ -6,6 +6,7 @@ MODEL_REF_SCHEMA_VERSION = "model_ref/v1"
 FEATURE_STATS_SCHEMA_VERSION = "feature_stats/v1"
 REPRO_CONTRACT_SCHEMA_VERSION = "repro_contract/v1"
 MODEL_SPEC_SCHEMA_VERSION = "model_spec/v1"
+RELEASE_REPORT_SCHEMA_VERSION = "release_reports/v1"
 
 # MLflow tag keys
 TAG_STEP = "step"
@@ -32,6 +33,11 @@ TAG_GATE = "gate"
 TAG_RELEASE_STATUS = "release_status"
 TAG_PROMOTED_FROM_ALIAS = "promoted_from_alias"
 TAG_PREVIOUS_PROD_VERSION = "previous_prod_version"
+TAG_RELEASE_REPORTS_PATH = "release_reports_path"
+TAG_PROMOTION_DECISION_PATH = "promotion_decision_path"
+TAG_RELEASE_MANIFEST_PATH = "release_manifest_path"
+TAG_ROLLBACK_TARGET_PATH = "rollback_target_path"
+TAG_MODEL_CARD_PATH = "model_card_path"
 
 # MLflow tag values
 GATE_PASSED = "passed"
@@ -59,11 +65,16 @@ ART_REPRO_PROBE_INPUTS_CSV = "probe_inputs.csv"
 ART_REPRO_EXPECTED_PREDICTIONS_JSON = "expected_predictions.json"
 ART_REPRO_REPORT_JSON = "reproduce_report.json"
 ART_UV_LOCK = "uv.lock"
+ART_PROMOTION_DECISION_JSON = "promotion_decision.json"
+ART_RELEASE_MANIFEST_JSON = "release_manifest.json"
+ART_ROLLBACK_TARGET_JSON = "rollback_target.json"
+ART_MODEL_CARD_MD = "model_card.md"
 
 # Artifact paths inside MLflow
 MLFLOW_ARTIFACT_PATH_REPORTS = "reports"
 MLFLOW_ARTIFACT_PATH_MODEL = "model"
 MLFLOW_ARTIFACT_PATH_REPRO = "repro"
+MLFLOW_ARTIFACT_PATH_RELEASES = "reports/releases"
 
 # Aliases
 ALIAS_CANDIDATE = "candidate"

@@ -11,6 +11,7 @@ A production ML platform for training, evaluating, registering, promoting, servi
 - Runs a simple pipeline: `ingest -> featurize -> train -> evaluate -> register`
 - Registers gated models into MLflow
 - Promotes by alias: `candidate -> prod -> champion`
+- Emits explicit release evidence for promote, rollback, and reproduce flows
 - Serves `prod`, `candidate`, `canary`, and `shadow`
 - Captures reproducibility metadata: dataset fingerprint, config hash, git SHA, env lock hash
 - Rebuilds a registered model from its source training run
@@ -110,6 +111,47 @@ Golden path:
 - `make e2e`
 - `make e2e-keep`
 
+## Release Evidence
+
+Promotion, rollback, and reproduce emit a machine-readable evidence bundle.
+
+Each bundle includes:
+
+- `promotion_decision.json`
+- `release_manifest.json`
+- `rollback_target.json`
+- `model_card.md`
+
+The bundle records:
+
+- source run ID
+- dataset fingerprint
+- config hash
+- git SHA
+- current prod version
+- previous prod version
+- policy outcome
+
+MLflow stores those artifacts under:
+
+- `reports/releases/<operation>/<model_name>/v<version>/`
+
+The active model version also records stable artifact-path tags:
+
+- `release_reports_path`
+- `promotion_decision_path`
+- `release_manifest_path`
+- `rollback_target_path`
+- `model_card_path`
+
+Operational behavior:
+
+- `promote` writes the release evidence bundle to the promoted version's source run
+- `rollback` resolves the rollback target from the recorded `release_manifest.json` and falls back to `previous_prod_version` only for compatibility
+- `reproduce` still writes `reproduce_report.json` and also emits the same release evidence pattern
+
+When the local runtime profile is active, the same bundle is mirrored under the configured local artifacts directory and a release event is appended to the local file-backed event log when available.
+
 ## Serving
 
 Serving API:
@@ -149,6 +191,11 @@ Reproduce from the registry:
 ```bash
 uv run mlp --env local registry reproduce --model-name breast_cancer_clf --alias prod --report-path reproduce_report.json --format json
 ```
+
+The command writes:
+
+- the requested local `reproduce_report.json`
+- a release evidence bundle in MLflow under `reports/releases/reproduce/...`
 
 ## Repository Layout
 
