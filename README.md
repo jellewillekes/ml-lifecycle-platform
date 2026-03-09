@@ -11,6 +11,7 @@ An ML platform for training, evaluating, registering, promoting, serving, and re
 Operator and architecture docs live in the handbook:
 
 - [`docs/README.md`](docs/README.md)
+- [`docs/runbooks/gcp-bootstrap.md`](docs/runbooks/gcp-bootstrap.md)
 - [`docs/reference/technology-stack.md`](docs/reference/technology-stack.md)
 
 Starter files for OSS users:
@@ -134,6 +135,9 @@ Infra:
 - `make down`
 - `make logs`
 - `make build`
+- `make terraform-gcp-fmt`
+- `make terraform-gcp-init`
+- `make terraform-gcp-validate`
 
 Registry and serving:
 

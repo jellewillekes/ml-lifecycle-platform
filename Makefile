@@ -11,10 +11,12 @@ export GIT_SHA ?= $(shell git rev-parse HEAD 2>/dev/null || echo dev)
 UV_PROJECT_DIR := .
 DEPLOYMENTS_LOCAL_DIR ?= deployments/local
 COMPOSE_FILE ?= $(DEPLOYMENTS_LOCAL_DIR)/docker-compose.yml
+DEPLOYMENTS_GCP_TERRAFORM_DIR ?= deployments/gcp/terraform
 
 UV ?= uv
 DOCKER ?= docker
 COMPOSE ?= $(DOCKER) compose -f $(COMPOSE_FILE)
+TERRAFORM ?= terraform
 MLP_ENV_NAME ?= local
 MODEL ?=
 MODEL_SPEC ?=
@@ -27,6 +29,11 @@ RUFF := $(PY) -m ruff
 MYPY := $(PY) -m mypy
 PYTEST := $(PY) -m pytest
 PRECOMMIT := $(PY) -m pre_commit
+
+TF_STATE_BUCKET ?= fpl-tf-state-jelle
+TF_STATE_PREFIX ?= ml-lifecycle-platform/gcp/bootstrap
+export TF_VAR_project_id ?= fpl-project-jelle
+export TF_VAR_region ?= europe-west1
 
 MYPY_CONFIG ?= mypy.ini
 MYPY_PATHS ?= src tests
@@ -69,6 +76,11 @@ help:
 	@echo "  make test-e2e          run the golden path without automatic teardown"
 	@echo "  make e2e               pipeline -> gate -> promote -> serve -> smoke"
 	@echo "  make e2e-keep          like e2e, but keep stack up"
+	@echo ""
+	@echo "GCP Terraform:"
+	@echo "  make terraform-gcp-fmt       terraform fmt -check for deployments/gcp/terraform"
+	@echo "  make terraform-gcp-init      init remote state against $(TF_STATE_BUCKET)"
+	@echo "  make terraform-gcp-validate  validate the GCP Terraform root"
 	@echo ""
 	@echo "Housekeeping:"
 	@echo "  make clean             remove local caches"
@@ -211,6 +223,18 @@ e2e:
 e2e-keep:
 	@$(MLP) e2e --keep-stack
 	@echo "E2E passed (stack kept up). Use 'make logs' or 'make down' when done."
+
+.PHONY: terraform-gcp-fmt terraform-gcp-init terraform-gcp-validate
+terraform-gcp-fmt:
+	@$(TERRAFORM) -chdir=$(DEPLOYMENTS_GCP_TERRAFORM_DIR) fmt -check -recursive
+
+terraform-gcp-init:
+	@$(TERRAFORM) -chdir=$(DEPLOYMENTS_GCP_TERRAFORM_DIR) init \
+		-backend-config="bucket=$(TF_STATE_BUCKET)" \
+		-backend-config="prefix=$(TF_STATE_PREFIX)"
+
+terraform-gcp-validate:
+	@$(TERRAFORM) -chdir=$(DEPLOYMENTS_GCP_TERRAFORM_DIR) validate
 
 .PHONY: clean
 clean:

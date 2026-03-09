@@ -1,0 +1,7 @@
+project_id = "fpl-project-jelle"
+region     = "europe-west1"
+
+required_services = [
+  "cloudresourcemanager.googleapis.com",
+  "iam.googleapis.com",
+]

@@ -42,3 +42,15 @@ artifacts/
 data/
 reproduce_report.json
 reproduce_*.json
+
+# Terraform local state
+.terraform/
+**/.terraform/
+*.tfstate
+*.tfstate.*
+crash.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+deployments/gcp/terraform/terraform.tfvars
