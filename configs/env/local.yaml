@@ -5,9 +5,9 @@ experiment_name: breast-cancer-platform
 model_name: breast_cancer_clf
 model_spec_path: configs/models/breast_cancer_demo.yaml
 log_level: INFO
-data_dir: /app/data
-artifacts_dir: /app/artifacts
-event_log_path: /app/artifacts/runtime-events.jsonl
+data_dir: data
+artifacts_dir: artifacts
+event_log_path: artifacts/runtime-events.jsonl
 python_executable: python
 canary_pct: 10
 s3_endpoint_url: http://localhost:9000

@@ -17,11 +17,34 @@ From the repo root:
 uv sync --dev
 ```
 
+Optional local override file:
+
+```bash
+cp .env.example .env
+```
+
+Docker Compose reads `.env` automatically. For local Python commands in your current shell, source it explicitly if you want the same overrides:
+
+```bash
+set -a; source .env; set +a
+```
+
 Optional fast validation before starting infra:
 
 ```bash
+make docs-check
 make check
 ```
+
+## Fastest end-to-end validation
+
+For a clean confidence check, use the single command path first:
+
+```bash
+make e2e
+```
+
+Use the manual flow below when you want to inspect each step.
 
 ## Start local infrastructure
 
@@ -90,6 +113,10 @@ make reproduce ALIAS=prod MODEL_NAME=local_csv_binary_clf REPORT=reproduce_csv.j
 ```
 
 Keep model name and model spec aligned when you override one of them.
+
+Starter CSV location:
+
+- [`examples/csv/local_csv_binary_classifier.csv`](../../examples/csv/local_csv_binary_classifier.csv)
 
 ## Tear down
 

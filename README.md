@@ -10,6 +10,14 @@ Operator and architecture docs live in the handbook:
 
 - [`docs/README.md`](docs/README.md)
 
+Starter files for OSS users:
+
+- [`.env.example`](.env.example)
+- [`configs/env/local.yaml`](configs/env/local.yaml)
+- [`configs/models/breast_cancer_demo.yaml`](configs/models/breast_cancer_demo.yaml)
+- [`configs/models/local_csv_binary_classifier.yaml`](configs/models/local_csv_binary_classifier.yaml)
+- [`examples/csv/local_csv_binary_classifier.csv`](examples/csv/local_csv_binary_classifier.csv)
+
 ## What it does
 
 - Runs a simple pipeline: `ingest -> featurize -> train -> evaluate -> register`
@@ -46,28 +54,49 @@ Requirements:
 - `uv`
 - Docker with Compose
 
+Install dependencies:
+
+```bash
+uv sync --dev
+```
+
+Optional local override file:
+
+```bash
+cp .env.example .env
+```
+
+Docker Compose reads `.env` automatically. For local Python commands in your current shell, source it explicitly if you want the same overrides:
+
+```bash
+set -a; source .env; set +a
+```
+
 Fast local checks:
 
 ```bash
 make check
 make docs-check
+make test-all
 ```
 
-Bring up local infra:
+Canonical M0 validation path:
 
 ```bash
-make up
+make e2e
 ```
 
-Run the default demo flow:
+Manual local operator flow:
 
 ```bash
+make up &&
 make run-pipeline &&
 make policy-check &&
 make promote &&
 make serve &&
 make smoke-test &&
-make reproduce ALIAS=prod MODEL_NAME=breast_cancer_clf
+make reproduce ALIAS=prod MODEL_NAME=breast_cancer_clf &&
+make down
 ```
 
 Run the CSV-backed model spec:
@@ -75,8 +104,8 @@ Run the CSV-backed model spec:
 ```bash
 MODEL_SPEC=configs/models/local_csv_binary_classifier.yaml make run-pipeline
 uv run mlp --env local registry promote --model-name local_csv_binary_clf
-MODEL_NAME=local_csv_binary_clf make serve
-MODEL_NAME=local_csv_binary_clf make smoke-test
+MODEL_NAME=local_csv_binary_clf MLP_MODEL_SPEC_PATH=configs/models/local_csv_binary_classifier.yaml make serve
+MODEL_NAME=local_csv_binary_clf MLP_MODEL_SPEC_PATH=configs/models/local_csv_binary_classifier.yaml make smoke-test
 make reproduce ALIAS=prod MODEL_NAME=local_csv_binary_clf REPORT=reproduce_csv.json
 ```
 
@@ -91,6 +120,7 @@ make down
 Quality:
 
 - `make check`
+- `make docs-check`
 - `make test-unit`
 - `make test-integration`
 - `make test-all`
@@ -220,7 +250,9 @@ src/ml_lifecycle_platform/
 configs/
   env/          runtime profiles
   models/       model specs
-  model_data/   local sample CSV data
+
+examples/
+  csv/          public sample CSV data
 ```
 
 ## More Docs

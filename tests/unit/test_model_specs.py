@@ -4,7 +4,10 @@ from pathlib import Path
 
 import pytest
 
-from ml_lifecycle_platform.common.constants import TAG_CONFIG_HASH
+from ml_lifecycle_platform.common.constants import (
+    MODEL_SPEC_SCHEMA_VERSION,
+    TAG_CONFIG_HASH,
+)
 from ml_lifecycle_platform.core.model_specs import (
     default_policy_spec,
     load_model_spec,
@@ -31,6 +34,20 @@ def test_load_csv_model_spec_resolves_relative_data_path() -> None:
     assert spec.source.kind == "csv"
     assert spec.data_source_uri().startswith("file://")
     assert spec.feature_contract.version == "local_csv_binary_clf.input/v1"
+    assert spec.data_source_uri().endswith(
+        "/examples/csv/local_csv_binary_classifier.csv"
+    )
+
+
+def test_all_committed_model_specs_load() -> None:
+    spec_paths = sorted(Path("configs/models").glob("*.yaml"))
+
+    assert spec_paths
+
+    for spec_path in spec_paths:
+        spec = load_model_spec(spec_path)
+        assert spec.model_name
+        assert spec.schema_version == MODEL_SPEC_SCHEMA_VERSION
 
 
 def test_model_spec_rejects_unsupported_fields(tmp_path: Path) -> None:
