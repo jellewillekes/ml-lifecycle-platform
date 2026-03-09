@@ -1,0 +1,100 @@
+# Local Bootstrap
+
+Use this runbook for a fresh clone and the local golden path.
+
+## Prerequisites
+
+- Python `>=3.11.7`
+- `uv`
+- Docker with Compose
+- a clean shell with Docker running
+
+## Install dependencies
+
+From the repo root:
+
+```bash
+uv sync --dev
+```
+
+Optional fast validation before starting infra:
+
+```bash
+make check
+```
+
+## Start local infrastructure
+
+```bash
+make up
+```
+
+Expected local endpoints:
+
+- MLflow UI: `http://localhost:5050`
+- MinIO Console: `http://localhost:9001`
+
+If startup fails:
+
+- run `make logs`
+- verify Docker is running
+- verify ports `5050`, `9000`, and `9001` are available
+
+## Run the default golden path
+
+Run these commands in order:
+
+```bash
+make run-pipeline
+make policy-check
+make promote
+make serve
+make smoke-test
+make reproduce ALIAS=prod MODEL_NAME=breast_cancer_clf
+```
+
+What each command does:
+
+- `make run-pipeline`: build images, run pipeline, register candidate
+- `make policy-check`: run promotion dry-run and fail fast if policy blocks
+- `make promote`: move candidate to `prod` and `champion`
+- `make serve`: start the serving API
+- `make smoke-test`: call the serving path against the promoted model
+- `make reproduce ...`: rebuild the promoted model from its source training run
+
+## Verify outputs
+
+After the golden path:
+
+- MLflow should contain a training run and a registered model version
+- the registered model should resolve `@prod`
+- serving should answer `GET /health`
+- `reproduce_report.json` should exist in the repo root unless you override `REPORT=...`
+- release evidence should exist in MLflow under `reports/releases/...`
+
+Quick checks:
+
+```bash
+curl -fsS http://localhost:8000/health
+curl -fsS http://localhost:8000/metadata/model
+```
+
+## Run the CSV-backed spec
+
+```bash
+MODEL_SPEC=configs/models/local_csv_binary_classifier.yaml make run-pipeline
+uv run mlp --env local registry promote --model-name local_csv_binary_clf
+MODEL_NAME=local_csv_binary_clf MLP_MODEL_SPEC_PATH=configs/models/local_csv_binary_classifier.yaml make serve
+MODEL_NAME=local_csv_binary_clf MLP_MODEL_SPEC_PATH=configs/models/local_csv_binary_classifier.yaml make smoke-test
+make reproduce ALIAS=prod MODEL_NAME=local_csv_binary_clf REPORT=reproduce_csv.json
+```
+
+Keep model name and model spec aligned when you override one of them.
+
+## Tear down
+
+```bash
+make down
+```
+
+This removes local Compose state and volumes.

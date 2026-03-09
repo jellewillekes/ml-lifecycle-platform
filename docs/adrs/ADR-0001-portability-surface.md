@@ -32,6 +32,8 @@ Only these four interfaces are allowed as implementation boundaries (seams) in
 Everything else stays concrete in `M0`, including:
 
 - MLflow registry and release-control behavior
+- runtime profile loading from YAML plus env overrides
+- model spec parsing and validation
 - release policy evaluation
 - registry workflows such as register, promote, rollback, and reproduce
 - lineage and reproducibility contracts
@@ -49,12 +51,21 @@ Examples:
 - model artifacts
 - evaluation reports
 - reproducibility payloads
+- mirrored release evidence bundles under the local artifacts directory
+
+Current local implementation:
+
+- file-backed store rooted at `artifacts_dir`
 
 ### `EventStore`
 
 Handles structured platform events.
 
 This does not mean adding a workflow engine or a message bus in `M0`.
+
+Current local implementation:
+
+- append-only JSONL file at `event_log_path`
 
 ### `JobRunner`
 
@@ -63,11 +74,19 @@ Runs bounded jobs and runtime steps.
 This does not mean turning the platform into a full workflow orchestrator in
 `M0`.
 
+Current local implementation:
+
+- Python module execution through the configured `python_executable`
+
 ### `Secrets`
 
 Provides runtime secrets needed by local or hosted backends.
 
 This is not a full redesign of config handling.
+
+Current local implementation:
+
+- environment variable reads
 
 ## Explicit non-interfaces for M0
 

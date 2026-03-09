@@ -47,6 +47,7 @@ help:
 	@echo "  make test-coverage     run unit tests with coverage report"
 	@echo "  make test-integration  run local integration tests"
 	@echo "  make test-all          run unit + integration tests"
+	@echo "  make docs-check        validate handbook links and local doc paths"
 	@echo "  make fix               format + safe autofix"
 	@echo "  make precommit         run all hooks"
 	@echo "  make install-hooks     install git hooks"
@@ -73,7 +74,7 @@ help:
 	@echo "  make clean             remove local caches"
 	@echo ""
 
-.PHONY: check format lint type test test-unit test-coverage test-integration test-all fix
+.PHONY: check format lint type test test-unit test-coverage test-integration test-all docs-check fix
 check: format lint type test
 	@echo "✅ All checks passed"
 
@@ -103,6 +104,9 @@ test-integration:
 
 test-all:
 	@$(PYTEST) $(PYTEST_ARGS) -m "unit or integration"
+
+docs-check:
+	@$(PY) scripts/check_docs_links.py
 
 fix:
 	@$(RUFF) format .

@@ -6,6 +6,10 @@
 
 A production ML platform for training, evaluating, registering, promoting, serving, and reproducing models with MLflow as the control plane. The first implementation is local-first, afterwards connectors to `GCP` and `AWS` will be integraded.
 
+Operator and architecture docs live in the handbook:
+
+- [`docs/README.md`](docs/README.md)
+
 ## What it does
 
 - Runs a simple pipeline: `ingest -> featurize -> train -> evaluate -> register`
@@ -46,6 +50,7 @@ Fast local checks:
 
 ```bash
 make check
+make docs-check
 ```
 
 Bring up local infra:
@@ -220,6 +225,10 @@ configs/
 
 ## More Docs
 
+- [`docs/README.md`](docs/README.md)
+- [`docs/architecture/overview.md`](docs/architecture/overview.md)
+- [`docs/architecture/local-runtime.md`](docs/architecture/local-runtime.md)
+- [`docs/runbooks/local-bootstrap.md`](docs/runbooks/local-bootstrap.md)
 - [`docs/architecture/current-state.md`](docs/architecture/current-state.md)
 - [`docs/ci.md`](docs/ci.md)
 - [`docs/releases.md`](docs/releases.md)
