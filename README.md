@@ -56,11 +56,11 @@ make up
 Run the default demo flow:
 
 ```bash
-make run-pipeline
-make policy-check
-make promote
-make serve
-make smoke-test
+make run-pipeline &&
+make policy-check &&
+make promote &&
+make serve &&
+make smoke-test &&
 make reproduce ALIAS=prod MODEL_NAME=breast_cancer_clf
 ```
 

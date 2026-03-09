@@ -77,6 +77,7 @@ def _run_pipeline_and_register_candidate(
     monkeypatch: pytest.MonkeyPatch,
     source_spec_path: str = "configs/models/breast_cancer_demo.yaml",
     model_name: str = "integration_reproduce_model",
+    policy_override: dict[str, object] | None = None,
 ) -> tuple[MlflowClient, str, str]:
     experiment_name = "integration-reproduce"
     artifact_root = tmp_path / "mlflow-artifacts"
@@ -89,7 +90,10 @@ def _run_pipeline_and_register_candidate(
         "MLP_MODEL_SPEC_PATH",
         str(
             _write_model_spec(
-                tmp_path, source_spec_path=source_spec_path, model_name=model_name
+                tmp_path,
+                source_spec_path=source_spec_path,
+                model_name=model_name,
+                policy_override=policy_override,
             )
         ),
     )
@@ -125,11 +129,14 @@ def _write_model_spec(
     *,
     source_spec_path: str,
     model_name: str,
+    policy_override: dict[str, object] | None = None,
 ) -> Path:
     source_path = REPO_ROOT / source_spec_path
     payload = yaml.safe_load(source_path.read_text(encoding="utf-8"))
     assert isinstance(payload, dict)
     payload["model_name"] = model_name
+    if policy_override is not None:
+        payload["policy"] = policy_override
     source_cfg = payload.get("source")
     if isinstance(source_cfg, dict) and source_cfg.get("kind") == "csv":
         raw_path = source_cfg.get("path")
@@ -242,3 +249,37 @@ def test_demo_model_spec_passes_registration_and_promotion_flow(
     assert str(champion.version) == version
     assert candidate.tags[TAG_RELEASE_STATUS] == ALIAS_PROD
     assert candidate.tags[TAG_PROMOTED_FROM_ALIAS] == ALIAS_CANDIDATE
+
+
+def test_model_spec_policy_override_blocks_promotion(
+    mlflow_sqlite: str,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    client, model_name, version = _run_pipeline_and_register_candidate(
+        tmp_path=tmp_path,
+        monkeypatch=monkeypatch,
+        source_spec_path="configs/models/breast_cancer_demo.yaml",
+        model_name="integration_blocked_model",
+        policy_override={
+            "required_metadata_tags": [
+                "dataset_fingerprint",
+                "git_sha",
+                "config_hash",
+                "training_run_id",
+            ],
+            "required_release_status": "prod",
+            "block_noop_promotion": True,
+            "require_reproducibility_evidence": False,
+            "minimum_metric_thresholds": [],
+        },
+    )
+
+    with pytest.raises(SystemExit) as exc:
+        promote_mod.main(["--model-name", model_name, "--format", "json"])
+
+    assert exc.value.code == 2
+    candidate = client.get_model_version(model_name, version)
+    assert candidate.tags[TAG_RELEASE_STATUS] == ALIAS_CANDIDATE
+    with pytest.raises(Exception):
+        client.get_model_version_by_alias(model_name, ALIAS_PROD)

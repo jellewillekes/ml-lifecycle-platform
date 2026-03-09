@@ -7,7 +7,11 @@ import sys
 
 from mlflow.tracking import MlflowClient
 
-from ml_lifecycle_platform.common.config import get_log_level, get_model_name
+from ml_lifecycle_platform.common.config import (
+    get_log_level,
+    get_model_name,
+    get_model_spec_path,
+)
 from ml_lifecycle_platform.common.mlflow_utils import client as mlflow_client
 from ml_lifecycle_platform.common.constants import (
     ALIAS_CANDIDATE,
@@ -18,12 +22,30 @@ from ml_lifecycle_platform.common.constants import (
     TAG_PROMOTED_FROM_ALIAS,
     TAG_RELEASE_STATUS,
 )
+from ml_lifecycle_platform.core.model_specs import (
+    PolicySpec,
+    default_policy_spec,
+    load_model_spec,
+)
 from ml_lifecycle_platform.policy.release_policy import (
     PolicyDecision,
     evaluate_promotion_policy,
 )
 
 logger = logging.getLogger(__name__)
+
+
+def _resolve_policy_for_model(model_name: str) -> PolicySpec:
+    spec = load_model_spec(get_model_spec_path())
+    if spec.model_name != model_name:
+        logger.warning(
+            "Active model spec %s targets model %s; using default promotion policy for %s",
+            spec.spec_path,
+            spec.model_name,
+            model_name,
+        )
+        return default_policy_spec()
+    return spec.policy
 
 
 def _print_decision(decision: PolicyDecision, fmt: str) -> None:
@@ -127,6 +149,7 @@ def main(argv: list[str] | None = None) -> None:
     decision = evaluate_promotion_policy(
         client=client,
         model_name=args.model_name,
+        policy=_resolve_policy_for_model(args.model_name),
         from_alias=args.from_alias,
         to_alias=args.to_alias,
     )
