@@ -37,7 +37,6 @@ def main() -> None:
     X_test = test_df.drop(columns=[spec.label_column])
     y_test = test_df[spec.label_column].astype(int)
 
-    # The orchestrator writes TRAIN_RUN_ID.
     train_run_id = (ART_DIR / ART_TRAIN_RUN_ID).read_text(encoding="utf-8").strip()
 
     model_uri = f"runs:/{train_run_id}/{MLFLOW_ARTIFACT_PATH_MODEL}"
@@ -58,7 +57,6 @@ def main() -> None:
     report_path = ART_DIR / ART_EVALUATION_JSON
     write_json(report_path, metrics)
 
-    # ROC curve.
     fig_path = ART_DIR / ART_ROC_CURVE_PNG
     plt.figure()
     RocCurveDisplay.from_predictions(y_test, proba)

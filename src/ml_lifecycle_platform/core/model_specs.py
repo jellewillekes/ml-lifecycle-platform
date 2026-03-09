@@ -1,6 +1,4 @@
 from __future__ import annotations
-
-import json
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Mapping
@@ -172,9 +170,6 @@ class ModelSpec:
             "trainer": self.trainer.to_dict(),
             "evaluation": self.evaluation.to_dict(),
         }
-
-    def to_json(self) -> str:
-        return json.dumps(self.to_dict(), indent=2, sort_keys=True)
 
     def data_source_uri(self) -> str:
         if isinstance(self.source, CsvSourceSpec):

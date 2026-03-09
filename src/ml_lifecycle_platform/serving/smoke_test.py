@@ -112,8 +112,7 @@ def _assert_prediction_response(body: dict[str, Any], *, expected_n: int) -> Non
         assert 0.0 <= p_float <= 1.0, f"proba[{idx}] out of range: {p_float}"
 
 
-def _call(mode: str, *, required: bool) -> None:
-    payload = _payload()
+def _call(mode: str, payload: dict[str, Any], *, required: bool) -> None:
     r = requests.post(f"{SERVE_URL}/predict?mode={mode}", json=payload, timeout=15)
 
     # Many deployments only guarantee prod.
@@ -139,13 +138,12 @@ def _call(mode: str, *, required: bool) -> None:
 
 def main() -> None:
     _wait_for_service()
+    payload = _payload()
 
-    # prod must always work
-    _call("prod", required=True)
+    _call("prod", payload, required=True)
 
-    # optional by deployment policy
     for mode in ["candidate", "shadow", "canary"]:
-        _call(mode, required=False)
+        _call(mode, payload, required=False)
 
     print("[smoke] ALL OK")
 

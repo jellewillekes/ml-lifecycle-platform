@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-# Shared constants.
-
 # Contracts schema versions
 DATASET_FINGERPRINT_SCHEMA_VERSION = "dataset_fingerprint/v1"
 MODEL_REF_SCHEMA_VERSION = "model_ref/v1"

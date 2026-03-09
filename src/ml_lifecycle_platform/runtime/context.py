@@ -14,10 +14,7 @@ from ml_lifecycle_platform.core.ports import (
 
 @dataclass(frozen=True)
 class RuntimeContext:
-    """Container for runtime wiring.
-
-    UP-02 keeps this structural only. Concrete adapters are introduced in UP-03.
-    """
+    """Process-local wiring shared by CLI and runtime entrypoints."""
 
     metadata: RuntimeMetadata
     model_name: str

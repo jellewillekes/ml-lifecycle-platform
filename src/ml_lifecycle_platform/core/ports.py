@@ -6,26 +6,26 @@ from typing import Mapping, Protocol, Sequence, runtime_checkable
 
 @runtime_checkable
 class ArtifactStore(Protocol):
-    """Portable artifact persistence boundary."""
+    """Store artifacts by relative path."""
 
     def write_bytes(self, path: str, content: bytes) -> None:
-        """Persist raw bytes under a backend-specific path."""
+        """Write one artifact blob."""
 
     def read_bytes(self, path: str) -> bytes:
-        """Load raw bytes from a backend-specific path."""
+        """Read one artifact blob."""
 
 
 @runtime_checkable
 class EventStore(Protocol):
-    """Portable event append/query boundary."""
+    """Append structured events."""
 
     def append_event(self, event_type: str, payload: Mapping[str, object]) -> None:
-        """Append a typed event to durable storage."""
+        """Append one event."""
 
 
 @runtime_checkable
 class JobRunner(Protocol):
-    """Portable boundary for one-shot control-plane jobs."""
+    """Run one Python module and return its exit code."""
 
     def run_module(
         self,
@@ -34,20 +34,20 @@ class JobRunner(Protocol):
         args: Sequence[str] | None = None,
         env: Mapping[str, str] | None = None,
     ) -> int:
-        """Run a Python module and return an exit code."""
+        """Run one module."""
 
 
 @runtime_checkable
 class Secrets(Protocol):
-    """Portable secret retrieval boundary."""
+    """Read named secrets."""
 
     def get(self, name: str, *, default: str | None = None) -> str | None:
-        """Return a secret value by logical name."""
+        """Return one secret value."""
 
 
 @dataclass(frozen=True)
 class RuntimeMetadata:
-    """Runtime identity shared across command paths."""
+    """Tracking and registry settings shared across one runtime."""
 
     environment: str
     tracking_uri: str

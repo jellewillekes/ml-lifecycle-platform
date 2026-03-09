@@ -1,29 +1,17 @@
 # Support
 
-## How to get help
+Use GitHub issues for normal project support:
 
-Use these paths:
+- bugs
+- feature requests
+- documentation fixes
 
-- bug reports: open a GitHub issue using the bug template
-- feature requests: open a GitHub issue using the feature template
-- documentation problems: open a GitHub issue using the docs template
-- security reports: follow [`SECURITY.md`](SECURITY.md) and do not open a public issue
+Before opening an issue:
 
-## Before opening an issue
+- read [`README.md`](README.md)
+- check [`CONTRIBUTING.md`](CONTRIBUTING.md)
+- check existing issues for duplicates
 
-Please check these first:
+Do not open public issues for security reports. Follow [`SECURITY.md`](SECURITY.md).
 
-- [`README.md`](README.md) for the project overview and local commands
-- [`CONTRIBUTING.md`](CONTRIBUTING.md) for contribution expectations
-- [`docs/architecture/current-state.md`](docs/architecture/current-state.md) for the
-  current verified system shape
-- existing open and closed GitHub issues for duplicates
-
-## What maintainers can help with
-
-This is a small OSS project. Maintainer support is best-effort and focused on:
-
-- possible bugs or new features in the current local workflow
-- contributions aligned with the active roadmap
-- documentation corrections
-- planning deployment in GCP / AWS
+Maintainer support is best-effort.

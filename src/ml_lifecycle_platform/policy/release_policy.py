@@ -83,7 +83,8 @@ def evaluate_promotion_policy(
     from_alias: str = ALIAS_CANDIDATE,
     to_alias: str = ALIAS_PROD,
 ) -> PolicyDecision:
-    """Evaluate promotion policy without side effects."""
+    """Evaluate promotion eligibility without mutating the registry."""
+
     errors: list[Violation] = []
     warnings: list[Violation] = []
 
@@ -116,7 +117,7 @@ def evaluate_promotion_policy(
     candidate = client.get_model_version(model_name, candidate_version)
     candidate_tags = candidate.tags or {}
 
-    # Debug context.
+    # Keep dry-run output small and predictable.
     context["candidate_tags_subset"] = {
         TAG_GATE: candidate_tags.get(TAG_GATE, ""),
         TAG_RELEASE_STATUS: candidate_tags.get(TAG_RELEASE_STATUS, ""),
@@ -127,7 +128,6 @@ def evaluate_promotion_policy(
         TAG_TRAINING_RUN_ID: candidate_tags.get(TAG_TRAINING_RUN_ID, ""),
     }
 
-    # Required metadata tags.
     missing = _missing_required_tags(candidate_tags)
     if missing:
         errors.append(
@@ -138,7 +138,6 @@ def evaluate_promotion_policy(
             )
         )
 
-    # Gate must pass.
     gate_val = str(candidate_tags.get(TAG_GATE, "")).strip()
     if gate_val != GATE_PASSED:
         errors.append(
@@ -149,7 +148,6 @@ def evaluate_promotion_policy(
             )
         )
 
-    # release_status must match the source alias.
     rs_val = str(candidate_tags.get(TAG_RELEASE_STATUS, "")).strip()
     if rs_val != from_alias:
         errors.append(
@@ -160,7 +158,6 @@ def evaluate_promotion_policy(
             )
         )
 
-    # Block no-op promotions.
     if current_prod_version is not None and str(current_prod_version) == str(
         candidate_version
     ):
@@ -175,8 +172,8 @@ def evaluate_promotion_policy(
             )
         )
 
-    # Non-blocking auditability checks.
-    if not str(candidate_tags.get(TAG_SOURCE_RUN_ID, "")).strip():
+    run_id = str(candidate_tags.get(TAG_SOURCE_RUN_ID, "")).strip()
+    if not run_id:
         warnings.append(
             Violation(
                 code="MISSING_SOURCE_RUN_ID",
@@ -185,8 +182,6 @@ def evaluate_promotion_policy(
             )
         )
     else:
-        # Best-effort run lookup.
-        run_id = str(candidate_tags.get(TAG_SOURCE_RUN_ID, "")).strip()
         try:
             client.get_run(run_id)
         except Exception:
@@ -198,7 +193,9 @@ def evaluate_promotion_policy(
                 )
             )
 
-    allowed = len(errors) == 0
     return PolicyDecision(
-        allowed=allowed, errors=tuple(errors), warnings=tuple(warnings), context=context
+        allowed=not errors,
+        errors=tuple(errors),
+        warnings=tuple(warnings),
+        context=context,
     )

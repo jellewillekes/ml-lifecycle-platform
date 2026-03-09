@@ -8,9 +8,7 @@ from typing import Any
 
 import yaml
 
-
-def _repo_root() -> Path:
-    return Path(__file__).resolve().parents[3]
+REPO_ROOT = Path(__file__).resolve().parents[3]
 
 
 def _resolve_path(value: str, *, base: Path) -> Path:
@@ -101,25 +99,25 @@ def _read_profile_file(profile_path: Path) -> RuntimeProfile:
     raw = yaml.safe_load(profile_path.read_text(encoding="utf-8"))
     if not isinstance(raw, dict):
         raise ValueError(f"Profile at {profile_path} must contain a YAML mapping.")
-    return _profile_from_dict(raw, base=_repo_root())
+    return _profile_from_dict(raw, base=REPO_ROOT)
 
 
 def _apply_env_overrides(profile: RuntimeProfile) -> RuntimeProfile:
-    data_dir = _resolve_path(
-        os.getenv("MLP_DATA_DIR", str(profile.data_dir)),
-        base=_repo_root(),
-    )
-    artifacts_dir = _resolve_path(
-        os.getenv("MLP_ARTIFACTS_DIR", str(profile.artifacts_dir)),
-        base=_repo_root(),
-    )
+    data_dir_override = os.getenv("MLP_DATA_DIR")
+    artifacts_dir_override = os.getenv("MLP_ARTIFACTS_DIR")
     event_log_override = os.getenv("MLP_EVENT_LOG_PATH")
+
+    data_dir = _resolve_path(data_dir_override or str(profile.data_dir), base=REPO_ROOT)
+    artifacts_dir = _resolve_path(
+        artifacts_dir_override or str(profile.artifacts_dir),
+        base=REPO_ROOT,
+    )
     if event_log_override:
-        event_log_path = _resolve_path(event_log_override, base=_repo_root())
-    elif os.getenv("MLP_ARTIFACTS_DIR"):
+        event_log_path = _resolve_path(event_log_override, base=REPO_ROOT)
+    elif artifacts_dir_override:
         event_log_path = artifacts_dir / profile.event_log_path.name
     else:
-        event_log_path = _resolve_path(str(profile.event_log_path), base=_repo_root())
+        event_log_path = _resolve_path(str(profile.event_log_path), base=REPO_ROOT)
 
     return RuntimeProfile(
         environment=os.getenv("MLP_ENV", profile.environment),
@@ -141,7 +139,7 @@ def _apply_env_overrides(profile: RuntimeProfile) -> RuntimeProfile:
         ),
         compose_file=_resolve_path(
             os.getenv("MLP_COMPOSE_FILE", str(profile.compose_file)),
-            base=_repo_root(),
+            base=REPO_ROOT,
         ),
         compose_tracking_uri=os.getenv(
             "MLP_COMPOSE_TRACKING_URI", profile.compose_tracking_uri
@@ -181,7 +179,7 @@ def resolve_profile_path(
         return Path(explicit_path).resolve()
 
     selected_env = env_name or os.getenv("MLP_ENV", "local")
-    return (_repo_root() / "configs" / "env" / f"{selected_env}.yaml").resolve()
+    return (REPO_ROOT / "configs" / "env" / f"{selected_env}.yaml").resolve()
 
 
 @lru_cache(maxsize=8)

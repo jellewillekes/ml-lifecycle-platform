@@ -1,116 +1,49 @@
 # Contributing
 
-## Development setup
+Keep changes small, test-backed, and easy to review.
 
-This repo uses `uv`.
+## Before opening a PR
 
-For CI lanes, required checks, and branch-protection guidance, see `docs/ci.md`.
-For release behavior and Release Please expectations, see `docs/releases.md`.
-For the verified baseline system shape before the M0 refactor, see
-`docs/architecture/current-state.md`.
-For the frozen M0 target shape and portability scope that roadmap PRs must
-follow, see `docs/architecture/m0-portability-charter.md`.
+Run what applies:
 
-Common workflows:
+- `make check`
+- `make test-integration`
+- `make e2e` if you changed Docker, serving, promotion flow, or the local operator path
 
-- `make check` — format + lint + type + fast unit tests
-- `make test` — default fast unit suite
-- `make test-coverage` — unit suite with coverage output
-- `make test-integration` — local sqlite/filesystem integration tests
-- `make e2e` — docker compose end-to-end flow
+## PR expectations
 
-Pytest test tiers:
+- Branch from `master`
+- Keep the PR focused
+- Link the issue when there is one
+- Include rollback notes for behavior changes
+- Use squash merge
 
-- `unit` — fast, default on PRs
-- `integration` — local component boundaries without secrets
-- `e2e` — dockerized golden path, kept separate from pytest by design
+## PR title
 
-## Branching & PRs
-
-- Branch off `master`.
-- Keep PRs small and reviewable (prefer <300 LOC).
-- Include a rollback plan when behavior changes.
-- Use squash merges for pull requests.
-- Treat the PR title as the canonical release-note and changelog signal.
-
-## Issues, milestones, and roadmap work
-
-- Use GitHub Issues for planned work, bugs, feature requests, and documentation
-  follow-ups.
-- Link implementation PRs to issues when possible using `Closes #<issue>` or
-  `Related to #<issue>`.
-- Group roadmap work with milestones such as `M0`, `M1`, and later phases instead
-  of encoding long-term status only in docs.
-- Keep issue scope crisp. One issue should usually map to one reviewable PR or one
-  small sequence of tightly related PRs.
-- Prefer public issue discussion for design clarification unless the topic is
-  security-sensitive.
-
-## Contribution expectations
-
-- Start with a GitHub issue for non-trivial changes before opening a large PR.
-- Keep changes single-purpose. Avoid mixing refactor, infra, and behavior changes in
-  one PR unless there is no safe separation.
-- If you change user-visible behavior, include tests and a clear rollback note.
-- If you touch docker/services or the local golden path, explain how you validated
-  `make e2e` or why it was not run.
-- If your change is part of a roadmap work package, reference the issue and keep
-  the documented scope and non-goals intact.
-- If your change is part of `M0`, keep the package moves and new files aligned
-  with `docs/architecture/m0-portability-charter.md` and the ADRs it references.
-
-## Maintainer response model
-
-- This project is currently maintained on a best-effort basis by a small maintainer
-  set.
-- Issues and PRs may not receive an immediate response.
-- Small, well-scoped, well-tested contributions are significantly easier to review
-  and merge than large speculative changes.
-
-## Commit / PR title conventions
-
-This repository enforces Conventional Commit PR titles. With squash merges, the PR
-title becomes the canonical commit message on `master`, which is what Release
-Please uses to build release notes.
-
-Allowed PR title types:
+PR titles must use Conventional Commits:
 
 - `feat: ...`
 - `fix: ...`
 - `docs: ...`
-- `chore: ...`
 - `refactor: ...`
 - `test: ...`
 - `ci: ...`
+- `chore: ...`
 - `deps: ...`
 
-Commit messages inside the PR do not need separate enforcement as long as the
-repository uses squash merge consistently.
+The PR title becomes the squash commit message and feeds Release Please.
 
-Not every valid PR title type produces a release PR. In normal operation, expect
-release PRs for releasable changes such as `feat` and `fix`, while `docs`,
-`chore`, `refactor`, `test`, and `ci` may merge without any new release.
-
-## Presubmit expectations
-
-Before opening a PR:
+## Local workflows
 
 - `make check`
-- If you add integration coverage: `make test-integration`
-- If your change touches docker/services: `make e2e` (or explain why not)
+- `make test-unit`
+- `make test-integration`
+- `make e2e`
 
-## Dependency updates
+## Notes
 
-Dependabot opens weekly PRs for:
+- Prefer deleting code over adding new layers.
+- Preserve current behavior unless there is a clear bug.
+- If you touch the model lifecycle, validate the demo spec path at minimum.
 
-- GitHub Actions versions
-- Dockerfiles in supported repository paths
-
-## Pre-commit hooks (optional)
-
-Install hooks:
-
-```bash
-python -m pip install pre-commit
-pre-commit install
-pre-commit install --hook-type pre-push
+See [`docs/ci.md`](docs/ci.md) for CI mapping and [`docs/releases.md`](docs/releases.md) for release behavior.

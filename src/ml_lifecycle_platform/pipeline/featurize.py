@@ -6,7 +6,6 @@ import joblib
 import mlflow
 import pandas as pd
 from sklearn.model_selection import train_test_split
-from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
 
 from ml_lifecycle_platform.common.config import get_experiment_name, get_model_spec_path
@@ -64,11 +63,7 @@ def main() -> None:
     train_df.to_csv(train_path, index=False)
     test_df.to_csv(test_path, index=False)
 
-    preprocessor = Pipeline(
-        steps=[
-            ("scale", StandardScaler(with_mean=True, with_std=True)),
-        ]
-    )
+    preprocessor = StandardScaler(with_mean=True, with_std=True)
     preprocessor_path = ART_DIR / ART_PREPROCESSOR
     joblib.dump(preprocessor, preprocessor_path)
 
