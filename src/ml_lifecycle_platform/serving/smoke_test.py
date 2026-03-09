@@ -4,9 +4,18 @@ import os
 import time
 from typing import Any
 
+import pandas as pd
 import requests
 
+from ml_lifecycle_platform.runtime.bootstrap import configure_mlflow
+
+try:
+    import mlflow  # type: ignore
+except Exception:  # pragma: no cover
+    mlflow = None  # type: ignore[assignment]
+
 SERVE_URL = os.getenv("SERVE_URL", "http://localhost:8000")
+MODEL_NAME = os.getenv("MODEL_NAME", "").strip()
 
 
 def _wait_for_service() -> None:
@@ -30,8 +39,8 @@ def _wait_for_service() -> None:
     )
 
 
-def _payload() -> dict[str, Any]:
-    """Return a minimal valid prediction payload."""
+def _default_payload() -> dict[str, Any]:
+    """Return a minimal valid prediction payload for the demo model."""
     return {
         "rows": [
             {
@@ -70,18 +79,42 @@ def _payload() -> dict[str, Any]:
     }
 
 
-def _assert_prediction_response(body: dict[str, Any]) -> None:
-    proba = body.get("proba")
-    assert isinstance(proba, list) and len(proba) == 1, f"bad proba={proba!r}"
+def _payload_from_model() -> dict[str, Any] | None:
+    if not MODEL_NAME or mlflow is None:
+        return None
 
-    p = proba[0]
-    assert isinstance(p, (float, int)), f"bad proba[0]={p!r}"
-    p_float = float(p)
-    assert 0.0 <= p_float <= 1.0, f"proba out of range: {p_float}"
+    try:
+        configure_mlflow()
+        model = mlflow.pyfunc.load_model(f"models:/{MODEL_NAME}@prod")
+        metadata = getattr(model, "metadata", None)
+        if metadata is None:
+            return None
+
+        input_example = metadata.load_input_example()
+        if not isinstance(input_example, pd.DataFrame) or input_example.empty:
+            return None
+        return {"rows": input_example.to_dict(orient="records")}
+    except Exception:
+        return None
+
+
+def _payload() -> dict[str, Any]:
+    return _payload_from_model() or _default_payload()
+
+
+def _assert_prediction_response(body: dict[str, Any], *, expected_n: int) -> None:
+    proba = body.get("proba")
+    assert isinstance(proba, list) and len(proba) == expected_n, f"bad proba={proba!r}"
+
+    for idx, value in enumerate(proba):
+        assert isinstance(value, (float, int)), f"bad proba[{idx}]={value!r}"
+        p_float = float(value)
+        assert 0.0 <= p_float <= 1.0, f"proba[{idx}] out of range: {p_float}"
 
 
 def _call(mode: str, *, required: bool) -> None:
-    r = requests.post(f"{SERVE_URL}/predict?mode={mode}", json=_payload(), timeout=15)
+    payload = _payload()
+    r = requests.post(f"{SERVE_URL}/predict?mode={mode}", json=payload, timeout=15)
 
     # Many deployments only guarantee prod.
     if r.status_code == 503 and not required:
@@ -100,7 +133,7 @@ def _call(mode: str, *, required: bool) -> None:
 
     body = r.json()
     assert isinstance(body, dict)
-    _assert_prediction_response(body)
+    _assert_prediction_response(body, expected_n=len(payload["rows"]))
     print(f"[smoke] mode={mode} OK:", body)
 
 

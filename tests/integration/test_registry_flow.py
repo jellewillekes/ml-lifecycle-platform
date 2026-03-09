@@ -21,6 +21,7 @@ from ml_lifecycle_platform.common.constants import (
     TAG_DATASET_FINGERPRINT,
     TAG_GATE,
     TAG_GIT_SHA,
+    TAG_MODEL_NAME,
     TAG_PROMOTED_FROM_ALIAS,
     TAG_RELEASE_STATUS,
     TAG_SOURCE_RUN_ID,
@@ -32,11 +33,13 @@ pytestmark = pytest.mark.integration
 
 
 def _create_training_run() -> str:
+    model_name = "integration_registry_model"
     model = DummyClassifier(strategy="most_frequent")
     model.fit([[0.0], [1.0], [0.0], [1.0]], [0, 1, 0, 1])
 
     with mlflow.start_run(run_name="integration-train") as run:
         run_id = run.info.run_id
+        mlflow.set_tag(TAG_MODEL_NAME, model_name)
         mlflow.set_tag(TAG_DATASET_FINGERPRINT, "dataset-fingerprint")
         mlflow.set_tag(TAG_GIT_SHA, "deadbeef")
         mlflow.set_tag(TAG_CONFIG_HASH, "config-hash")

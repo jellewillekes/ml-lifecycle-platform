@@ -21,6 +21,7 @@ class RuntimeContext:
 
     metadata: RuntimeMetadata
     model_name: str
+    model_spec_path: str
     experiment_name: str
     log_level: str
     data_dir: Path

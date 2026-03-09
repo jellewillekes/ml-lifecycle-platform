@@ -18,6 +18,7 @@ def _profile(tmp_path: Path) -> RuntimeProfile:
         registry_uri="http://localhost:5050",
         experiment_name="breast-cancer-platform",
         model_name="breast_cancer_clf",
+        model_spec_path="configs/models/breast_cancer_demo.yaml",
         log_level="INFO",
         data_dir=tmp_path / "data",
         artifacts_dir=tmp_path / "artifacts",
@@ -73,6 +74,9 @@ def test_cli_infra_up_routes_to_compose(
     ]
     assert captured_env["MLP_ENV"] == "local"
     assert captured_env["MLP_COMPOSE_TRACKING_URI"] == "http://mlflow-server:5000"
+    assert (
+        captured_env["MLP_MODEL_SPEC_PATH"] == "configs/models/breast_cancer_demo.yaml"
+    )
 
 
 def test_cli_pipeline_run_builds_then_runs(
@@ -170,17 +174,22 @@ def test_cli_serve_api_builds_and_starts_service(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     commands: list[list[str]] = []
+    envs: list[dict[str, str]] = []
     monkeypatch.setattr(
         cli_main, "load_runtime_profile", lambda env_name=None: _profile(tmp_path)
     )
 
     def fake_run(command: list[str], env: dict[str, str]) -> int:
         commands.append(command)
+        envs.append(dict(env))
         return 0
 
     monkeypatch.setattr(cli_main, "_run", fake_run)
 
-    assert cli_main.main(["--env", "local", "serve", "api"]) == 0
+    assert (
+        cli_main.main(["--env", "local", "serve", "api", "--model-name", "csv-model"])
+        == 0
+    )
     assert commands == [
         [
             "docker",
@@ -206,6 +215,7 @@ def test_cli_serve_api_builds_and_starts_service(
             "serving",
         ],
     ]
+    assert envs[-1]["MODEL_NAME"] == "csv-model"
 
 
 def test_cli_e2e_delegates_to_runner(

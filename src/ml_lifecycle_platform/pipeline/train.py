@@ -17,7 +17,7 @@ from sklearn.pipeline import Pipeline
 from ml_lifecycle_platform.common.config import (
     get_experiment_name,
     get_log_level,
-    get_model_name,
+    get_model_spec_path,
 )
 from ml_lifecycle_platform.common.constants import (
     ART_DATASET_FINGERPRINT_JSON,
@@ -27,7 +27,6 @@ from ml_lifecycle_platform.common.constants import (
     ART_REPRO_PROBE_INPUTS_CSV,
     ART_TRAIN_SUMMARY_JSON,
     ART_UV_LOCK,
-    LABEL_COL,
     MLFLOW_ARTIFACT_PATH_MODEL,
     MLFLOW_ARTIFACT_PATH_REPRO,
     MLFLOW_ARTIFACT_PATH_REPORTS,
@@ -55,13 +54,13 @@ from ml_lifecycle_platform.contracts.dataset_fingerprint import (
     write_fingerprint_json,
 )
 from ml_lifecycle_platform.contracts.repro_contract import ReproContract
+from ml_lifecycle_platform.core.model_specs import ModelSpec, load_model_spec
 from ml_lifecycle_platform.runtime.bootstrap import configure_mlflow
 
 logger = logging.getLogger(__name__)
 
 DATA_DIR: Final[Path] = Path("/app/data")
 ART_DIR: Final[Path] = Path("/app/artifacts")
-DEFAULT_DETERMINISTIC_SEED: Final[int] = 42
 PROBE_INPUT_LIMIT: Final[int] = 10
 REPRO_INPUTS_ARTIFACT_PATH: Final[str] = f"{MLFLOW_ARTIFACT_PATH_REPRO}/inputs"
 REPRO_OUTPUTS_ARTIFACT_PATH: Final[str] = f"{MLFLOW_ARTIFACT_PATH_REPRO}/outputs"
@@ -83,20 +82,41 @@ class TrainingResult:
     expected_probabilities: list[float]
 
 
-def default_training_params(
-    seed: int = DEFAULT_DETERMINISTIC_SEED,
-) -> dict[str, str | int]:
+def config_hash_for_spec(spec: ModelSpec | Mapping[str, Any]) -> str:
+    payload = spec.to_dict() if isinstance(spec, ModelSpec) else dict(spec)
+    return sha256_text(json.dumps(payload, sort_keys=True, separators=(",", ":")))
+
+
+def trainer_params_for_spec(spec: ModelSpec) -> dict[str, str | int]:
     return {
         "model_type": "logreg",
-        "max_iter": 2000,
-        "solver": "lbfgs",
-        "class_weight": "balanced",
-        "random_state": seed,
+        "max_iter": spec.trainer.max_iter,
+        "solver": spec.trainer.solver,
+        "class_weight": spec.trainer.class_weight,
+        "random_state": spec.trainer.random_state,
     }
 
 
-def config_hash_for_params(params: Mapping[str, Any]) -> str:
-    return sha256_text(json.dumps(dict(params), sort_keys=True, separators=(",", ":")))
+def compute_binary_metrics(
+    *,
+    metric_names: tuple[str, ...],
+    y_true: pd.Series,
+    pred: Any,
+    proba: Any,
+    prefix: str,
+) -> dict[str, float]:
+    metrics: dict[str, float] = {}
+    for metric_name in metric_names:
+        if metric_name == "accuracy":
+            value = accuracy_score(y_true, pred)
+        elif metric_name == "f1":
+            value = f1_score(y_true, pred)
+        elif metric_name == "roc_auc":
+            value = roc_auc_score(y_true, proba)
+        else:  # pragma: no cover
+            raise ValueError(f"Unsupported metric: {metric_name}")
+        metrics[f"{prefix}_{metric_name}"] = float(value)
+    return metrics
 
 
 def load_training_inputs(
@@ -117,13 +137,14 @@ def load_training_inputs(
 
 def train_from_inputs(
     inputs: TrainingInputs,
-    params: Mapping[str, Any],
+    spec: ModelSpec,
 ) -> TrainingResult:
-    X_train = inputs.train_df.drop(columns=[LABEL_COL])
-    y_train = inputs.train_df[LABEL_COL].astype(int)
+    params = trainer_params_for_spec(spec)
+    X_train = inputs.train_df.drop(columns=[spec.label_column])
+    y_train = inputs.train_df[spec.label_column].astype(int)
 
-    X_test = inputs.test_df.drop(columns=[LABEL_COL])
-    y_test = inputs.test_df[LABEL_COL].astype(int)
+    X_test = inputs.test_df.drop(columns=[spec.label_column])
+    y_test = inputs.test_df[spec.label_column].astype(int)
 
     clf = LogisticRegression(
         max_iter=int(params["max_iter"]),
@@ -141,11 +162,13 @@ def train_from_inputs(
         float(v) for v in pipeline.predict_proba(probe_inputs)[:, 1]
     ]
 
-    metrics = {
-        "test_accuracy": float(accuracy_score(y_test, pred)),
-        "test_f1": float(f1_score(y_test, pred)),
-        "test_roc_auc": float(roc_auc_score(y_test, proba)),
-    }
+    metrics = compute_binary_metrics(
+        metric_names=spec.evaluation.metrics,
+        y_true=y_test,
+        pred=pred,
+        proba=proba,
+        prefix="test",
+    )
     return TrainingResult(
         pipeline=pipeline,
         metrics=metrics,
@@ -157,7 +180,7 @@ def train_from_inputs(
 def build_repro_contract(
     *,
     training_run_id: str,
-    model_name: str,
+    spec: ModelSpec,
     dataset_fingerprint: DatasetFingerprint,
     dataset_fingerprint_hash: str,
     config_hash: str,
@@ -168,7 +191,8 @@ def build_repro_contract(
     seed = int(params["random_state"])
     return ReproContract(
         training_run_id=training_run_id,
-        model_name=model_name,
+        model_name=spec.model_name,
+        model_spec=spec.to_dict(),
         git_sha=dataset_fingerprint.git_sha,
         config_hash=config_hash,
         dataset_fingerprint=dataset_fingerprint_hash,
@@ -200,15 +224,15 @@ def main() -> None:
     ensure_experiment(experiment_name)
     mlflow.set_experiment(experiment_name)
 
-    model_name = get_model_name()
-    data_source_uri = f"file://{DATA_DIR.as_posix()}"
-    params = default_training_params()
-    config_hash = config_hash_for_params(params)
+    spec = load_model_spec(get_model_spec_path())
+    data_source_uri = spec.data_source_uri()
+    params = trainer_params_for_spec(spec)
+    config_hash = config_hash_for_spec(spec)
     inputs = load_training_inputs()
 
     with mlflow.start_run(run_name="train") as run:
         mlflow.set_tag(TAG_STEP, STEP_TRAIN)
-        mlflow.set_tag(TAG_MODEL_NAME, model_name)
+        mlflow.set_tag(TAG_MODEL_NAME, spec.model_name)
         mlflow.set_tag(TAG_TRAINING_RUN_ID, run.info.run_id)
         mlflow.set_tag(TAG_CONFIG_HASH, config_hash)
         mlflow.set_tag(TAG_DETERMINISTIC_SEED, str(params["random_state"]))
@@ -225,10 +249,10 @@ def main() -> None:
         mlflow.set_tag(TAG_DATASET_FINGERPRINT, dataset_fingerprint_hash)
         mlflow.set_tag(TAG_ENV_LOCK_HASH, get_uv_lock_hash())
 
-        result = train_from_inputs(inputs, params)
+        result = train_from_inputs(inputs, spec)
         repro_contract = build_repro_contract(
             training_run_id=run.info.run_id,
-            model_name=model_name,
+            spec=spec,
             dataset_fingerprint=fp,
             dataset_fingerprint_hash=dataset_fingerprint_hash,
             config_hash=config_hash,

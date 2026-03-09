@@ -41,6 +41,7 @@ class RuntimeProfile:
     registry_uri: str
     experiment_name: str
     model_name: str
+    model_spec_path: str
     log_level: str
     data_dir: Path
     artifacts_dir: Path
@@ -70,6 +71,7 @@ def _profile_from_dict(data: dict[str, Any], *, base: Path) -> RuntimeProfile:
         registry_uri=_require_str(data, "registry_uri"),
         experiment_name=_require_str(data, "experiment_name"),
         model_name=_require_str(data, "model_name"),
+        model_spec_path=_require_str(data, "model_spec_path"),
         log_level=_require_str(data, "log_level"),
         data_dir=_resolve_path(_require_str(data, "data_dir"), base=base),
         artifacts_dir=_resolve_path(_require_str(data, "artifacts_dir"), base=base),
@@ -125,6 +127,7 @@ def _apply_env_overrides(profile: RuntimeProfile) -> RuntimeProfile:
         registry_uri=os.getenv("MLFLOW_REGISTRY_URI", profile.registry_uri),
         experiment_name=os.getenv("EXPERIMENT_NAME", profile.experiment_name),
         model_name=os.getenv("MODEL_NAME", profile.model_name),
+        model_spec_path=os.getenv("MLP_MODEL_SPEC_PATH", profile.model_spec_path),
         log_level=os.getenv("LOG_LEVEL", profile.log_level),
         data_dir=data_dir,
         artifacts_dir=artifacts_dir,

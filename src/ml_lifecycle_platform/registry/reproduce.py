@@ -30,8 +30,9 @@ from ml_lifecycle_platform.contracts.dataset_fingerprint import (
     get_git_sha,
 )
 from ml_lifecycle_platform.contracts.repro_contract import ReproContract
+from ml_lifecycle_platform.core.model_specs import model_spec_from_dict
 from ml_lifecycle_platform.pipeline.train import (
-    config_hash_for_params,
+    config_hash_for_spec,
     load_training_inputs,
     train_from_inputs,
 )
@@ -251,7 +252,10 @@ def reproduce_model(
                 details=report["checks"]["env_lock_hash"],
             )
 
-        recomputed_config_hash = config_hash_for_params(contract.params)
+        spec = model_spec_from_dict(
+            contract.model_spec, spec_path="contract://model-spec"
+        )
+        recomputed_config_hash = config_hash_for_spec(spec)
         report["checks"]["config_hash"] = {
             "expected": contract.config_hash,
             "actual": recomputed_config_hash,
@@ -327,7 +331,7 @@ def reproduce_model(
                 details=report["checks"]["dataset_fingerprint"],
             )
 
-        result = train_from_inputs(downloaded_inputs, contract.params)
+        result = train_from_inputs(downloaded_inputs, spec)
         probe_inputs = pd.read_csv(probe_inputs_path)
         expected_probabilities = _read_expected_predictions(expected_predictions_path)
         actual_probabilities = [

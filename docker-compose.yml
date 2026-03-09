@@ -88,6 +88,7 @@ services:
       AWS_SECRET_ACCESS_KEY: minioadmin
       MLFLOW_S3_ENDPOINT_URL: http://minio:9000
       MODEL_NAME: breast_cancer_clf
+      MLP_MODEL_SPEC_PATH: configs/models/breast_cancer_demo.yaml
       EXPERIMENT_NAME: breast-cancer-platform
       GIT_SHA: ${GIT_SHA:-dev}
     command: ["python", "-m", "ml_lifecycle_platform.pipeline.orchestrate"]
@@ -167,6 +168,12 @@ services:
         condition: service_healthy
     environment:
       SERVE_URL: http://serving:8000
+      MLFLOW_TRACKING_URI: http://mlflow-server:5000
+      MLFLOW_REGISTRY_URI: http://mlflow-server:5000
+      MLFLOW_S3_ENDPOINT_URL: http://minio:9000
+      AWS_ACCESS_KEY_ID: minioadmin
+      AWS_SECRET_ACCESS_KEY: minioadmin
+      MODEL_NAME: breast_cancer_clf
     command: ["python", "-m", "ml_lifecycle_platform.serving.smoke_test"]
     restart: "no"
 

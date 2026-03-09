@@ -27,6 +27,10 @@ def get_model_name() -> str:
     return get_runtime_context().model_name
 
 
+def get_model_spec_path() -> str:
+    return get_runtime_context().model_spec_path
+
+
 def get_log_level() -> str:
     return get_runtime_context().log_level
 

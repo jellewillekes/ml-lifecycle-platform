@@ -6,15 +6,14 @@ import matplotlib.pyplot as plt
 import mlflow
 import numpy as np
 import pandas as pd
-from sklearn.metrics import RocCurveDisplay, accuracy_score, f1_score, roc_auc_score
+from sklearn.metrics import RocCurveDisplay
 
-from ml_lifecycle_platform.common.config import get_experiment_name
+from ml_lifecycle_platform.common.config import get_experiment_name, get_model_spec_path
 from ml_lifecycle_platform.common.constants import (
     ART_EVALUATION_JSON,
     ART_GATE_OK,
     ART_ROC_CURVE_PNG,
     ART_TRAIN_RUN_ID,
-    LABEL_COL,
     MLFLOW_ARTIFACT_PATH_MODEL,
     MLFLOW_ARTIFACT_PATH_REPORTS,
     STEP_EVALUATE,
@@ -22,6 +21,8 @@ from ml_lifecycle_platform.common.constants import (
     TEST_CSV,
 )
 from ml_lifecycle_platform.common.mlflow_utils import ensure_experiment, write_json
+from ml_lifecycle_platform.core.model_specs import load_model_spec
+from ml_lifecycle_platform.pipeline.train import compute_binary_metrics
 
 DATA_DIR = Path("/app/data")
 ART_DIR = Path("/app/artifacts")
@@ -30,10 +31,11 @@ ART_DIR = Path("/app/artifacts")
 def main() -> None:
     ensure_experiment(get_experiment_name())
     mlflow.set_experiment(get_experiment_name())
+    spec = load_model_spec(get_model_spec_path())
 
     test_df = pd.read_csv(DATA_DIR / TEST_CSV)
-    X_test = test_df.drop(columns=[LABEL_COL])
-    y_test = test_df[LABEL_COL].astype(int)
+    X_test = test_df.drop(columns=[spec.label_column])
+    y_test = test_df[spec.label_column].astype(int)
 
     # The orchestrator writes TRAIN_RUN_ID.
     train_run_id = (ART_DIR / ART_TRAIN_RUN_ID).read_text(encoding="utf-8").strip()
@@ -44,11 +46,13 @@ def main() -> None:
     proba = model.predict(X_test)
     pred = (np.array(proba) >= 0.5).astype(int)
 
-    metrics = {
-        "eval_accuracy": float(accuracy_score(y_test, pred)),
-        "eval_f1": float(f1_score(y_test, pred)),
-        "eval_roc_auc": float(roc_auc_score(y_test, proba)),
-    }
+    metrics = compute_binary_metrics(
+        metric_names=spec.evaluation.metrics,
+        y_true=y_test,
+        pred=pred,
+        proba=proba,
+        prefix="eval",
+    )
 
     ART_DIR.mkdir(parents=True, exist_ok=True)
     report_path = ART_DIR / ART_EVALUATION_JSON
@@ -69,8 +73,8 @@ def main() -> None:
         )
         mlflow.log_artifact(str(fig_path), artifact_path=MLFLOW_ARTIFACT_PATH_REPORTS)
 
-        # Simple gate: roc_auc >= 0.95.
-        gate_ok = metrics["eval_roc_auc"] >= 0.95
+        gate_metric_key = f"eval_{spec.evaluation.gate.metric}"
+        gate_ok = metrics[gate_metric_key] >= spec.evaluation.gate.threshold
         gate_path = ART_DIR / ART_GATE_OK
         gate_path.write_text("true" if gate_ok else "false", encoding="utf-8")
         mlflow.log_artifact(str(gate_path), artifact_path=MLFLOW_ARTIFACT_PATH_REPORTS)

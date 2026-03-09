@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+from dataclasses import replace
 import os
 from pathlib import Path
 import subprocess
@@ -16,6 +17,18 @@ def _repo_root() -> Path:
     return Path(__file__).resolve().parents[3]
 
 
+def _git_sha() -> str:
+    try:
+        output = subprocess.check_output(
+            ["git", "rev-parse", "HEAD"],
+            cwd=_repo_root(),
+            stderr=subprocess.DEVNULL,
+        )
+    except Exception:
+        return "dev"
+    return output.decode("utf-8").strip()
+
+
 def _profile_env(profile: RuntimeProfile) -> dict[str, str]:
     return {
         "MLP_ENV": profile.environment,
@@ -23,6 +36,7 @@ def _profile_env(profile: RuntimeProfile) -> dict[str, str]:
         "MLFLOW_REGISTRY_URI": profile.registry_uri,
         "EXPERIMENT_NAME": profile.experiment_name,
         "MODEL_NAME": profile.model_name,
+        "MLP_MODEL_SPEC_PATH": profile.model_spec_path,
         "LOG_LEVEL": profile.log_level,
         "MLP_DATA_DIR": str(profile.data_dir),
         "MLP_ARTIFACTS_DIR": str(profile.artifacts_dir),
@@ -41,6 +55,7 @@ def _profile_env(profile: RuntimeProfile) -> dict[str, str]:
         "MLFLOW_PORT": str(profile.mlflow_port),
         "BACKEND_STORE_URI": profile.backend_store_uri,
         "ARTIFACT_ROOT": profile.artifact_root,
+        "GIT_SHA": os.getenv("GIT_SHA", _git_sha()),
         "SERVE_URL": profile.compose_serve_url,
     }
 
@@ -103,7 +118,10 @@ def _handle_infra_build(args: argparse.Namespace, profile: RuntimeProfile) -> in
 
 
 def _handle_pipeline_run(args: argparse.Namespace, profile: RuntimeProfile) -> int:
-    env = _command_env(profile)
+    env_overrides: dict[str, str] = {}
+    if args.model_spec:
+        env_overrides["MLP_MODEL_SPEC_PATH"] = args.model_spec
+    env = _command_env(profile, env_overrides)
     _run(_compose_cmd(profile, "build", *SVC_IMAGES), env)
     return _run(
         _compose_cmd(profile, "run", "--rm", "--use-aliases", "pipeline"),
@@ -168,7 +186,10 @@ def _handle_registry_reproduce(
 
 
 def _handle_serve_api(args: argparse.Namespace, profile: RuntimeProfile) -> int:
-    env = _command_env(profile)
+    env_overrides: dict[str, str] = {}
+    if args.model_name:
+        env_overrides["MODEL_NAME"] = args.model_name
+    env = _command_env(profile, env_overrides)
     _run(_compose_cmd(profile, "build", *SVC_IMAGES), env)
     _run(_compose_cmd(profile, "up", "-d", "--build", "serving"), env)
     print("Serving API: http://localhost:8000 (GET /health, POST /predict)")
@@ -176,9 +197,20 @@ def _handle_serve_api(args: argparse.Namespace, profile: RuntimeProfile) -> int:
 
 
 def _handle_serve_smoke(args: argparse.Namespace, profile: RuntimeProfile) -> int:
+    env_overrides: dict[str, str] = {}
+    if args.model_name:
+        env_overrides["MODEL_NAME"] = args.model_name
     return _run(
-        _compose_cmd(profile, "run", "--rm", "--use-aliases", "--build", "smoke"),
-        _command_env(profile),
+        _compose_cmd(
+            profile,
+            "run",
+            "--rm",
+            "--no-deps",
+            "--use-aliases",
+            "--build",
+            "smoke",
+        ),
+        _command_env(profile, env_overrides),
     )
 
 
@@ -222,6 +254,8 @@ def _run_e2e(profile: RuntimeProfile, *, keep_stack: bool) -> int:
 
 
 def _handle_e2e(args: argparse.Namespace, profile: RuntimeProfile) -> int:
+    if args.model_spec:
+        profile = replace(profile, model_spec_path=args.model_spec)
     return _run_e2e(profile, keep_stack=args.keep_stack)
 
 
@@ -252,6 +286,7 @@ def _build_parser() -> argparse.ArgumentParser:
     pipeline = subparsers.add_parser("pipeline", help="Pipeline commands")
     pipeline_sub = pipeline.add_subparsers(dest="pipeline_command", required=True)
     pipeline_run = pipeline_sub.add_parser("run", help="Run the local pipeline")
+    pipeline_run.add_argument("--model-spec")
     pipeline_run.set_defaults(handler=_handle_pipeline_run)
 
     registry = subparsers.add_parser("registry", help="Registry commands")
@@ -280,12 +315,15 @@ def _build_parser() -> argparse.ArgumentParser:
     serve = subparsers.add_parser("serve", help="Serving commands")
     serve_sub = serve.add_subparsers(dest="serve_command", required=True)
     serve_api = serve_sub.add_parser("api", help="Start serving API")
+    serve_api.add_argument("--model-name")
     serve_api.set_defaults(handler=_handle_serve_api)
     serve_smoke = serve_sub.add_parser("smoke", help="Run serving smoke test")
+    serve_smoke.add_argument("--model-name")
     serve_smoke.set_defaults(handler=_handle_serve_smoke)
 
     e2e = subparsers.add_parser("e2e", help="Run the local golden path")
     e2e.add_argument("--keep-stack", action="store_true")
+    e2e.add_argument("--model-spec")
     e2e.set_defaults(handler=_handle_e2e)
 
     return parser

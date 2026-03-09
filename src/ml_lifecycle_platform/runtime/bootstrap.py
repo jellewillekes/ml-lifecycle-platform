@@ -33,6 +33,7 @@ def build_runtime_context() -> RuntimeContext:
             source="profile-bootstrap",
         ),
         model_name=profile.model_name,
+        model_spec_path=profile.model_spec_path,
         experiment_name=profile.experiment_name,
         log_level=profile.log_level,
         data_dir=profile.data_dir,
