@@ -10,6 +10,12 @@ __pycache__/
 .venv/
 venv/
 .env
+.env.*
+!.env.example
+
+# Editor / IDE state
+.vscode/
+.idea/
 
 # Test / type / lint caches
 .pytest_cache/
@@ -35,3 +41,4 @@ mlartifacts/
 artifacts/
 data/
 reproduce_report.json
+reproduce_*.json

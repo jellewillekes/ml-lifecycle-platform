@@ -4,7 +4,7 @@ task: binary_classifier
 label_column: target
 source:
   kind: csv
-  path: ../model_data/local_csv_binary_classifier.csv
+  path: ../../examples/csv/local_csv_binary_classifier.csv
 split:
   test_size: 0.2
   random_state: 42

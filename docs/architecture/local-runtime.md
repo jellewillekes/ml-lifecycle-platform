@@ -13,6 +13,13 @@ Default local path:
 
 - [`configs/env/local.yaml`](../../configs/env/local.yaml)
 
+Public starter files:
+
+- [`.env.example`](../../.env.example)
+- [`configs/models/breast_cancer_demo.yaml`](../../configs/models/breast_cancer_demo.yaml)
+- [`configs/models/local_csv_binary_classifier.yaml`](../../configs/models/local_csv_binary_classifier.yaml)
+- [`examples/csv/local_csv_binary_classifier.csv`](../../examples/csv/local_csv_binary_classifier.csv)
+
 The selected profile becomes:
 
 - process environment for local Python commands
@@ -43,6 +50,7 @@ Operators can override the shipped profile with environment variables.
 
 Common overrides:
 
+- `MLP_ENV`
 - `MLP_PROFILE_PATH`
 - `MLFLOW_TRACKING_URI`
 - `MLFLOW_REGISTRY_URI`
@@ -84,6 +92,7 @@ Concrete examples:
 
 - [`configs/models/breast_cancer_demo.yaml`](../../configs/models/breast_cancer_demo.yaml)
 - [`configs/models/local_csv_binary_classifier.yaml`](../../configs/models/local_csv_binary_classifier.yaml)
+- [`examples/csv/local_csv_binary_classifier.csv`](../../examples/csv/local_csv_binary_classifier.csv)
 
 ## Serving contract in local runtime
 
@@ -116,6 +125,7 @@ The same operations may append structured events to:
 
 Primary operator entrypoints:
 
+- `make e2e`
 - `make up`
 - `make run-pipeline`
 - `make policy-check`

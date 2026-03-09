@@ -98,5 +98,20 @@ def test_load_runtime_profile_rejects_missing_required_field(tmp_path: Path) -> 
         load_runtime_profile(profile_path=profile_path)
 
 
+def test_all_committed_runtime_profiles_load() -> None:
+    profile_paths = sorted(Path("configs/env").glob("*.yaml"))
+
+    assert profile_paths
+
+    for profile_path in profile_paths:
+        reset_runtime_profile_cache()
+        profile = load_runtime_profile(profile_path=profile_path)
+        assert profile.environment
+        assert profile.model_name
+        assert profile.model_spec_path
+        assert profile.compose_file.exists()
+        assert profile.event_log_path.name
+
+
 def teardown_function() -> None:
     reset_runtime_profile_cache()

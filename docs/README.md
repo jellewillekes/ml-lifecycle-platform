@@ -5,8 +5,9 @@ Start here if you want to run or change the local platform.
 ## Golden path
 
 1. Read [`runbooks/local-bootstrap.md`](./runbooks/local-bootstrap.md).
-2. Follow the commands exactly in order.
-3. Use the other runbooks only when you need a specific registry operation.
+2. Start with `uv sync --dev`.
+3. Use `make e2e` for the fastest end-to-end validation.
+4. Use the manual runbooks only when you need to inspect one step at a time.
 
 ## Architecture
 
