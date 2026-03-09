@@ -26,5 +26,6 @@ Start here if you want to run or change the local platform.
 
 - [`ci.md`](./ci.md): CI lanes and local mapping
 - [`releases.md`](./releases.md): package releases and model release evidence
+- [`reference/technology-stack.md`](./reference/technology-stack.md): primary tools, why they are used, and where they fit
 - [`adrs/ADR-0001-portability-surface.md`](./adrs/ADR-0001-portability-surface.md): M0 portability boundary
 - [`adrs/ADR-0002-mlflow-control-plane.md`](./adrs/ADR-0002-mlflow-control-plane.md): MLflow as M0 control plane
