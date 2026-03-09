@@ -32,7 +32,7 @@ from ml_lifecycle_platform.core.model_specs import (
     default_policy_spec,
     load_model_spec,
 )
-from ml_lifecycle_platform.core.release_reports import (
+from ml_lifecycle_platform.contracts.release_reports import (
     OperationResult,
     PolicyOutcome,
     PromotionDecisionReport,

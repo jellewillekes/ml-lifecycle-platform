@@ -21,6 +21,7 @@ from ml_lifecycle_platform.common.constants import (
     TEST_CSV,
 )
 from ml_lifecycle_platform.common.mlflow_utils import ensure_experiment, write_json
+from ml_lifecycle_platform.core.batch_contracts import validate_labeled_dataset
 from ml_lifecycle_platform.core.model_specs import load_model_spec
 from ml_lifecycle_platform.pipeline.train import compute_binary_metrics
 
@@ -34,6 +35,12 @@ def main() -> None:
     spec = load_model_spec(get_model_spec_path())
 
     test_df = pd.read_csv(DATA_DIR / TEST_CSV)
+    test_df = validate_labeled_dataset(
+        test_df,
+        spec=spec,
+        stage="evaluate",
+        dataset_name="test",
+    )
     X_test = test_df.drop(columns=[spec.label_column])
     y_test = test_df[spec.label_column].astype(int)
 

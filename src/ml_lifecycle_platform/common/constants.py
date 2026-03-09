@@ -7,6 +7,7 @@ FEATURE_STATS_SCHEMA_VERSION = "feature_stats/v1"
 REPRO_CONTRACT_SCHEMA_VERSION = "repro_contract/v1"
 MODEL_SPEC_SCHEMA_VERSION = "model_spec/v1"
 RELEASE_REPORT_SCHEMA_VERSION = "release_reports/v1"
+RUNTIME_EVENT_SCHEMA_VERSION = "runtime_event/v1"
 
 # MLflow tag keys
 TAG_STEP = "step"
