@@ -1,11 +1,19 @@
 from __future__ import annotations
+
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Mapping
 
 import yaml
 
-from ml_lifecycle_platform.common.constants import MODEL_SPEC_SCHEMA_VERSION
+from ml_lifecycle_platform.common.constants import (
+    ALIAS_CANDIDATE,
+    MODEL_SPEC_SCHEMA_VERSION,
+    TAG_CONFIG_HASH,
+    TAG_DATASET_FINGERPRINT,
+    TAG_GIT_SHA,
+    TAG_TRAINING_RUN_ID,
+)
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 SUPPORTED_TASK = "binary_classifier"
@@ -13,6 +21,12 @@ SUPPORTED_SOURCE_KINDS = {"sklearn_demo", "csv"}
 SUPPORTED_TRAINER_KIND = "logistic_regression"
 SUPPORTED_PREPROCESSOR_KIND = "standard_scaler"
 SUPPORTED_METRICS = {"accuracy", "f1", "roc_auc"}
+DEFAULT_POLICY_REQUIRED_METADATA_TAGS = (
+    TAG_DATASET_FINGERPRINT,
+    TAG_GIT_SHA,
+    TAG_CONFIG_HASH,
+    TAG_TRAINING_RUN_ID,
+)
 
 
 def _require_mapping(payload: Any, *, context: str) -> dict[str, Any]:
@@ -146,6 +160,45 @@ class EvaluationSpec:
 
 
 @dataclass(frozen=True)
+class MetricThresholdSpec:
+    metric: str
+    threshold: float
+
+    def to_dict(self) -> dict[str, Any]:
+        return {"metric": self.metric, "threshold": self.threshold}
+
+
+@dataclass(frozen=True)
+class PolicySpec:
+    required_metadata_tags: tuple[str, ...]
+    required_release_status: str
+    block_noop_promotion: bool
+    require_reproducibility_evidence: bool
+    minimum_metric_thresholds: tuple[MetricThresholdSpec, ...]
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "required_metadata_tags": list(self.required_metadata_tags),
+            "required_release_status": self.required_release_status,
+            "block_noop_promotion": self.block_noop_promotion,
+            "require_reproducibility_evidence": self.require_reproducibility_evidence,
+            "minimum_metric_thresholds": [
+                threshold.to_dict() for threshold in self.minimum_metric_thresholds
+            ],
+        }
+
+
+def default_policy_spec() -> PolicySpec:
+    return PolicySpec(
+        required_metadata_tags=DEFAULT_POLICY_REQUIRED_METADATA_TAGS,
+        required_release_status=ALIAS_CANDIDATE,
+        block_noop_promotion=True,
+        require_reproducibility_evidence=False,
+        minimum_metric_thresholds=(),
+    )
+
+
+@dataclass(frozen=True)
 class ModelSpec:
     schema_version: str
     model_name: str
@@ -156,6 +209,7 @@ class ModelSpec:
     preprocessor: PreprocessorSpec
     trainer: LogisticRegressionTrainerSpec
     evaluation: EvaluationSpec
+    policy: PolicySpec
     spec_path: Path
 
     def to_dict(self) -> dict[str, Any]:
@@ -169,6 +223,7 @@ class ModelSpec:
             "preprocessor": self.preprocessor.to_dict(),
             "trainer": self.trainer.to_dict(),
             "evaluation": self.evaluation.to_dict(),
+            "policy": self.policy.to_dict(),
         }
 
     def data_source_uri(self) -> str:
@@ -271,6 +326,79 @@ def _parse_evaluation(payload: Any, *, context: str) -> EvaluationSpec:
     return EvaluationSpec(metrics=tuple(parsed_metrics), gate=gate)
 
 
+def _parse_metric_threshold(payload: Any, *, context: str) -> MetricThresholdSpec:
+    raw = _require_mapping(payload, context=context)
+    _reject_extra_keys(raw, allowed={"metric", "threshold"}, context=context)
+    metric = _require_str(raw, "metric", context=context)
+    if metric not in SUPPORTED_METRICS:
+        raise ValueError(
+            f"{context}.metric must be one of {sorted(SUPPORTED_METRICS)}."
+        )
+    threshold = _require_float(raw, "threshold", context=context)
+    if not 0.0 <= threshold <= 1.0:
+        raise ValueError(f"{context}.threshold must be between 0 and 1.")
+    return MetricThresholdSpec(metric=metric, threshold=threshold)
+
+
+def _parse_policy(payload: Any, *, context: str) -> PolicySpec:
+    if payload is None:
+        return default_policy_spec()
+
+    raw = _require_mapping(payload, context=context)
+    _reject_extra_keys(
+        raw,
+        allowed={
+            "required_metadata_tags",
+            "required_release_status",
+            "block_noop_promotion",
+            "require_reproducibility_evidence",
+            "minimum_metric_thresholds",
+        },
+        context=context,
+    )
+
+    required_metadata_tags = raw.get("required_metadata_tags")
+    if not isinstance(required_metadata_tags, list) or not required_metadata_tags:
+        raise ValueError(f"{context}.required_metadata_tags must be a non-empty list.")
+
+    parsed_required_metadata_tags: list[str] = []
+    for tag_name in required_metadata_tags:
+        if not isinstance(tag_name, str) or not tag_name.strip():
+            raise ValueError(
+                f"{context}.required_metadata_tags entries must be non-empty strings."
+            )
+        parsed_required_metadata_tags.append(tag_name.strip())
+
+    minimum_metric_thresholds = raw.get("minimum_metric_thresholds")
+    if not isinstance(minimum_metric_thresholds, list):
+        raise ValueError(f"{context}.minimum_metric_thresholds must be a list.")
+
+    parsed_thresholds = tuple(
+        _parse_metric_threshold(
+            item, context=f"{context}.minimum_metric_thresholds[{idx}]"
+        )
+        for idx, item in enumerate(minimum_metric_thresholds)
+    )
+    if len({threshold.metric for threshold in parsed_thresholds}) != len(
+        parsed_thresholds
+    ):
+        raise ValueError(f"{context}.minimum_metric_thresholds cannot repeat metrics.")
+
+    return PolicySpec(
+        required_metadata_tags=tuple(parsed_required_metadata_tags),
+        required_release_status=_require_str(
+            raw, "required_release_status", context=context
+        ),
+        block_noop_promotion=_require_bool(
+            raw, "block_noop_promotion", context=context
+        ),
+        require_reproducibility_evidence=_require_bool(
+            raw, "require_reproducibility_evidence", context=context
+        ),
+        minimum_metric_thresholds=parsed_thresholds,
+    )
+
+
 def model_spec_from_dict(
     payload: Mapping[str, Any], *, spec_path: str | Path
 ) -> ModelSpec:
@@ -287,6 +415,7 @@ def model_spec_from_dict(
             "preprocessor",
             "trainer",
             "evaluation",
+            "policy",
         },
         context="model_spec",
     )
@@ -314,6 +443,7 @@ def model_spec_from_dict(
         evaluation=_parse_evaluation(
             raw.get("evaluation"), context="model_spec.evaluation"
         ),
+        policy=_parse_policy(raw.get("policy"), context="model_spec.policy"),
         spec_path=resolve_model_spec_path(spec_path),
     )
 

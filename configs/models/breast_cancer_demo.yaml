@@ -25,3 +25,13 @@ evaluation:
   gate:
     metric: roc_auc
     threshold: 0.95
+policy:
+  required_metadata_tags:
+    - dataset_fingerprint
+    - git_sha
+    - config_hash
+    - training_run_id
+  required_release_status: candidate
+  block_noop_promotion: true
+  require_reproducibility_evidence: false
+  minimum_metric_thresholds: []
