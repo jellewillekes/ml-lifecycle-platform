@@ -189,6 +189,8 @@ def _handle_serve_api(args: argparse.Namespace, profile: RuntimeProfile) -> int:
     env_overrides: dict[str, str] = {}
     if args.model_name:
         env_overrides["MODEL_NAME"] = args.model_name
+    if args.model_spec:
+        env_overrides["MLP_MODEL_SPEC_PATH"] = args.model_spec
     env = _command_env(profile, env_overrides)
     _run(_compose_cmd(profile, "build", *SVC_IMAGES), env)
     _run(_compose_cmd(profile, "up", "-d", "--build", "serving"), env)
@@ -200,6 +202,8 @@ def _handle_serve_smoke(args: argparse.Namespace, profile: RuntimeProfile) -> in
     env_overrides: dict[str, str] = {}
     if args.model_name:
         env_overrides["MODEL_NAME"] = args.model_name
+    if args.model_spec:
+        env_overrides["MLP_MODEL_SPEC_PATH"] = args.model_spec
     return _run(
         _compose_cmd(
             profile,
@@ -316,9 +320,11 @@ def _build_parser() -> argparse.ArgumentParser:
     serve_sub = serve.add_subparsers(dest="serve_command", required=True)
     serve_api = serve_sub.add_parser("api", help="Start serving API")
     serve_api.add_argument("--model-name")
+    serve_api.add_argument("--model-spec")
     serve_api.set_defaults(handler=_handle_serve_api)
     serve_smoke = serve_sub.add_parser("smoke", help="Run serving smoke test")
     serve_smoke.add_argument("--model-name")
+    serve_smoke.add_argument("--model-spec")
     serve_smoke.set_defaults(handler=_handle_serve_smoke)
 
     e2e = subparsers.add_parser("e2e", help="Run the local golden path")

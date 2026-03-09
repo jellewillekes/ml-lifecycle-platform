@@ -25,6 +25,20 @@ evaluation:
   gate:
     metric: roc_auc
     threshold: 0.95
+feature_contract:
+  version: local_csv_binary_clf.input/v1
+  allow_unknown_fields: false
+  features:
+    - name: mean_radius
+      dtype: float
+    - name: mean_texture
+      dtype: float
+    - name: mean_perimeter
+      dtype: float
+    - name: mean_area
+      dtype: float
+    - name: mean_smoothness
+      dtype: float
 policy:
   required_metadata_tags:
     - dataset_fingerprint

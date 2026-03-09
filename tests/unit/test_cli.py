@@ -218,6 +218,40 @@ def test_cli_serve_api_builds_and_starts_service(
     assert envs[-1]["MODEL_NAME"] == "csv-model"
 
 
+def test_cli_serve_api_passes_model_spec_override(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    envs: list[dict[str, str]] = []
+    monkeypatch.setattr(
+        cli_main, "load_runtime_profile", lambda env_name=None: _profile(tmp_path)
+    )
+
+    def fake_run(command: list[str], env: dict[str, str]) -> int:
+        envs.append(dict(env))
+        return 0
+
+    monkeypatch.setattr(cli_main, "_run", fake_run)
+
+    assert (
+        cli_main.main(
+            [
+                "--env",
+                "local",
+                "serve",
+                "api",
+                "--model-spec",
+                "configs/models/local_csv_binary_classifier.yaml",
+            ]
+        )
+        == 0
+    )
+    assert (
+        envs[-1]["MLP_MODEL_SPEC_PATH"]
+        == "configs/models/local_csv_binary_classifier.yaml"
+    )
+
+
 def test_cli_e2e_delegates_to_runner(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

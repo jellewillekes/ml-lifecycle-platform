@@ -7,6 +7,7 @@ import time
 import uuid
 from collections.abc import AsyncGenerator, Awaitable, Callable
 from contextlib import asynccontextmanager
+from functools import lru_cache
 from typing import Any, Literal, cast
 
 import pandas as pd
@@ -21,9 +22,20 @@ except Exception:  # pragma: no cover
     mlflow = None  # type: ignore[assignment]
 
 from ml_lifecycle_platform.common.mlflow_utils import client as get_mlflow_client
+from ml_lifecycle_platform.core.feature_contracts import (
+    FeatureContractValidationError,
+    validate_rows_against_contract,
+)
+from ml_lifecycle_platform.core.model_specs import FeatureContractSpec, load_model_spec
 from ml_lifecycle_platform.runtime.bootstrap import configure_mlflow
 
-from .constants import ALIAS_CANDIDATE, ALIAS_PROD, HEADER_REQUEST_ID
+from .constants import (
+    ALIAS_CANDIDATE,
+    ALIAS_PROD,
+    HEADER_FEATURE_CONTRACT_VERSION,
+    HEADER_MODEL_VERSION,
+    HEADER_REQUEST_ID,
+)
 from .metrics import PREDICT_LATENCY_SECONDS, REQUESTS_TOTAL, SHADOW_DIFF_MAE
 from .router import (
     BucketContext,
@@ -128,6 +140,30 @@ class PredictResponse(BaseModel):
     bucket: int | None = None
     canary_pct: int | None = None
     bucket_seed_source: str | None = None
+    metadata: dict[str, str | None]
+
+
+class ModelMetadataResponse(BaseModel):
+    model_name: str
+    prod_alias: str
+    candidate_alias: str
+    prod_version: str | None
+    candidate_version: str | None
+    contract_version: str
+    allow_unknown_fields: bool
+
+
+class SchemaFieldResponse(BaseModel):
+    name: str
+    dtype: str
+    required: bool
+
+
+class SchemaMetadataResponse(BaseModel):
+    model_name: str
+    contract_version: str
+    allow_unknown_fields: bool
+    features: list[SchemaFieldResponse]
 
 
 class _UnitTestModel:
@@ -141,6 +177,22 @@ class _UnitTestModel:
 
 def _models_uri(settings: Settings, alias: str) -> str:
     return f"models:/{settings.model_name}@{alias}"
+
+
+@lru_cache(maxsize=8)
+def _load_feature_contract(
+    model_name: str, model_spec_path: str
+) -> FeatureContractSpec:
+    spec = load_model_spec(model_spec_path)
+    if spec.model_name != model_name:
+        raise RuntimeError(
+            f"Active model spec {spec.spec_path} targets {spec.model_name}, not {model_name}."
+        )
+    return spec.feature_contract
+
+
+def _feature_contract(settings: Settings) -> FeatureContractSpec:
+    return _load_feature_contract(settings.model_name, settings.model_spec_path)
 
 
 def _registry_resolves_prod_alias(settings: Settings) -> tuple[bool, str | None]:
@@ -309,10 +361,55 @@ def metrics() -> Response:
     return Response(payload, media_type=CONTENT_TYPE_LATEST)
 
 
+@app.get("/metadata/model", response_model=ModelMetadataResponse)
+def metadata_model() -> ModelMetadataResponse:
+    settings = get_settings()
+    _configure_logging(settings)
+    try:
+        contract = _feature_contract(settings)
+    except RuntimeError as e:
+        raise HTTPException(status_code=503, detail=str(e)) from e
+
+    return ModelMetadataResponse(
+        model_name=settings.model_name,
+        prod_alias=settings.prod_alias,
+        candidate_alias=settings.candidate_alias,
+        prod_version=_get_version(settings, settings.prod_alias),
+        candidate_version=_get_version(settings, settings.candidate_alias),
+        contract_version=contract.version,
+        allow_unknown_fields=contract.allow_unknown_fields,
+    )
+
+
+@app.get("/metadata/schema", response_model=SchemaMetadataResponse)
+def metadata_schema() -> SchemaMetadataResponse:
+    settings = get_settings()
+    _configure_logging(settings)
+    try:
+        contract = _feature_contract(settings)
+    except RuntimeError as e:
+        raise HTTPException(status_code=503, detail=str(e)) from e
+
+    return SchemaMetadataResponse(
+        model_name=settings.model_name,
+        contract_version=contract.version,
+        allow_unknown_fields=contract.allow_unknown_fields,
+        features=[
+            SchemaFieldResponse(
+                name=feature.name,
+                dtype=feature.dtype,
+                required=feature.required,
+            )
+            for feature in contract.features
+        ],
+    )
+
+
 @app.post("/predict", response_model=PredictResponse)
 async def predict(
     request: Request,
     payload: PredictRequest,
+    response: Response,
     mode: Mode = Query(default="prod", description="prod|candidate|shadow|canary"),
 ) -> PredictResponse:
     settings = get_settings()
@@ -327,6 +424,8 @@ async def predict(
     shadow_mae: float | None = None
 
     try:
+        contract = _feature_contract(settings)
+
         # Bucket only matters in canary mode.
         if mode == "canary":
             bd = choose_canary_bucket(
@@ -374,7 +473,8 @@ async def predict(
                 status_code=503, detail=f"model not available: {primary_alias}"
             )
 
-        df = pd.DataFrame(payload.rows)
+        validated_rows = validate_rows_against_contract(payload.rows, contract)
+        df = pd.DataFrame(validated_rows)
         y_primary = model_primary.predict(df)  # type: ignore[union-attr]
         y_primary_list = [float(x) for x in list(y_primary)]
 
@@ -394,6 +494,13 @@ async def predict(
 
         if shadow_mae is not None and math.isfinite(shadow_mae):
             SHADOW_DIFF_MAE.labels(mode=str(mode)).observe(shadow_mae)
+
+        selected_model_version = (
+            prod_version if primary_alias == ALIAS_PROD else candidate_version
+        )
+        if selected_model_version:
+            response.headers[HEADER_MODEL_VERSION] = selected_model_version
+        response.headers[HEADER_FEATURE_CONTRACT_VERSION] = contract.version
 
         log: dict[str, Any] = {
             "event": "predict",
@@ -421,7 +528,15 @@ async def predict(
             bucket=bucket,
             canary_pct=settings.canary_pct if mode == "canary" else None,
             bucket_seed_source=str(bucket_seed_source) if bucket_seed_source else None,
+            metadata={
+                "model_version": selected_model_version,
+                "contract_version": contract.version,
+            },
         )
+
+    except FeatureContractValidationError as e:
+        status_code = 422
+        raise HTTPException(status_code=422, detail=e.to_dict()) from e
 
     except HTTPException as e:
         status_code = e.status_code

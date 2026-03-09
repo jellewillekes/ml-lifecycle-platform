@@ -61,3 +61,24 @@ def test_payload_falls_back_to_demo_row_on_model_metadata_failure(
     assert list(payload) == ["rows"]
     assert len(payload["rows"]) == 1
     assert "mean radius" in payload["rows"][0]
+
+
+def test_assert_model_metadata_response_accepts_valid_payload() -> None:
+    smoke_test._assert_model_metadata_response(
+        {
+            "model_name": "breast_cancer_clf",
+            "contract_version": "breast_cancer_clf.input/v1",
+            "allow_unknown_fields": False,
+        }
+    )
+
+
+def test_assert_schema_metadata_response_accepts_valid_payload() -> None:
+    smoke_test._assert_schema_metadata_response(
+        {
+            "contract_version": "breast_cancer_clf.input/v1",
+            "features": [
+                {"name": "mean radius", "dtype": "float", "required": True},
+            ],
+        }
+    )
