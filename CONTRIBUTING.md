@@ -7,6 +7,7 @@ Keep changes small, test-backed, and easy to review.
 Run what applies:
 
 - `make check`
+- `make docs-check` if you changed docs
 - `make test-integration`
 - `make e2e` if you changed Docker, serving, promotion flow, or the local operator path
 
@@ -36,6 +37,7 @@ The PR title becomes the squash commit message and feeds Release Please.
 ## Local workflows
 
 - `make check`
+- `make docs-check`
 - `make test-unit`
 - `make test-integration`
 - `make e2e`
@@ -46,4 +48,11 @@ The PR title becomes the squash commit message and feeds Release Please.
 - Preserve current behavior unless there is a clear bug.
 - If you touch the model lifecycle, validate the demo spec path at minimum.
 
-See [`docs/ci.md`](docs/ci.md) for CI mapping and [`docs/releases.md`](docs/releases.md) for release behavior.
+Start with the handbook in [`docs/README.md`](docs/README.md).
+
+Useful references:
+
+- [`docs/runbooks/local-bootstrap.md`](docs/runbooks/local-bootstrap.md)
+- [`docs/architecture/overview.md`](docs/architecture/overview.md)
+- [`docs/ci.md`](docs/ci.md)
+- [`docs/releases.md`](docs/releases.md)

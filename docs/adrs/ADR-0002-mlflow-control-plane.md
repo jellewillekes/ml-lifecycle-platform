@@ -33,6 +33,8 @@ In `M0`:
 - MLflow aliases remain the authoritative release pointers
 - MLflow artifacts and model-version tags remain the authoritative promotion,
   rollback, and reproduce evidence
+- release manifests under `reports/releases/...` remain the operator-visible
+  release and rollback records
 - serving continues to resolve models from MLflow aliases
 - policy evaluation continues to read its decision inputs from MLflow metadata
 
@@ -48,6 +50,7 @@ These behaviors stay concrete and MLflow-backed in `M0`:
 - release evidence bundles under `reports/releases/...`
 - rollback via recorded `release_manifest.json` with `previous_prod_version`
   compatibility fallback
+- release evidence path tags on the affected model version
 - source training run linkage
 - dataset fingerprint, config hash, git SHA, and training run metadata checks
 
