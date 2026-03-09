@@ -4,6 +4,20 @@ All important changes and updates to this project are documented here.
 
 This repo uses Conventional Commits and Release Please.
 
+## [0.5.2](https://github.com/jellewillekes/ml-lifecycle-platform/compare/v0.5.1...v0.5.2) (2026-03-09)
+
+
+### Features
+
+* emit release evidence bundles for promote rollback and reproduce ([#75](https://github.com/jellewillekes/ml-lifecycle-platform/issues/75)) ([df2301b](https://github.com/jellewillekes/ml-lifecycle-platform/commit/df2301bb1b06745299c46b9022d17abd8314af7d))
+* **serving:** enforce model-spec feature contracts ([#73](https://github.com/jellewillekes/ml-lifecycle-platform/issues/73)) ([c78e032](https://github.com/jellewillekes/ml-lifecycle-platform/commit/c78e032c640566187a5b7fa49e08e2152baea567))
+
+
+### Documentation
+
+* add platform handbook and local operator runbooks ([#76](https://github.com/jellewillekes/ml-lifecycle-platform/issues/76)) ([457a45c](https://github.com/jellewillekes/ml-lifecycle-platform/commit/457a45c6d52b9d747c9e03b12e59d8dc4b07bff7))
+* update readme ([#85](https://github.com/jellewillekes/ml-lifecycle-platform/issues/85)) ([482c074](https://github.com/jellewillekes/ml-lifecycle-platform/commit/482c0740d2a6edcd47c4fd25b2cfe03eab19915a))
+
 ## [0.5.1](https://github.com/jellewillekes/ml-lifecycle-platform/compare/v0.5.0...v0.5.1) (2026-03-09)
 
 
