@@ -1,10 +1,12 @@
 # ML Lifecycle Platform
 
 [![CI](https://github.com/jellewillekes/ml-lifecycle-platform/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/jellewillekes/ml-lifecycle-platform/actions/workflows/ci.yml)
+[![CodeQL](https://github.com/jellewillekes/ml-lifecycle-platform/actions/workflows/codeql.yml/badge.svg?branch=master)](https://github.com/jellewillekes/ml-lifecycle-platform/actions/workflows/codeql.yml)
+[![Gitleaks](https://github.com/jellewillekes/ml-lifecycle-platform/actions/workflows/gitleaks.yml/badge.svg?branch=master)](https://github.com/jellewillekes/ml-lifecycle-platform/actions/workflows/gitleaks.yml)
 [![E2E](https://github.com/jellewillekes/ml-lifecycle-platform/actions/workflows/e2e.yml/badge.svg?event=schedule)](https://github.com/jellewillekes/ml-lifecycle-platform/actions/workflows/e2e.yml)
 [![Coverage](https://codecov.io/gh/jellewillekes/ml-lifecycle-platform/branch/master/graph/badge.svg)](https://codecov.io/gh/jellewillekes/ml-lifecycle-platform/branch/master/graph/badge.svg)
 
-A production ML platform for training, evaluating, registering, promoting, serving, and reproducing models with MLflow as the control plane. The first implementation is local-first, afterwards connectors to `GCP` and `AWS` will be integraded.
+An ML platform for training, evaluating, registering, promoting, serving, and reproducing models. MLflow is the control plane. The current implementation is local-first. Hosted backends in `GCP` and `AWS` are planned.
 
 Operator and architecture docs live in the handbook:
 
@@ -20,10 +22,10 @@ Starter files for OSS users:
 
 ## What it does
 
-- Runs a simple pipeline: `ingest -> featurize -> train -> evaluate -> register`
+- Runs the training pipeline: `ingest -> featurize -> train -> evaluate -> register`
 - Registers gated models into MLflow
 - Promotes by alias: `candidate -> prod -> champion`
-- Emits explicit release evidence for promote, rollback, and reproduce flows
+- Writes release evidence for promote, rollback, and reproduce flows
 - Serves `prod`, `candidate`, `canary`, and `shadow`
 - Captures reproducibility metadata: dataset fingerprint, config hash, git SHA, env lock hash
 - Rebuilds a registered model from its source training run
@@ -148,7 +150,7 @@ Golden path:
 
 ## Release Evidence
 
-Promotion, rollback, and reproduce emit a machine-readable evidence bundle.
+Promotion, rollback, and reproduce write a machine-readable evidence bundle.
 
 Each bundle includes:
 
@@ -183,7 +185,7 @@ Operational behavior:
 
 - `promote` writes the release evidence bundle to the promoted version's source run
 - `rollback` resolves the rollback target from the recorded `release_manifest.json` and falls back to `previous_prod_version` only for compatibility
-- `reproduce` still writes `reproduce_report.json` and also emits the same release evidence pattern
+- `reproduce` still writes `reproduce_report.json` and also writes the same release evidence pattern
 
 When the local runtime profile is active, the same bundle is mirrored under the configured local artifacts directory and a release event is appended to the local file-backed event log when available.
 
