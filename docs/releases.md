@@ -2,6 +2,11 @@
 
 This repo uses Release Please.
 
+This document covers two separate release concepts:
+
+- GitHub/package releases managed by Release Please
+- model release evidence emitted by the registry workflows
+
 ## Source of truth
 
 - PRs are squash-merged into `master`
@@ -57,3 +62,44 @@ If Release Please says a tag already exists, check:
 - `.release-please-manifest.json`
 
 Those three files should agree with the published release.
+
+## Model release evidence
+
+Registry operations also emit ML release evidence into MLflow.
+
+Covered operations:
+
+- `promote`
+- `rollback`
+- `reproduce`
+
+Each operation writes the same bundle shape:
+
+- `promotion_decision.json`
+- `release_manifest.json`
+- `rollback_target.json`
+- `model_card.md`
+
+Artifact path:
+
+- `reports/releases/<operation>/<model_name>/v<version>/`
+
+The manifest is the operator-facing release record and includes:
+
+- source run ID
+- dataset fingerprint
+- config hash
+- git SHA
+- current prod version
+- previous prod version
+- policy outcome
+
+Rollback behavior:
+
+- rollback resolves the target from the current prod version's recorded `release_manifest.json`
+- `previous_prod_version` remains as a compatibility and one-step-undo tag
+
+Local runtime behavior:
+
+- the same bundle is mirrored under the configured local artifacts directory
+- a release event may also be appended to the local file-backed `EventStore`

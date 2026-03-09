@@ -17,6 +17,10 @@ from ml_lifecycle_platform.common.config import get_log_level, get_model_name
 from ml_lifecycle_platform.common.constants import (
     ART_REPRO_CONTRACT_JSON,
     ART_REPRO_REPORT_JSON,
+    TAG_CONFIG_HASH,
+    TAG_DATASET_FINGERPRINT,
+    TAG_GIT_SHA,
+    TAG_PREVIOUS_PROD_VERSION,
     TAG_SOURCE_RUN_ID,
 )
 from ml_lifecycle_platform.common.mlflow_utils import client as mlflow_client
@@ -30,12 +34,23 @@ from ml_lifecycle_platform.contracts.dataset_fingerprint import (
     get_git_sha,
 )
 from ml_lifecycle_platform.contracts.repro_contract import ReproContract
+from ml_lifecycle_platform.core.release_reports import (
+    OperationResult,
+    PolicyOutcome,
+    PromotionDecisionReport,
+    ReleaseManifest,
+    ReleaseReportBundle,
+    RollbackTargetReport,
+    render_model_card,
+    utc_now_iso,
+)
 from ml_lifecycle_platform.core.model_specs import model_spec_from_dict
 from ml_lifecycle_platform.pipeline.train import (
     config_hash_for_spec,
     load_training_inputs,
     train_from_inputs,
 )
+from ml_lifecycle_platform.registry.release_evidence import emit_release_evidence
 
 logger = logging.getLogger(__name__)
 
@@ -178,6 +193,138 @@ def _print_report(report: dict[str, Any], fmt: str) -> None:
         print(f"reason={report['reason']}")
     for name, value in report.get("checks", {}).items():
         print(f"{name}={value}")
+
+
+def _resolve_current_prod_version(client: MlflowClient, model_name: str) -> str | None:
+    try:
+        prod = client.get_model_version_by_alias(model_name, "prod")
+    except Exception:
+        return None
+    return str(prod.version)
+
+
+def _emit_reproduce_evidence(
+    client: MlflowClient,
+    *,
+    model_name: str,
+    model_version: str | None,
+    alias: str | None,
+    report: dict[str, Any],
+) -> None:
+    try:
+        model_version_info = _resolve_model_version(
+            client,
+            model_name,
+            model_version=model_version,
+            alias=alias,
+        )
+    except Exception:
+        logger.warning(
+            "Could not resolve model version for reproduce evidence emission."
+        )
+        return
+
+    tags = model_version_info.tags or {}
+    source_run_id = str(tags.get(TAG_SOURCE_RUN_ID, "")).strip()
+    if not source_run_id:
+        logger.warning(
+            "Skipping reproduce evidence emission: source_run_id is missing."
+        )
+        return
+
+    metrics = report.get("checks", {}).get("metrics", {})
+    if not isinstance(metrics, dict):
+        metrics = {}
+
+    generated_at = utc_now_iso()
+    policy_outcome = PolicyOutcome.not_evaluated(
+        reason="reproduce does not run promotion policy evaluation",
+        context={"selector_alias": alias, "selector_model_version": model_version},
+    )
+    result = OperationResult(
+        status=str(report.get("status", "failed")),
+        code=_optional_text(report.get("reason")),
+        message=_optional_text(report.get("message")),
+        details=_report_details(report),
+    )
+    rollback_target = str(tags.get(TAG_PREVIOUS_PROD_VERSION, "")).strip() or None
+    manifest = ReleaseManifest(
+        generated_at=generated_at,
+        operation="reproduce",
+        model_name=model_name,
+        model_version=str(model_version_info.version),
+        source_run_id=source_run_id,
+        dataset_fingerprint=str(tags.get(TAG_DATASET_FINGERPRINT, "")).strip() or None,
+        config_hash=str(tags.get(TAG_CONFIG_HASH, "")).strip() or None,
+        git_sha=str(tags.get(TAG_GIT_SHA, "")).strip() or None,
+        current_prod_version=_resolve_current_prod_version(client, model_name),
+        previous_prod_version=rollback_target,
+        policy_outcome=policy_outcome,
+        result=result,
+        metrics={str(key): float(value) for key, value in metrics.items()},
+    )
+    bundle = ReleaseReportBundle(
+        decision=PromotionDecisionReport(
+            generated_at=generated_at,
+            operation="reproduce",
+            model_name=model_name,
+            model_version=str(model_version_info.version),
+            source_run_id=source_run_id,
+            policy_outcome=policy_outcome,
+            result=result,
+        ),
+        manifest=manifest,
+        rollback_target=RollbackTargetReport(
+            generated_at=generated_at,
+            operation="reproduce",
+            model_name=model_name,
+            model_version=str(model_version_info.version),
+            source_run_id=source_run_id,
+            current_prod_version=manifest.current_prod_version,
+            previous_prod_version=manifest.previous_prod_version,
+            target_version=rollback_target,
+            target_source_run_id=None,
+            result=OperationResult(
+                status="recorded",
+                code="reproduce_context_recorded",
+                message="Rollback context mirrored into reproduce evidence.",
+                details={},
+            ),
+        ),
+        model_card="",
+    )
+    emit_release_evidence(
+        client,
+        source_run_id=source_run_id,
+        operation="reproduce",
+        model_name=model_name,
+        model_version=str(model_version_info.version),
+        bundle=ReleaseReportBundle(
+            decision=bundle.decision,
+            manifest=bundle.manifest,
+            rollback_target=bundle.rollback_target,
+            model_card=render_model_card(bundle),
+        ),
+        tag_target_version=str(model_version_info.version),
+        event_type="release.reproduced",
+    )
+
+
+def _optional_text(value: Any) -> str | None:
+    if value is None:
+        return None
+    text = str(value).strip()
+    return text or None
+
+
+def _report_details(report: dict[str, Any]) -> dict[str, Any]:
+    details = report.get("details")
+    if isinstance(details, dict):
+        return dict(details)
+    checks = report.get("checks")
+    if isinstance(checks, dict):
+        return {"checks": dict(checks)}
+    return {}
 
 
 def reproduce_model(
@@ -374,15 +521,23 @@ def main(argv: list[str] | None = None) -> None:
     logging.basicConfig(level=get_log_level())
     args = parse_args(sys.argv[1:] if argv is None else argv)
     report_path = Path(args.report_path)
+    client = mlflow_client()
 
     try:
         report = reproduce_model(
-            mlflow_client(),
+            client,
             model_name=args.model_name,
             model_version=args.model_version,
             alias=args.alias,
         )
         _write_report(report_path, report)
+        _emit_reproduce_evidence(
+            client,
+            model_name=args.model_name,
+            model_version=args.model_version,
+            alias=args.alias,
+            report=report,
+        )
         _print_report(report, args.format)
         raise SystemExit(0)
     except ReproduceFailure as exc:
@@ -393,6 +548,13 @@ def main(argv: list[str] | None = None) -> None:
             "details": exc.details,
         }
         _write_report(report_path, report)
+        _emit_reproduce_evidence(
+            client,
+            model_name=args.model_name,
+            model_version=args.model_version,
+            alias=args.alias,
+            report=report,
+        )
         _print_report(report, args.format)
         raise SystemExit(2)
 

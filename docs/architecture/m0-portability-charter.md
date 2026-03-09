@@ -31,6 +31,7 @@ Everything else stays concrete in `M0`.
 - local Compose remains the default developer and operator path
 - alias-based releases stay `candidate -> prod -> champion`
 - promotion stays policy-gated
+- release evidence stays MLflow-backed
 - rollback stays alias mutation, not retraining
 
 ## What this avoids

@@ -34,7 +34,11 @@ models:/<model_name>@prod
   - `prod`
   - `champion`
 - dry-run promotion policy
-- rollback by alias mutation
+- explicit release evidence bundles for:
+  - `promote`
+  - `rollback`
+  - `reproduce`
+- rollback by alias mutation with manifest-recorded previous prod resolution
 - FastAPI serving with:
   - `prod`
   - `candidate`
@@ -59,6 +63,33 @@ models:/<model_name>@prod
 - default runtime profile: [`configs/env/local.yaml`](../../configs/env/local.yaml)
 - default model spec: [`configs/models/breast_cancer_demo.yaml`](../../configs/models/breast_cancer_demo.yaml)
 - alternate CSV spec: [`configs/models/local_csv_binary_classifier.yaml`](../../configs/models/local_csv_binary_classifier.yaml)
+
+## Release evidence
+
+Registry operations emit a shared evidence bundle:
+
+- `promotion_decision.json`
+- `release_manifest.json`
+- `rollback_target.json`
+- `model_card.md`
+
+MLflow stores the bundle under:
+
+- `reports/releases/<operation>/<model_name>/v<version>/`
+
+The release manifest records:
+
+- source run ID
+- dataset fingerprint
+- config hash
+- git SHA
+- current prod version
+- previous prod version
+- policy outcome
+
+Rollback resolves its target from the promoted version's recorded `release_manifest.json`
+and only falls back to `previous_prod_version` for compatibility with older model
+versions that do not yet have a manifest.
 
 ## Non-goals of the current repo
 
