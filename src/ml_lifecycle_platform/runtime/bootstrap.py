@@ -20,11 +20,9 @@ from ml_lifecycle_platform.runtime.profile import (
 
 
 def build_runtime_context() -> RuntimeContext:
-    """Build the runtime context from the selected profile plus env overrides."""
+    """Build runtime objects from the selected profile."""
 
     profile = load_runtime_profile()
-    secrets = EnvSecrets()
-
     return RuntimeContext(
         metadata=RuntimeMetadata(
             environment=profile.environment,
@@ -33,6 +31,7 @@ def build_runtime_context() -> RuntimeContext:
             source="profile-bootstrap",
         ),
         model_name=profile.model_name,
+        model_spec_path=profile.model_spec_path,
         experiment_name=profile.experiment_name,
         log_level=profile.log_level,
         data_dir=profile.data_dir,
@@ -40,7 +39,7 @@ def build_runtime_context() -> RuntimeContext:
         artifact_store=LocalArtifactStore(profile.artifacts_dir),
         event_store=LocalEventStore(profile.event_log_path),
         job_runner=LocalJobRunner(python_executable=profile.python_executable),
-        secrets=secrets,
+        secrets=EnvSecrets(),
     )
 
 
@@ -57,6 +56,7 @@ def reset_runtime_context() -> None:
 def configure_mlflow(context: RuntimeContext | None = None) -> None:
     if mlflow is None:
         return
+    # Most callers rely on process-global MLflow settings.
     runtime = context or get_runtime_context()
     mlflow.set_tracking_uri(runtime.metadata.tracking_uri)
     mlflow.set_registry_uri(runtime.metadata.registry_uri)

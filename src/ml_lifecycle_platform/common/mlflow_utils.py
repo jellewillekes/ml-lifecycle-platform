@@ -40,4 +40,5 @@ def write_json(path: Path, payload: dict[str, Any]) -> None:
         path.write_bytes(content)
         return
 
+    # Keep writes under artifacts_dir going through the configured artifact store.
     runtime.artifact_store.write_bytes(relative_path, content)

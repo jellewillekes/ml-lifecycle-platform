@@ -11,6 +11,7 @@ from ml_lifecycle_platform.common.constants import REPRO_CONTRACT_SCHEMA_VERSION
 class ReproContract:
     training_run_id: str
     model_name: str
+    model_spec: dict[str, Any]
     git_sha: str
     config_hash: str
     dataset_fingerprint: str
@@ -36,6 +37,8 @@ class ReproContract:
             missing.append("training_run_id")
         if _is_blank(self.model_name):
             missing.append("model_name")
+        if not self.model_spec:
+            missing.append("model_spec")
         if _is_blank(self.git_sha):
             missing.append("git_sha")
         if _is_blank(self.config_hash):
@@ -74,6 +77,7 @@ class ReproContract:
             "schema_version": self.schema_version,
             "training_run_id": self.training_run_id,
             "model_name": self.model_name,
+            "model_spec": self.model_spec,
             "git_sha": self.git_sha,
             "config_hash": self.config_hash,
             "dataset_fingerprint": self.dataset_fingerprint,
@@ -104,6 +108,7 @@ class ReproContract:
         contract = ReproContract(
             training_run_id=str(payload.get("training_run_id", "")),
             model_name=str(payload.get("model_name", "")),
+            model_spec=dict(payload.get("model_spec", {})),
             git_sha=str(payload.get("git_sha", "")),
             config_hash=str(payload.get("config_hash", "")),
             dataset_fingerprint=str(payload.get("dataset_fingerprint", "")),

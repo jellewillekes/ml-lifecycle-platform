@@ -6,13 +6,11 @@ import joblib
 import mlflow
 import pandas as pd
 from sklearn.model_selection import train_test_split
-from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
 
-from ml_lifecycle_platform.common.config import get_experiment_name, get_model_name
+from ml_lifecycle_platform.common.config import get_experiment_name, get_model_spec_path
 from ml_lifecycle_platform.common.constants import (
     ART_PREPROCESSOR,
-    LABEL_COL,
     RAW_CSV,
     STEP_FEATURIZE,
     TAG_MODEL_NAME,
@@ -21,6 +19,7 @@ from ml_lifecycle_platform.common.constants import (
     TRAIN_CSV,
 )
 from ml_lifecycle_platform.common.mlflow_utils import ensure_experiment
+from ml_lifecycle_platform.core.model_specs import load_model_spec
 
 DATA_DIR = Path("/app/data")
 ART_DIR = Path("/app/artifacts")
@@ -29,7 +28,7 @@ ART_DIR = Path("/app/artifacts")
 def main() -> None:
     ensure_experiment(get_experiment_name())
     mlflow.set_experiment(get_experiment_name())
-    model_name = get_model_name()
+    spec = load_model_spec(get_model_spec_path())
 
     DATA_DIR.mkdir(parents=True, exist_ok=True)
     ART_DIR.mkdir(parents=True, exist_ok=True)
@@ -39,50 +38,45 @@ def main() -> None:
         raise RuntimeError(f"Missing raw dataset: {raw_path}. Run ingest first.")
 
     df = pd.read_csv(raw_path)
-    if LABEL_COL not in df.columns:
-        raise RuntimeError(f"Expected column {LABEL_COL!r} in {RAW_CSV}")
+    if spec.label_column not in df.columns:
+        raise RuntimeError(f"Expected column {spec.label_column!r} in {RAW_CSV}")
 
-    X = df.drop(columns=[LABEL_COL])
-    y = df[LABEL_COL].astype(int)
+    X = df.drop(columns=[spec.label_column])
+    y = df[spec.label_column].astype(int)
 
     X_train, X_test, y_train, y_test = train_test_split(
         X,
         y,
-        test_size=0.2,
-        random_state=42,
-        stratify=y,
+        test_size=spec.split.test_size,
+        random_state=spec.split.random_state,
+        stratify=y if spec.split.stratify else None,
     )
 
     train_df = X_train.copy()
     test_df = X_test.copy()
 
-    train_df[LABEL_COL] = y_train.values
-    test_df[LABEL_COL] = y_test.values
+    train_df[spec.label_column] = y_train.values
+    test_df[spec.label_column] = y_test.values
 
     train_path = DATA_DIR / TRAIN_CSV
     test_path = DATA_DIR / TEST_CSV
     train_df.to_csv(train_path, index=False)
     test_df.to_csv(test_path, index=False)
 
-    # Keep this compatible with train.py, which loads this artifact.
-    preprocessor = Pipeline(
-        steps=[
-            ("scale", StandardScaler(with_mean=True, with_std=True)),
-        ]
-    )
+    preprocessor = StandardScaler(with_mean=True, with_std=True)
     preprocessor_path = ART_DIR / ART_PREPROCESSOR
     joblib.dump(preprocessor, preprocessor_path)
 
     with mlflow.start_run(run_name="featurize") as run:
         mlflow.set_tag(TAG_STEP, STEP_FEATURIZE)
-        mlflow.set_tag(TAG_MODEL_NAME, model_name)
+        mlflow.set_tag(TAG_MODEL_NAME, spec.model_name)
 
         mlflow.log_params(
             {
-                "test_size": 0.2,
-                "random_state": 42,
-                "stratify": True,
-                "preprocessor": "StandardScaler",
+                "test_size": spec.split.test_size,
+                "random_state": spec.split.random_state,
+                "stratify": spec.split.stratify,
+                "preprocessor": spec.preprocessor.kind,
             }
         )
 

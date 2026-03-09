@@ -2,336 +2,178 @@
 
 [![CI](https://github.com/jellewillekes/ml-lifecycle-platform/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/jellewillekes/ml-lifecycle-platform/actions/workflows/ci.yml)
 [![E2E](https://github.com/jellewillekes/ml-lifecycle-platform/actions/workflows/e2e.yml/badge.svg?event=schedule)](https://github.com/jellewillekes/ml-lifecycle-platform/actions/workflows/e2e.yml)
-[![Coverage](https://codecov.io/gh/jellewillekes/ml-lifecycle-platform/branch/master/graph/badge.svg)](https://codecov.io/gh/jellewillekes/ml-lifecycle-platform)
+[![Coverage](https://codecov.io/gh/jellewillekes/ml-lifecycle-platform/branch/master/graph/badge.svg)](https://codecov.io/gh/jellewillekes/ml-lifecycle-platform/branch/master/graph/badge.svg)
 
-A production ML platform for safe, reproducible model promotion and serving, composed of modular, industry-standard infra services.
+A production ML platform for training, evaluating, registering, promoting, serving, and reproducing models with MLflow as the control plane. The first implementation is local-first, afterwards connectors to `GCP` and `AWS` will be integraded.
 
-The platform supports:
+## What it does
 
-- Training and evaluation
-- Quality gating
-- Registry-based releases
-- Alias-based promotion
-- Progressive delivery (canary / shadow)
-- Deterministic rollback
-- Online serving
-- End-to-end verification
+- Runs a simple pipeline: `ingest -> featurize -> train -> evaluate -> register`
+- Registers gated models into MLflow
+- Promotes by alias: `candidate -> prod -> champion`
+- Serves `prod`, `candidate`, `canary`, and `shadow`
+- Captures reproducibility metadata: dataset fingerprint, config hash, git SHA, env lock hash
+- Rebuilds a registered model from its source training run
 
-This repo is a reference implementation for ML platform engineering patterns, mainly for personal use.
+## Model Specs
 
-See `docs/architecture/current-state.md` for the verified baseline.
-See `docs/architecture/m0-portability-charter.md` for the frozen `M0` target.
+The pipeline is model-spec driven.
 
----
+Included specs:
 
-## System Guarantees
+- [`configs/models/breast_cancer_demo.yaml`](configs/models/breast_cancer_demo.yaml)
+- [`configs/models/local_csv_binary_classifier.yaml`](configs/models/local_csv_binary_classifier.yaml)
 
-The platform guarantees the following properties:
+Supported sources today:
 
-- Reproducible runs: every training run logs dataset fingerprint, config hash,
-  and git SHA.
-- Quality-gated promotion: `candidate -> prod` only happens after evaluation
-  passes and required metadata is present.
-- Alias-first registry model: deployment is driven by MLflow aliases
-  (`candidate`, `prod`, `champion`), not stages.
-- Deterministic rollback: each promotion records `previous_prod_version`.
-  Rollback is alias mutation.
-- Artifact lineage: every model version links back to its source training run.
-- Control-plane / data-plane separation: training, registry policy, and serving
-  are separate.
-- End-to-end verifiability: CI and E2E validate training, policy checks,
-  promotion, serving, and rollback.
+- `source.kind = sklearn_demo`
+- `source.kind = csv`
 
----
+Default local spec:
 
-## Release Model (Alias-Based)
+- [`configs/env/local.yaml`](configs/env/local.yaml) points to the demo spec
 
-MLflow stages are not used.
+## Quick Start
 
-### Aliases
+Requirements:
 
-| Alias     | Description                    |
-|-----------|--------------------------------|
-| candidate | Most recent gated model         |
-| prod      | Current production model        |
-| champion  | Synonym for prod                |
+- Python `>=3.11.7`
+- `uv`
+- Docker with Compose
 
-### Promotion Guardrails
-
-Required metadata:
-
-- dataset_fingerprint
-- git_sha
-- config_hash
-- training_run_id
-
-Promotion is blocked if any tag is missing.
-
-### Policy Check (Non-Mutating)
-
-Promotion supports dry-run mode.
-
-- checks required metadata
-- checks evaluation gate status
-- returns a structured JSON decision report
-- performs no registry writes
-
-Example:
-
-```bash
-make policy-check
-```
-
-The output contract:
-
-```json
-{
-  "allowed": true|false,
-  "context": {},
-  "errors": [],
-  "warnings": []
-}
-```
-
-CI and E2E rely on this output.
-
-### Rollback Metadata
-
-```
-previous_prod_version=<version>
-```
----
-
-## Architecture Overview
-
-### Control Plane
-
-- Make targets
-- CI/CD workflows
-- Promotion gates
-- Metadata validation
-
-### Data Plane
-
-- Training artifacts (MinIO)
-- Model registry (MLflow)
-- Evaluation reports
-- Prediction logs
-
-### Serving Plane
-
-- FastAPI inference service
-- Alias resolver
-- Canary router
-- Shadow traffic duplicator
-
-### Lifecycle
-
-```
-Ingest → Featurize → Train → Evaluate → Register → Promote → Serve
-```
-
-Serving path:
-
-```
-models:/<name>@prod → FastAPI → Clients
-```
-
-### Execution Flow
-
-```
-Train/Evaluate (`src/ml_lifecycle_platform.pipeline`)
-        |
-        v
-MLflow Registry (PostgreSQL backend)
-        |
-        |-- aliases: candidate / prod / champion
-        |
-        v
-Serving (FastAPI)
-        |
-        |-- prod (default)
-        |-- candidate (optional)
-        |-- canary (bucketed routing)
-        |-- shadow (mirrored inference)
-        |
-        v
-Clients
-```
-
----
-
-## Technology Stack
-
-- MLflow
-- PostgreSQL
-- MinIO
-- FastAPI
-- Docker Compose
-- Makefile
-
----
-
-## Interface Contracts
-
-### Registry Contract
-- Deployment is alias-driven.
-- Serving resolves `models:/<name>@prod` by default.
-
-### Promotion Contract
-- Required tags: `dataset_fingerprint`, `git_sha`, `config_hash`, `training_run_id`
-- Dry-run mode outputs `{allowed, context, errors, warnings}`
-
-### Rollback Contract
-- Rollback mutates aliases only.
-- No rebuild or retraining required.
-
----
-
-## Repository Structure
-
-```bash
-.
-├── src/ml_lifecycle_platform/
-│   ├── common/        # Shared config, constants, MLflow helpers
-│   ├── contracts/     # Metadata and lineage contracts
-│   ├── pipeline/      # Ingest, featurize, train, evaluate, orchestrate
-│   ├── policy/        # Promotion policy checks
-│   ├── registry/      # Register, promote, rollback
-│   └── serving/       # FastAPI inference service
-├── tests/             # Unit and integration tests
-├── scripts/           # Tooling and automation
-├── docker/            # Container assets
-├── mlflow_server/     # MLflow tracking server image
-└── .github/           # CI governance
-```
-
----
-
-## Local Execution
-
-```bash
-make down && make clean && make up && make run-pipeline && make policy-check && make promote && make serve && make smoke-test && make e2e
-```
-
-Service endpoints:
-
-- MLflow UI: http://localhost:5050
-- MinIO Console: http://localhost:9001
-- Serving API: http://localhost:8000
-
----
-
-## End-to-End Validation
-
-```bash
-make e2e
-make e2e-keep
-```
-
----
-
-## Rollback
-
-```bash
-make rollback-prod
-```
-
----
-
-## Serving Modes
-
-### Endpoint
-
-```bash
-POST /predict?mode=prod|candidate|canary|shadow
-```
-
-### Routing Modes
-
-| Mode      | Behavior                                                                 |
-|-----------|--------------------------------------------------------------------------|
-| prod      | Resolves `@prod` (default production alias)                              |
-| candidate | Resolves `@candidate` if available; otherwise returns 503                |
-| canary    | Deterministic traffic split between prod and candidate                   |
-| shadow    | Executes candidate in parallel; response derived from prod               |
-
-Canary routing is deterministic per request.
-
----
-
-## Failure Handling
-
-### Promotion Failures
-
-- Missing required metadata → promotion blocked
-- Evaluation gate failed → candidate rejected
-
-### Serving Failures
-
-- Alias resolution failure → HTTP 503
-- Registry connectivity issues → HTTP 503
-
-### Recovery
-
-Rollback is explicit:
-
-```bash
-make rollback-prod
-```
-
----
-
-## Local Development
+Fast local checks:
 
 ```bash
 make check
-make fix
-make test-coverage
 ```
 
-### Testing
-
-- `unit`: fast tests, this is the default local pytest path
-- `integration`: local multi-component tests using sqlite-backed MLflow or filesystem boundaries
-- `e2e`: Docker-based golden-path verification via `make e2e`
-
-Common commands:
+Bring up local infra:
 
 ```bash
-make test
-make test-unit
-make test-integration
-make e2e
+make up
 ```
 
----
+Run the default demo flow:
+
+```bash
+make run-pipeline
+make policy-check
+make promote
+make serve
+make smoke-test
+make reproduce ALIAS=prod MODEL_NAME=breast_cancer_clf
+```
+
+Run the CSV-backed model spec:
+
+```bash
+MODEL_SPEC=configs/models/local_csv_binary_classifier.yaml make run-pipeline
+uv run mlp --env local registry promote --model-name local_csv_binary_clf
+MODEL_NAME=local_csv_binary_clf make serve
+MODEL_NAME=local_csv_binary_clf make smoke-test
+make reproduce ALIAS=prod MODEL_NAME=local_csv_binary_clf REPORT=reproduce_csv.json
+```
+
+Tear down:
+
+```bash
+make down
+```
+
+## Common Commands
+
+Quality:
+
+- `make check`
+- `make test-unit`
+- `make test-integration`
+- `make test-all`
+
+Infra:
+
+- `make up`
+- `make down`
+- `make logs`
+- `make build`
+
+Registry and serving:
+
+- `make policy-check`
+- `make promote`
+- `make rollback-prod`
+- `make serve`
+- `make smoke-test`
+- `make reproduce ALIAS=prod MODEL_NAME=<name>`
+
+Golden path:
+
+- `make e2e`
+- `make e2e-keep`
+
+## Serving
+
+Serving API:
+
+- `GET /livez`
+- `GET /readyz`
+- `GET /health`
+- `GET /metrics`
+- `POST /predict?mode=prod|candidate|canary|shadow`
+
+Release aliases:
+
+- `candidate`
+- `prod`
+- `champion`
+
+Routing behavior:
+
+- `prod`: always serves `@prod`
+- `candidate`: serves `@candidate`
+- `canary`: deterministic split between `prod` and `candidate`
+- `shadow`: returns `prod`, runs the other alias best-effort in parallel
 
 ## Reproducibility
 
-Models are reproducible from:
+Every training run records enough state to verify a rebuild:
 
-- Dataset fingerprints
-- Config hashes
-- Git SHA
-- Source run ID
+- model spec
+- dataset fingerprint
+- config hash
+- git SHA
+- `uv.lock` hash
+- probe inputs and expected probabilities
 
----
+Reproduce from the registry:
 
-## Releases & Versioning
+```bash
+uv run mlp --env local registry reproduce --model-name breast_cancer_clf --alias prod --report-path reproduce_report.json --format json
+```
 
-This project follows Conventional Commits.
+## Repository Layout
 
-- Automated changelogs
-- Semantic versioning
-- Release Please automation
+```text
+src/ml_lifecycle_platform/
+  backends/     local runtime adapters
+  cli/          operator CLI
+  common/       config, constants, MLflow helpers
+  contracts/    reproducibility and lineage payloads
+  core/         model specs and protocol definitions
+  pipeline/     ingest, featurize, train, evaluate, orchestrate
+  policy/       promotion gate logic
+  registry/     register, promote, rollback, reproduce
+  runtime/      runtime context/bootstrap
+  serving/      FastAPI app, router, metrics, smoke test
 
-Release Please does not create a new release for every merged PR. For the
-release model and failure-handling notes, see `docs/releases.md`.
+configs/
+  env/          runtime profiles
+  models/       model specs
+  model_data/   local sample CSV data
+```
 
----
+## More Docs
 
-## Security & Licensing
-
-- Security issues: see `SECURITY.md`
-- License: MIT in `LICENSE`
+- [`docs/architecture/current-state.md`](docs/architecture/current-state.md)
+- [`docs/ci.md`](docs/ci.md)
+- [`docs/releases.md`](docs/releases.md)
+- [`CONTRIBUTING.md`](CONTRIBUTING.md)

@@ -16,6 +16,8 @@ UV ?= uv
 DOCKER ?= docker
 COMPOSE ?= $(DOCKER) compose -f $(COMPOSE_FILE)
 MLP_ENV_NAME ?= local
+MODEL ?=
+MODEL_SPEC ?=
 
 UV_RUN := $(UV) run --project $(UV_PROJECT_DIR)
 MLP := $(UV_RUN) mlp --env $(MLP_ENV_NAME)
@@ -130,11 +132,17 @@ reset: down
 	@$(MLP) infra build --no-cache
 
 run-pipeline:
-	@$(MLP) pipeline run
+	@set -euo pipefail; \
+	model_spec="$${MODEL_SPEC:-$${MLP_MODEL_SPEC_PATH:-}}"; \
+	if [[ -n "$$model_spec" ]]; then \
+		$(MLP) pipeline run --model-spec "$$model_spec"; \
+	else \
+		$(MLP) pipeline run; \
+	fi
 
 reproduce:
 	@set -euo pipefail; \
-	model_name="$${MODEL:-breast_cancer_clf}"; \
+	model_name="$${MODEL:-$${MODEL_NAME:-breast_cancer_clf}}"; \
 	report_path="$${REPORT:-reproduce_report.json}"; \
 	if [[ -n "$${VERSION:-}" ]]; then \
 		selector=(--model-version "$${VERSION}"); \
@@ -163,10 +171,22 @@ rollback-prod:
 	@$(MLP) registry rollback
 
 serve:
-	@$(MLP) serve api
+	@set -euo pipefail; \
+	model_name="$${MODEL:-$${MODEL_NAME:-}}"; \
+	if [[ -n "$$model_name" ]]; then \
+		$(MLP) serve api --model-name "$$model_name"; \
+	else \
+		$(MLP) serve api; \
+	fi
 
 smoke-test:
-	@$(MLP) serve smoke
+	@set -euo pipefail; \
+	model_name="$${MODEL:-$${MODEL_NAME:-}}"; \
+	if [[ -n "$$model_name" ]]; then \
+		$(MLP) serve smoke --model-name "$$model_name"; \
+	else \
+		$(MLP) serve smoke; \
+	fi
 
 test-e2e:
 	@$(MLP) e2e --keep-stack

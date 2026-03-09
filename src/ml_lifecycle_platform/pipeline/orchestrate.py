@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from pathlib import Path
-
 import mlflow
 
 from ml_lifecycle_platform.common.config import get_experiment_name
@@ -15,8 +13,6 @@ from ml_lifecycle_platform.runtime.bootstrap import (
     configure_mlflow,
     get_runtime_context,
 )
-
-ART_DIR = Path("/app/artifacts")
 
 STEP_MODULES = {
     "ingest": "ml_lifecycle_platform.pipeline.ingest",
@@ -37,7 +33,6 @@ def _run_step(module: str) -> None:
 
 
 def _latest_train_run_id(experiment_id: str) -> str:
-    """Return the most recent train run id for an experiment."""
     runs = mlflow.search_runs(
         experiment_ids=[experiment_id],
         filter_string=f"tags.{TAG_STEP} = '{STEP_TRAIN}'",
@@ -45,13 +40,11 @@ def _latest_train_run_id(experiment_id: str) -> str:
         max_results=1,
     )
 
-    # MLflow <=2.x returns a DataFrame.
     if hasattr(runs, "empty") and hasattr(runs, "iloc"):
         if runs.empty:  # type: ignore[attr-defined]
             raise RuntimeError("No train run found after training step.")
         return str(runs.iloc[0]["run_id"])  # type: ignore[index]
 
-    # MLflow 3.x can return list[Run].
     if isinstance(runs, list):
         if not runs:
             raise RuntimeError("No train run found after training step.")

@@ -6,7 +6,7 @@ from typing import Final
 
 import mlflow
 
-from ml_lifecycle_platform.common.config import get_experiment_name, get_model_name
+from ml_lifecycle_platform.common.config import get_experiment_name
 from ml_lifecycle_platform.common.constants import (
     ALIAS_CANDIDATE,
     ART_GATE_OK,
@@ -23,6 +23,7 @@ from ml_lifecycle_platform.common.constants import (
     TAG_ENV_LOCK_HASH,
     TAG_GATE,
     TAG_GIT_SHA,
+    TAG_MODEL_NAME,
     TAG_RELEASE_STATUS,
     TAG_REPRO_SCHEMA_VERSION,
     TAG_ROW_COUNT,
@@ -66,7 +67,6 @@ def main() -> None:
     ensure_experiment(experiment_name)
     mlflow.set_experiment(experiment_name)
 
-    model_name = get_model_name()
     client = mlflow_client()
 
     train_run_id = _read_required_artifact_text(
@@ -76,14 +76,19 @@ def main() -> None:
     gate_ok = gate_ok_raw.lower() == "true"
 
     model_uri = f"runs:/{train_run_id}/{MLFLOW_ARTIFACT_PATH_MODEL}"
-    logger.info("model_uri=%s model_name=%s gate_ok=%s", model_uri, model_name, gate_ok)
 
     if not gate_ok:
-        logger.info("Gate failed. Not registering model.")
+        logger.info("Gate failed. Not registering model. model_uri=%s", model_uri)
         return
 
     run = client.get_run(train_run_id)
     run_tags = run.data.tags or {}
+    model_name = str(run_tags.get(TAG_MODEL_NAME, "")).strip()
+    if not model_name:
+        raise RuntimeError(
+            f"Training run {train_run_id} is missing required tag {TAG_MODEL_NAME!r}."
+        )
+    logger.info("model_uri=%s model_name=%s gate_ok=%s", model_uri, model_name, gate_ok)
 
     mv = mlflow.register_model(model_uri=model_uri, name=model_name)
 

@@ -21,6 +21,7 @@ def _write_profile(path: Path) -> None:
                 "registry_uri: http://localhost:5050",
                 "experiment_name: breast-cancer-platform",
                 "model_name: breast_cancer_clf",
+                "model_spec_path: configs/models/breast_cancer_demo.yaml",
                 "log_level: INFO",
                 "data_dir: data",
                 "artifacts_dir: artifacts",
@@ -56,6 +57,7 @@ def test_load_runtime_profile_reads_yaml(tmp_path: Path) -> None:
 
     assert profile.environment == "local"
     assert profile.model_name == "breast_cancer_clf"
+    assert profile.model_spec_path == "configs/models/breast_cancer_demo.yaml"
     assert profile.compose_file.name == "docker-compose.yml"
     assert profile.mlflow_port == 5000
 
@@ -67,6 +69,9 @@ def test_load_runtime_profile_env_overrides_take_precedence(
     profile_path = tmp_path / "local.yaml"
     _write_profile(profile_path)
     monkeypatch.setenv("MODEL_NAME", "override-model")
+    monkeypatch.setenv(
+        "MLP_MODEL_SPEC_PATH", "configs/models/local_csv_binary_classifier.yaml"
+    )
     monkeypatch.setenv("CANARY_PCT", "25")
     monkeypatch.setenv("MLP_COMPOSE_SERVE_URL", "http://override-serving:9000")
     monkeypatch.setenv("MLP_ARTIFACTS_DIR", str(tmp_path / "override-artifacts"))
@@ -74,6 +79,7 @@ def test_load_runtime_profile_env_overrides_take_precedence(
     profile = load_runtime_profile(profile_path=profile_path)
 
     assert profile.model_name == "override-model"
+    assert profile.model_spec_path == "configs/models/local_csv_binary_classifier.yaml"
     assert profile.canary_pct == 25
     assert profile.compose_serve_url == "http://override-serving:9000"
     assert profile.event_log_path == (

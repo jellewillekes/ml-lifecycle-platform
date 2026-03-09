@@ -31,7 +31,6 @@ def _print_decision(decision: PolicyDecision, fmt: str) -> None:
         print(json.dumps(decision.to_dict(), indent=2, sort_keys=True))
         return
 
-    # Text output.
     print(f"allowed={decision.allowed}")
     for v in decision.errors:
         print(f"ERROR {v.code}: {v.message} {v.details}")
@@ -51,14 +50,13 @@ def _try_get_prod_version(client: MlflowClient, model_name: str) -> str | None:
 def apply_promotion(
     client: MlflowClient, model_name: str, candidate_version: str, from_alias: str
 ) -> None:
-    """Apply promotion side effects after policy allows it."""
+    """Promote one candidate version and record rollback metadata."""
+
     prev_prod_version = _try_get_prod_version(client, model_name)
 
-    # Set aliases.
     client.set_registered_model_alias(model_name, ALIAS_PROD, candidate_version)
     client.set_registered_model_alias(model_name, ALIAS_CHAMPION, candidate_version)
 
-    # Tag the new prod version.
     client.set_model_version_tag(
         name=model_name,
         version=candidate_version,
@@ -72,8 +70,8 @@ def apply_promotion(
         value=from_alias,
     )
 
-    # Store the previous prod version for rollback.
     if prev_prod_version is not None:
+        # Rollback reads this tag instead of inferring state from history.
         client.set_model_version_tag(
             name=model_name,
             version=candidate_version,
@@ -81,7 +79,6 @@ def apply_promotion(
             value=prev_prod_version,
         )
 
-        # Best-effort audit tag on the old prod version.
         try:
             client.set_model_version_tag(
                 name=model_name,
@@ -90,7 +87,6 @@ def apply_promotion(
                 value=RELEASE_STATUS_PREVIOUS_PROD,
             )
         except Exception:
-            # Do not fail promotion if this tag write fails.
             logger.info(
                 "Could not mark old prod version %s as %s",
                 prev_prod_version,
@@ -138,11 +134,9 @@ def main(argv: list[str] | None = None) -> None:
     _print_decision(decision, args.format)
 
     if args.dry_run:
-        # Dry-run must not mutate state.
         raise SystemExit(0 if decision.allowed else 2)
 
     if not decision.allowed:
-        # Blocked. Do not mutate state.
         raise SystemExit(2)
 
     candidate_version = str(decision.context["candidate_version"])

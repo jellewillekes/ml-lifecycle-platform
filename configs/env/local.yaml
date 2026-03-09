@@ -3,6 +3,7 @@ tracking_uri: http://localhost:5050
 registry_uri: http://localhost:5050
 experiment_name: breast-cancer-platform
 model_name: breast_cancer_clf
+model_spec_path: configs/models/breast_cancer_demo.yaml
 log_level: INFO
 data_dir: /app/data
 artifacts_dir: /app/artifacts

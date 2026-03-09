@@ -12,6 +12,26 @@ def _valid_contract_payload() -> dict[str, object]:
         "schema_version": "repro_contract/v1",
         "training_run_id": "run-123",
         "model_name": "breast_cancer_clf",
+        "model_spec": {
+            "schema_version": "model_spec/v1",
+            "model_name": "breast_cancer_clf",
+            "task": "binary_classifier",
+            "label_column": "target",
+            "source": {"kind": "sklearn_demo", "dataset_name": "breast_cancer"},
+            "split": {"test_size": 0.2, "random_state": 42, "stratify": True},
+            "preprocessor": {"kind": "standard_scaler"},
+            "trainer": {
+                "kind": "logistic_regression",
+                "max_iter": 2000,
+                "solver": "lbfgs",
+                "class_weight": "balanced",
+                "random_state": 42,
+            },
+            "evaluation": {
+                "metrics": ["accuracy", "f1", "roc_auc"],
+                "gate": {"metric": "roc_auc", "threshold": 0.95},
+            },
+        },
         "git_sha": "deadbeef",
         "config_hash": "config-hash",
         "dataset_fingerprint": "dataset-fingerprint",
@@ -41,6 +61,7 @@ def test_repro_contract_round_trips() -> None:
 
     assert contract.training_run_id == "run-123"
     assert contract.model_name == "breast_cancer_clf"
+    assert contract.model_spec["source"]["kind"] == "sklearn_demo"
     assert contract.deterministic_seed == 42
     assert contract.params["random_state"] == 42
     assert ReproContract.from_json(contract.to_json()) == contract

@@ -1,12 +1,11 @@
 from __future__ import annotations
 
-# Shared constants.
-
 # Contracts schema versions
 DATASET_FINGERPRINT_SCHEMA_VERSION = "dataset_fingerprint/v1"
 MODEL_REF_SCHEMA_VERSION = "model_ref/v1"
 FEATURE_STATS_SCHEMA_VERSION = "feature_stats/v1"
 REPRO_CONTRACT_SCHEMA_VERSION = "repro_contract/v1"
+MODEL_SPEC_SCHEMA_VERSION = "model_spec/v1"
 
 # MLflow tag keys
 TAG_STEP = "step"

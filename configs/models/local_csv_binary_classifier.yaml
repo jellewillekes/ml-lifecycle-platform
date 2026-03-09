@@ -1,0 +1,27 @@
+schema_version: model_spec/v1
+model_name: local_csv_binary_clf
+task: binary_classifier
+label_column: target
+source:
+  kind: csv
+  path: ../model_data/local_csv_binary_classifier.csv
+split:
+  test_size: 0.2
+  random_state: 42
+  stratify: true
+preprocessor:
+  kind: standard_scaler
+trainer:
+  kind: logistic_regression
+  max_iter: 2000
+  solver: lbfgs
+  class_weight: balanced
+  random_state: 42
+evaluation:
+  metrics:
+    - accuracy
+    - f1
+    - roc_auc
+  gate:
+    metric: roc_auc
+    threshold: 0.95
