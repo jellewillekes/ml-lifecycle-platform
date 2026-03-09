@@ -19,6 +19,7 @@ from ml_lifecycle_platform.common.constants import (
     TRAIN_CSV,
 )
 from ml_lifecycle_platform.common.mlflow_utils import ensure_experiment
+from ml_lifecycle_platform.core.batch_contracts import validate_labeled_dataset
 from ml_lifecycle_platform.core.model_specs import load_model_spec
 
 DATA_DIR = Path("/app/data")
@@ -38,6 +39,12 @@ def main() -> None:
         raise RuntimeError(f"Missing raw dataset: {raw_path}. Run ingest first.")
 
     df = pd.read_csv(raw_path)
+    df = validate_labeled_dataset(
+        df,
+        spec=spec,
+        stage="featurize",
+        dataset_name="raw",
+    )
     if spec.label_column not in df.columns:
         raise RuntimeError(f"Expected column {spec.label_column!r} in {RAW_CSV}")
 
@@ -57,6 +64,18 @@ def main() -> None:
 
     train_df[spec.label_column] = y_train.values
     test_df[spec.label_column] = y_test.values
+    train_df = validate_labeled_dataset(
+        train_df,
+        spec=spec,
+        stage="featurize",
+        dataset_name="train",
+    )
+    test_df = validate_labeled_dataset(
+        test_df,
+        spec=spec,
+        stage="featurize",
+        dataset_name="test",
+    )
 
     train_path = DATA_DIR / TRAIN_CSV
     test_path = DATA_DIR / TEST_CSV

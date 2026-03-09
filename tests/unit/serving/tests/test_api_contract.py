@@ -77,6 +77,24 @@ def test_predict_invalid_json_payload_422(client: TestClient) -> None:
     assert r.status_code == 422
 
 
+def test_predict_rejects_top_level_extra_fields(client: TestClient) -> None:
+    r = client.post(
+        "/predict?mode=prod",
+        json={"rows": [_valid_row()], "unexpected": True},
+    )
+
+    assert r.status_code == 422, r.text
+
+
+def test_predict_rejects_nested_objects_in_rows(client: TestClient) -> None:
+    row = _valid_row()
+    row["mean_area"] = {"bad": "value"}  # type: ignore[assignment]
+
+    r = client.post("/predict?mode=prod", json={"rows": [row]})
+
+    assert r.status_code == 422, r.text
+
+
 def test_predict_rejects_missing_fields(client: TestClient) -> None:
     row = _valid_row()
     del row["mean_texture"]

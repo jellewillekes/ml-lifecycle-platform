@@ -94,7 +94,34 @@ def test_load_runtime_profile_rejects_missing_required_field(tmp_path: Path) -> 
         encoding="utf-8",
     )
 
-    with pytest.raises(ValueError, match="registry_uri"):
+    with pytest.raises(ValueError, match="Profile at .*registry_uri"):
+        load_runtime_profile(profile_path=profile_path)
+
+
+def test_load_runtime_profile_rejects_invalid_canary_pct(tmp_path: Path) -> None:
+    profile_path = tmp_path / "invalid.yaml"
+    _write_profile(profile_path)
+
+    profile_path.write_text(
+        profile_path.read_text(encoding="utf-8").replace(
+            "canary_pct: 10", "canary_pct: 120"
+        ),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match="canary_pct"):
+        load_runtime_profile(profile_path=profile_path)
+
+
+def test_load_runtime_profile_rejects_extra_fields(tmp_path: Path) -> None:
+    profile_path = tmp_path / "invalid.yaml"
+    _write_profile(profile_path)
+    profile_path.write_text(
+        profile_path.read_text(encoding="utf-8") + "unexpected_field: nope\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match="unexpected_field"):
         load_runtime_profile(profile_path=profile_path)
 
 

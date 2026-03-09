@@ -48,6 +48,7 @@ from ml_lifecycle_platform.common.repro import (
     get_uv_lock_path,
     sha256_text,
 )
+from ml_lifecycle_platform.core.batch_contracts import validate_labeled_dataset
 from ml_lifecycle_platform.contracts.dataset_fingerprint import (
     DatasetFingerprint,
     compute_fingerprint,
@@ -125,8 +126,21 @@ def load_training_inputs(
 ) -> TrainingInputs:
     data_dir = DATA_DIR if data_dir is None else data_dir
     artifacts_dir = ART_DIR if artifacts_dir is None else artifacts_dir
+    spec = load_model_spec(get_model_spec_path())
     train_df = pd.read_csv(data_dir / TRAIN_CSV)
     test_df = pd.read_csv(data_dir / TEST_CSV)
+    train_df = validate_labeled_dataset(
+        train_df,
+        spec=spec,
+        stage="train",
+        dataset_name="train",
+    )
+    test_df = validate_labeled_dataset(
+        test_df,
+        spec=spec,
+        stage="train",
+        dataset_name="test",
+    )
     preprocessor = joblib.load(artifacts_dir / ART_PREPROCESSOR)
     return TrainingInputs(
         train_df=train_df,

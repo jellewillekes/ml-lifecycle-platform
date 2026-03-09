@@ -34,7 +34,7 @@ from ml_lifecycle_platform.contracts.dataset_fingerprint import (
     get_git_sha,
 )
 from ml_lifecycle_platform.contracts.repro_contract import ReproContract
-from ml_lifecycle_platform.core.release_reports import (
+from ml_lifecycle_platform.contracts.release_reports import (
     OperationResult,
     PolicyOutcome,
     PromotionDecisionReport,

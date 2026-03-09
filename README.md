@@ -3,7 +3,7 @@
 [![CI](https://github.com/jellewillekes/ml-lifecycle-platform/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/jellewillekes/ml-lifecycle-platform/actions/workflows/ci.yml)
 [![CodeQL](https://github.com/jellewillekes/ml-lifecycle-platform/actions/workflows/codeql.yml/badge.svg?branch=master)](https://github.com/jellewillekes/ml-lifecycle-platform/actions/workflows/codeql.yml)
 [![Gitleaks](https://github.com/jellewillekes/ml-lifecycle-platform/actions/workflows/gitleaks.yml/badge.svg?branch=master)](https://github.com/jellewillekes/ml-lifecycle-platform/actions/workflows/gitleaks.yml)
-[![E2E](https://github.com/jellewillekes/ml-lifecycle-platform/actions/workflows/e2e.yml/badge.svg?event=schedule)](https://github.com/jellewillekes/ml-lifecycle-platform/actions/workflows/e2e.yml)
+[![E2E](https://github.com/jellewillekes/ml-lifecycle-platform/actions/workflows/e2e.yml/badge.svg)](https://github.com/jellewillekes/ml-lifecycle-platform/actions/workflows/e2e.yml)
 [![Coverage](https://codecov.io/gh/jellewillekes/ml-lifecycle-platform/branch/master/graph/badge.svg)](https://codecov.io/gh/jellewillekes/ml-lifecycle-platform/branch/master/graph/badge.svg)
 
 An ML platform for training, evaluating, registering, promoting, serving, and reproducing models. MLflow is the control plane. The current implementation is local-first. Hosted backends in `GCP` and `AWS` are planned.
@@ -77,12 +77,12 @@ set -a; source .env; set +a
 Fast local checks:
 
 ```bash
-make check
-make docs-check
-make test-all
+make check && 
+make docs-check &&
+make test-all 
 ```
 
-Canonical M0 validation path:
+Golden validation path:
 
 ```bash
 make e2e

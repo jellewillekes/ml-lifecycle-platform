@@ -18,7 +18,7 @@ from ml_lifecycle_platform.common.constants import (
     TAG_SOURCE_RUN_ID,
 )
 from ml_lifecycle_platform.common.mlflow_utils import client as mlflow_client
-from ml_lifecycle_platform.core.release_reports import (
+from ml_lifecycle_platform.contracts.release_reports import (
     OperationResult,
     PolicyOutcome,
     PromotionDecisionReport,

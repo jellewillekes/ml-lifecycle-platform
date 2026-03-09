@@ -20,7 +20,7 @@ from ml_lifecycle_platform.common.constants import (
     TAG_RELEASE_REPORTS_PATH,
     TAG_ROLLBACK_TARGET_PATH,
 )
-from ml_lifecycle_platform.core.release_reports import (
+from ml_lifecycle_platform.contracts.release_reports import (
     ReleaseManifest,
     ReleaseReportBundle,
 )

@@ -1,9 +1,12 @@
 from __future__ import annotations
 
 import json
-from datetime import UTC, datetime
 from pathlib import Path
-from typing import Mapping
+from typing import Mapping, cast
+
+from pydantic import JsonValue
+
+from ml_lifecycle_platform.contracts.runtime_event import RuntimeEvent
 
 
 class LocalEventStore:
@@ -18,11 +21,10 @@ class LocalEventStore:
 
     def append_event(self, event_type: str, payload: Mapping[str, object]) -> None:
         self._path.parent.mkdir(parents=True, exist_ok=True)
-        entry = {
-            "timestamp": datetime.now(UTC).isoformat(),
-            "event_type": event_type,
-            "payload": dict(payload),
-        }
+        entry = RuntimeEvent(
+            event_type=event_type,
+            payload=cast(dict[str, JsonValue], dict(payload)),
+        ).to_dict()
         with self._path.open("a", encoding="utf-8") as fh:
             fh.write(json.dumps(entry, sort_keys=True))
             fh.write("\n")

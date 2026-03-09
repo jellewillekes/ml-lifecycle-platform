@@ -9,6 +9,7 @@ from ml_lifecycle_platform.backends.local.artifact_store import LocalArtifactSto
 from ml_lifecycle_platform.backends.local.event_store import LocalEventStore
 from ml_lifecycle_platform.backends.local.job_runner import LocalJobRunner
 from ml_lifecycle_platform.backends.local.secrets import EnvSecrets
+from ml_lifecycle_platform.common.constants import RUNTIME_EVENT_SCHEMA_VERSION
 from ml_lifecycle_platform.runtime.bootstrap import get_runtime_context
 
 pytestmark = pytest.mark.integration
@@ -51,6 +52,7 @@ def test_local_runtime_context_uses_local_adapters_and_env_overrides(
     runtime.event_store.append_event("runtime_bootstrap_test", {"status": "ok"})
     event_log = artifacts_dir / "runtime-events.jsonl"
     payload = json.loads(event_log.read_text(encoding="utf-8").strip().splitlines()[-1])
+    assert payload["schema_version"] == RUNTIME_EVENT_SCHEMA_VERSION
     assert payload["event_type"] == "runtime_bootstrap_test"
     assert payload["payload"] == {"status": "ok"}
 

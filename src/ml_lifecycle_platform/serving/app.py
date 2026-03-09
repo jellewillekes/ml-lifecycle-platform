@@ -13,7 +13,7 @@ from typing import Any, Literal, cast
 import pandas as pd
 from fastapi import FastAPI, HTTPException, Query, Request
 from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 from starlette.responses import Response
 
 try:
@@ -126,13 +126,27 @@ async def coarse_metrics_middleware(
     return response
 
 
+PredictionScalar = bool | int | float | str | None
+
+
 class PredictRequest(BaseModel):
-    rows: list[dict[str, Any]] = Field(
+    model_config = ConfigDict(extra="forbid")
+
+    rows: list[dict[str, PredictionScalar]] = Field(
         ..., description="List of feature dicts (one per row)"
     )
 
 
+class PredictionMetadata(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    model_version: str | None
+    contract_version: str
+
+
 class PredictResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     mode: Mode
     n: int
     proba: list[float]
@@ -140,10 +154,12 @@ class PredictResponse(BaseModel):
     bucket: int | None = None
     canary_pct: int | None = None
     bucket_seed_source: str | None = None
-    metadata: dict[str, str | None]
+    metadata: PredictionMetadata
 
 
 class ModelMetadataResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     model_name: str
     prod_alias: str
     candidate_alias: str
@@ -154,12 +170,16 @@ class ModelMetadataResponse(BaseModel):
 
 
 class SchemaFieldResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     name: str
     dtype: str
     required: bool
 
 
 class SchemaMetadataResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     model_name: str
     contract_version: str
     allow_unknown_fields: bool
@@ -528,10 +548,10 @@ async def predict(
             bucket=bucket,
             canary_pct=settings.canary_pct if mode == "canary" else None,
             bucket_seed_source=str(bucket_seed_source) if bucket_seed_source else None,
-            metadata={
-                "model_version": selected_model_version,
-                "contract_version": contract.version,
-            },
+            metadata=PredictionMetadata(
+                model_version=selected_model_version,
+                contract_version=contract.version,
+            ),
         )
 
     except FeatureContractValidationError as e:

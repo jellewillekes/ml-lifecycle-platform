@@ -14,6 +14,7 @@ from ml_lifecycle_platform.common.constants import (
     TAG_STEP,
 )
 from ml_lifecycle_platform.common.mlflow_utils import ensure_experiment
+from ml_lifecycle_platform.core.batch_contracts import validate_labeled_dataset
 from ml_lifecycle_platform.core.model_specs import (
     CsvSourceSpec,
     ModelSpec,
@@ -26,10 +27,17 @@ DATA_DIR = Path("/app/data")
 def _load_source_dataframe(spec: ModelSpec) -> pd.DataFrame:
     if isinstance(spec.source, CsvSourceSpec):
         csv_path = spec.source.resolved_path(spec_path=spec.spec_path)
-        return pd.read_csv(csv_path)
+        df = pd.read_csv(csv_path)
+    else:
+        dataset = load_breast_cancer(as_frame=True)
+        df = dataset.frame.copy()
 
-    dataset = load_breast_cancer(as_frame=True)
-    return dataset.frame.copy()
+    return validate_labeled_dataset(
+        df,
+        spec=spec,
+        stage="ingest",
+        dataset_name="source",
+    )
 
 
 def main() -> None:
