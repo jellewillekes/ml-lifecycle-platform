@@ -11,6 +11,7 @@ An ML platform for training, evaluating, registering, promoting, serving, and re
 Operator and architecture docs live in the handbook:
 
 - [`docs/README.md`](docs/README.md)
+- [`docs/reference/technology-stack.md`](docs/reference/technology-stack.md)
 
 Starter files for OSS users:
 
