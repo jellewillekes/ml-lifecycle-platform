@@ -153,6 +153,7 @@ services:
       AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-minioadmin}
       MLFLOW_S3_ENDPOINT_URL: ${MLP_COMPOSE_S3_ENDPOINT_URL:-http://minio:9000}
       MODEL_NAME: ${MODEL_NAME:-breast_cancer_clf}
+      MLP_MODEL_SPEC_PATH: ${MLP_MODEL_SPEC_PATH:-configs/models/breast_cancer_demo.yaml}
       CANARY_PCT: ${CANARY_PCT:-10}
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
     ports:

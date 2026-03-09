@@ -25,6 +25,70 @@ evaluation:
   gate:
     metric: roc_auc
     threshold: 0.95
+feature_contract:
+  version: breast_cancer_clf.input/v1
+  allow_unknown_fields: false
+  features:
+    - name: mean radius
+      dtype: float
+    - name: mean texture
+      dtype: float
+    - name: mean perimeter
+      dtype: float
+    - name: mean area
+      dtype: float
+    - name: mean smoothness
+      dtype: float
+    - name: mean compactness
+      dtype: float
+    - name: mean concavity
+      dtype: float
+    - name: mean concave points
+      dtype: float
+    - name: mean symmetry
+      dtype: float
+    - name: mean fractal dimension
+      dtype: float
+    - name: radius error
+      dtype: float
+    - name: texture error
+      dtype: float
+    - name: perimeter error
+      dtype: float
+    - name: area error
+      dtype: float
+    - name: smoothness error
+      dtype: float
+    - name: compactness error
+      dtype: float
+    - name: concavity error
+      dtype: float
+    - name: concave points error
+      dtype: float
+    - name: symmetry error
+      dtype: float
+    - name: fractal dimension error
+      dtype: float
+    - name: worst radius
+      dtype: float
+    - name: worst texture
+      dtype: float
+    - name: worst perimeter
+      dtype: float
+    - name: worst area
+      dtype: float
+    - name: worst smoothness
+      dtype: float
+    - name: worst compactness
+      dtype: float
+    - name: worst concavity
+      dtype: float
+    - name: worst concave points
+      dtype: float
+    - name: worst symmetry
+      dtype: float
+    - name: worst fractal dimension
+      dtype: float
 policy:
   required_metadata_tags:
     - dataset_fingerprint

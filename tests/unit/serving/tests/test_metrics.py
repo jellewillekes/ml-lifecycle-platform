@@ -41,7 +41,17 @@ def test_predict_increments_metrics(client: TestClient) -> None:
 
     r = client.post(
         "/predict?mode=prod",
-        json={"rows": [{"f1": 1.0, "f2": 2.0, "f3": 3.0}]},
+        json={
+            "rows": [
+                {
+                    "mean_radius": 17.99,
+                    "mean_texture": 10.38,
+                    "mean_perimeter": 122.8,
+                    "mean_area": 1001.0,
+                    "mean_smoothness": 0.1184,
+                }
+            ]
+        },
     )
     assert r.status_code == 200
 

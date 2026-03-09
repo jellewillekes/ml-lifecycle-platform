@@ -14,6 +14,7 @@ from .constants import (
     ENV_LOG_LEVEL,
     ENV_MODEL_CACHE_TTL_SEC,
     ENV_MODEL_NAME,
+    ENV_MODEL_SPEC_PATH,
     ENV_PROD_ALIAS,
     ENV_UNIT_TESTING,
 )
@@ -25,6 +26,10 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(extra="ignore")
 
     model_name: str = Field(default=DEFAULT_MODEL_NAME, validation_alias=ENV_MODEL_NAME)
+    model_spec_path: str = Field(
+        default="configs/models/breast_cancer_demo.yaml",
+        validation_alias=ENV_MODEL_SPEC_PATH,
+    )
     prod_alias: str = Field(default=ALIAS_PROD, validation_alias=ENV_PROD_ALIAS)
     candidate_alias: str = Field(
         default=ALIAS_CANDIDATE, validation_alias=ENV_CANDIDATE_ALIAS

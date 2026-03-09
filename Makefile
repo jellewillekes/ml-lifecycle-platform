@@ -173,8 +173,13 @@ rollback-prod:
 serve:
 	@set -euo pipefail; \
 	model_name="$${MODEL:-$${MODEL_NAME:-}}"; \
-	if [[ -n "$$model_name" ]]; then \
+	model_spec="$${MODEL_SPEC:-$${MLP_MODEL_SPEC_PATH:-}}"; \
+	if [[ -n "$$model_name" && -n "$$model_spec" ]]; then \
+		$(MLP) serve api --model-name "$$model_name" --model-spec "$$model_spec"; \
+	elif [[ -n "$$model_name" ]]; then \
 		$(MLP) serve api --model-name "$$model_name"; \
+	elif [[ -n "$$model_spec" ]]; then \
+		$(MLP) serve api --model-spec "$$model_spec"; \
 	else \
 		$(MLP) serve api; \
 	fi
@@ -182,8 +187,13 @@ serve:
 smoke-test:
 	@set -euo pipefail; \
 	model_name="$${MODEL:-$${MODEL_NAME:-}}"; \
-	if [[ -n "$$model_name" ]]; then \
+	model_spec="$${MODEL_SPEC:-$${MLP_MODEL_SPEC_PATH:-}}"; \
+	if [[ -n "$$model_name" && -n "$$model_spec" ]]; then \
+		$(MLP) serve smoke --model-name "$$model_name" --model-spec "$$model_spec"; \
+	elif [[ -n "$$model_name" ]]; then \
 		$(MLP) serve smoke --model-name "$$model_name"; \
+	elif [[ -n "$$model_spec" ]]; then \
+		$(MLP) serve smoke --model-spec "$$model_spec"; \
 	else \
 		$(MLP) serve smoke; \
 	fi

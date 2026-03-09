@@ -21,6 +21,7 @@ SUPPORTED_SOURCE_KINDS = {"sklearn_demo", "csv"}
 SUPPORTED_TRAINER_KIND = "logistic_regression"
 SUPPORTED_PREPROCESSOR_KIND = "standard_scaler"
 SUPPORTED_METRICS = {"accuracy", "f1", "roc_auc"}
+SUPPORTED_FEATURE_TYPES = {"float", "int", "bool", "string"}
 DEFAULT_POLICY_REQUIRED_METADATA_TAGS = (
     TAG_DATASET_FINGERPRINT,
     TAG_GIT_SHA,
@@ -169,6 +170,42 @@ class MetricThresholdSpec:
 
 
 @dataclass(frozen=True)
+class FeatureFieldSpec:
+    name: str
+    dtype: str
+    required: bool = True
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "name": self.name,
+            "dtype": self.dtype,
+            "required": self.required,
+        }
+
+
+@dataclass(frozen=True)
+class FeatureContractSpec:
+    version: str
+    allow_unknown_fields: bool
+    features: tuple[FeatureFieldSpec, ...]
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "version": self.version,
+            "allow_unknown_fields": self.allow_unknown_fields,
+            "features": [feature.to_dict() for feature in self.features],
+        }
+
+
+def default_feature_contract_spec() -> FeatureContractSpec:
+    return FeatureContractSpec(
+        version="feature_contract/default",
+        allow_unknown_fields=True,
+        features=(),
+    )
+
+
+@dataclass(frozen=True)
 class PolicySpec:
     required_metadata_tags: tuple[str, ...]
     required_release_status: str
@@ -209,6 +246,7 @@ class ModelSpec:
     preprocessor: PreprocessorSpec
     trainer: LogisticRegressionTrainerSpec
     evaluation: EvaluationSpec
+    feature_contract: FeatureContractSpec
     policy: PolicySpec
     spec_path: Path
 
@@ -223,6 +261,7 @@ class ModelSpec:
             "preprocessor": self.preprocessor.to_dict(),
             "trainer": self.trainer.to_dict(),
             "evaluation": self.evaluation.to_dict(),
+            "feature_contract": self.feature_contract.to_dict(),
             "policy": self.policy.to_dict(),
         }
 
@@ -340,6 +379,51 @@ def _parse_metric_threshold(payload: Any, *, context: str) -> MetricThresholdSpe
     return MetricThresholdSpec(metric=metric, threshold=threshold)
 
 
+def _parse_feature_field(payload: Any, *, context: str) -> FeatureFieldSpec:
+    raw = _require_mapping(payload, context=context)
+    _reject_extra_keys(raw, allowed={"name", "dtype", "required"}, context=context)
+    name = _require_str(raw, "name", context=context)
+    dtype = _require_str(raw, "dtype", context=context)
+    if dtype not in SUPPORTED_FEATURE_TYPES:
+        raise ValueError(
+            f"{context}.dtype must be one of {sorted(SUPPORTED_FEATURE_TYPES)}."
+        )
+    required = raw.get("required", True)
+    if not isinstance(required, bool):
+        raise ValueError(f"{context}.required must be a boolean.")
+    return FeatureFieldSpec(name=name, dtype=dtype, required=required)
+
+
+def _parse_feature_contract(payload: Any, *, context: str) -> FeatureContractSpec:
+    if payload is None:
+        return default_feature_contract_spec()
+
+    raw = _require_mapping(payload, context=context)
+    _reject_extra_keys(
+        raw,
+        allowed={"version", "allow_unknown_fields", "features"},
+        context=context,
+    )
+    features = raw.get("features")
+    if not isinstance(features, list) or not features:
+        raise ValueError(f"{context}.features must be a non-empty list.")
+
+    parsed_features = tuple(
+        _parse_feature_field(item, context=f"{context}.features[{idx}]")
+        for idx, item in enumerate(features)
+    )
+    if len({feature.name for feature in parsed_features}) != len(parsed_features):
+        raise ValueError(f"{context}.features cannot repeat feature names.")
+
+    return FeatureContractSpec(
+        version=_require_str(raw, "version", context=context),
+        allow_unknown_fields=_require_bool(
+            raw, "allow_unknown_fields", context=context
+        ),
+        features=parsed_features,
+    )
+
+
 def _parse_policy(payload: Any, *, context: str) -> PolicySpec:
     if payload is None:
         return default_policy_spec()
@@ -415,6 +499,7 @@ def model_spec_from_dict(
             "preprocessor",
             "trainer",
             "evaluation",
+            "feature_contract",
             "policy",
         },
         context="model_spec",
@@ -429,11 +514,20 @@ def model_spec_from_dict(
     if task != SUPPORTED_TASK:
         raise ValueError(f"model_spec.task must be {SUPPORTED_TASK!r}.")
 
+    label_column = _require_str(raw, "label_column", context="model_spec")
+    feature_contract = _parse_feature_contract(
+        raw.get("feature_contract"), context="model_spec.feature_contract"
+    )
+    if any(feature.name == label_column for feature in feature_contract.features):
+        raise ValueError(
+            "model_spec.feature_contract.features must exclude label_column."
+        )
+
     return ModelSpec(
         schema_version=schema_version,
         model_name=_require_str(raw, "model_name", context="model_spec"),
         task=task,
-        label_column=_require_str(raw, "label_column", context="model_spec"),
+        label_column=label_column,
         source=_parse_source(raw.get("source"), context="model_spec.source"),
         split=_parse_split(raw.get("split"), context="model_spec.split"),
         preprocessor=_parse_preprocessor(
@@ -443,6 +537,7 @@ def model_spec_from_dict(
         evaluation=_parse_evaluation(
             raw.get("evaluation"), context="model_spec.evaluation"
         ),
+        feature_contract=feature_contract,
         policy=_parse_policy(raw.get("policy"), context="model_spec.policy"),
         spec_path=resolve_model_spec_path(spec_path),
     )

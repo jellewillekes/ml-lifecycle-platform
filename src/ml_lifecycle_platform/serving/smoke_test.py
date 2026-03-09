@@ -111,6 +111,43 @@ def _assert_prediction_response(body: dict[str, Any], *, expected_n: int) -> Non
         p_float = float(value)
         assert 0.0 <= p_float <= 1.0, f"proba[{idx}] out of range: {p_float}"
 
+    metadata = body.get("metadata")
+    assert isinstance(metadata, dict), f"bad metadata={metadata!r}"
+    assert isinstance(metadata.get("contract_version"), str)
+
+
+def _assert_model_metadata_response(body: dict[str, Any]) -> None:
+    assert isinstance(body.get("model_name"), str)
+    assert isinstance(body.get("contract_version"), str)
+    assert isinstance(body.get("allow_unknown_fields"), bool)
+
+
+def _assert_schema_metadata_response(body: dict[str, Any]) -> None:
+    assert isinstance(body.get("contract_version"), str)
+    features = body.get("features")
+    assert isinstance(features, list) and features, f"bad features={features!r}"
+    first_feature = features[0]
+    assert isinstance(first_feature, dict)
+    assert isinstance(first_feature.get("name"), str)
+    assert isinstance(first_feature.get("dtype"), str)
+    assert isinstance(first_feature.get("required"), bool)
+
+
+def _check_metadata_endpoints() -> None:
+    model_resp = requests.get(f"{SERVE_URL}/metadata/model", timeout=10)
+    if model_resp.status_code >= 400:
+        raise RuntimeError(
+            f"[smoke] /metadata/model failed: {model_resp.status_code} detail={model_resp.text!r}"
+        )
+    _assert_model_metadata_response(model_resp.json())
+
+    schema_resp = requests.get(f"{SERVE_URL}/metadata/schema", timeout=10)
+    if schema_resp.status_code >= 400:
+        raise RuntimeError(
+            f"[smoke] /metadata/schema failed: {schema_resp.status_code} detail={schema_resp.text!r}"
+        )
+    _assert_schema_metadata_response(schema_resp.json())
+
 
 def _call(mode: str, payload: dict[str, Any], *, required: bool) -> None:
     r = requests.post(f"{SERVE_URL}/predict?mode={mode}", json=payload, timeout=15)
@@ -138,6 +175,7 @@ def _call(mode: str, payload: dict[str, Any], *, required: bool) -> None:
 
 def main() -> None:
     _wait_for_service()
+    _check_metadata_endpoints()
     payload = _payload()
 
     _call("prod", payload, required=True)
