@@ -1,0 +1,78 @@
+name: Gitleaks
+
+on:
+  pull_request:
+  push:
+    branches: [master]
+  schedule:
+    - cron: "11 3 * * 1"
+  workflow_dispatch: {}
+
+permissions: {}
+
+env:
+  GITLEAKS_VERSION: "8.30.0"
+
+jobs:
+  scan:
+    name: Secret Scan
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Install gitleaks
+        shell: bash
+        run: |
+          set -euo pipefail
+          base_url="https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}"
+          archive="gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
+          checksum_file="gitleaks_${GITLEAKS_VERSION}_checksums.txt"
+
+          curl -fsSLO "${base_url}/${archive}"
+          curl -fsSLO "${base_url}/${checksum_file}"
+          grep " ${archive}\$" "${checksum_file}" | sha256sum -c -
+
+          mkdir -p "${RUNNER_TEMP}/gitleaks"
+          tar -xzf "${archive}" -C "${RUNNER_TEMP}/gitleaks"
+          chmod +x "${RUNNER_TEMP}/gitleaks/gitleaks"
+
+      - name: Run gitleaks
+        id: gitleaks
+        shell: bash
+        run: |
+          set -euo pipefail
+          exit_code=0
+
+          "${RUNNER_TEMP}/gitleaks/gitleaks" git . \
+            --no-banner \
+            --redact \
+            --report-format sarif \
+            --report-path gitleaks.sarif \
+            --exit-code 1 || exit_code=$?
+
+          if [ "${exit_code}" -gt 1 ]; then
+            exit "${exit_code}"
+          fi
+
+          echo "exit_code=${exit_code}" >> "${GITHUB_OUTPUT}"
+
+      - name: Upload SARIF
+        if: always() && hashFiles('gitleaks.sarif') != '' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.fork == false)
+        uses: github/codeql-action/upload-sarif@0d579ffd059c29b07949a3cce3983f0780820c98 # v4.32.6
+        with:
+          sarif_file: gitleaks.sarif
+          category: gitleaks
+
+      - name: Fail on detected secrets
+        if: steps.gitleaks.outputs.exit_code == '1'
+        shell: bash
+        run: |
+          echo "Gitleaks detected committed secrets. Review gitleaks.sarif for details."
+          exit 1

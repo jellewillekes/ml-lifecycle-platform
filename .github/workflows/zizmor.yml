@@ -1,0 +1,30 @@
+name: Zizmor
+
+on:
+  pull_request:
+  push:
+    branches: [master]
+  schedule:
+    - cron: "47 3 * * 1"
+  workflow_dispatch: {}
+
+permissions: {}
+
+jobs:
+  zizmor:
+    name: GitHub Actions Security Lint
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - name: Run zizmor
+        uses: zizmorcore/zizmor-action@71321a20a9ded102f6e9ce5718a2fcec2c4f70d8 # v0.5.2
+        with:
+          advanced-security: true
