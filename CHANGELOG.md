@@ -4,6 +4,47 @@ All important changes and updates to this project are documented here.
 
 This repo uses Conventional Commits and Release Please.
 
+## [0.5.0](https://github.com/jellewillekes/ml-lifecycle-platform/compare/v0.4.0...v0.5.0) (2026-03-09)
+
+
+### Features
+
+* add dataset fingerprinting and lineage metadata ([#6](https://github.com/jellewillekes/ml-lifecycle-platform/issues/6)) ([1870812](https://github.com/jellewillekes/ml-lifecycle-platform/commit/1870812c01a6839b238173af37ac46d5994d32c5))
+* add Prometheus metrics endpoint and structured logging ([#10](https://github.com/jellewillekes/ml-lifecycle-platform/issues/10)) ([71c61a8](https://github.com/jellewillekes/ml-lifecycle-platform/commit/71c61a89c1722168cd3408f196365732f3368341))
+* add promotion guardrails and rollback-prod ([#11](https://github.com/jellewillekes/ml-lifecycle-platform/issues/11)) ([ae80bb7](https://github.com/jellewillekes/ml-lifecycle-platform/commit/ae80bb7b6b4ca15393926c1ad24c87ba962bb11b))
+* add release policy module and dry-run promotion gate ([#24](https://github.com/jellewillekes/ml-lifecycle-platform/issues/24)) ([23e4818](https://github.com/jellewillekes/ml-lifecycle-platform/commit/23e48188fa3309cf45c8249ec3ff264f00f8343e))
+* alias-based release with prod/champion and updated docs ([5507a6d](https://github.com/jellewillekes/ml-lifecycle-platform/commit/5507a6dd74ebd0b895bf56453c6add047518c613))
+* alias-based release with prod/champion and updated docs ([2bc92eb](https://github.com/jellewillekes/ml-lifecycle-platform/commit/2bc92eb2479e11a0b519e923badb3024854e25f6))
+* **local-runtime-profile-cli:** implement local profile loader and CLI ([#64](https://github.com/jellewillekes/ml-lifecycle-platform/issues/64)) ([2f2c055](https://github.com/jellewillekes/ml-lifecycle-platform/commit/2f2c0553003da16d4fc9f713723f3d4c99aef2a5))
+* reproduce registered models from source runs ([#35](https://github.com/jellewillekes/ml-lifecycle-platform/issues/35)) ([bc98ed8](https://github.com/jellewillekes/ml-lifecycle-platform/commit/bc98ed8bba36d920aecacccd212193c1e9617019))
+* **runtime:** add local backend adapter interfaces ([#62](https://github.com/jellewillekes/ml-lifecycle-platform/issues/62)) ([2f3bdc8](https://github.com/jellewillekes/ml-lifecycle-platform/commit/2f3bdc8d364e5361cd13519934c73cbd27c98433))
+* switch to alias-based MLflow releases (candidate/prod) ([b95318b](https://github.com/jellewillekes/ml-lifecycle-platform/commit/b95318b43aa171280cefbf0f7cf8d89b4047403e))
+* switch to alias-based MLflow releases (candidate/prod) ([bb6b541](https://github.com/jellewillekes/ml-lifecycle-platform/commit/bb6b541e58859e41450b3bc22cf7218de761257c))
+
+
+### Bug Fixes
+
+* **ci:** allow deps type in PR title check ([#22](https://github.com/jellewillekes/ml-lifecycle-platform/issues/22)) ([1f310c1](https://github.com/jellewillekes/ml-lifecycle-platform/commit/1f310c19d88967e9194e68ebf5bc59ba9e51b962))
+* **ci:** bootstrap Python and uv in E2E workflow ([#67](https://github.com/jellewillekes/ml-lifecycle-platform/issues/67)) ([7d63342](https://github.com/jellewillekes/ml-lifecycle-platform/commit/7d6334273e6aefe2d1ebf9cf5a8d59a297a514ac))
+* **ci:** guard Docker Python version and add PR docker builds ([#59](https://github.com/jellewillekes/ml-lifecycle-platform/issues/59)) ([518788e](https://github.com/jellewillekes/ml-lifecycle-platform/commit/518788e8e8e73ed6756f4604c0c3a59d4ea16e38))
+* **ci:** make workflow uv-native and standardize dependabot updates ([#17](https://github.com/jellewillekes/ml-lifecycle-platform/issues/17)) ([cef40ca](https://github.com/jellewillekes/ml-lifecycle-platform/commit/cef40caa5c9ff355e55eb1d95b14d72441ed58ae))
+* **ci:** pin Python 3.11.7 for uv in GitHub Actions ([#38](https://github.com/jellewillekes/ml-lifecycle-platform/issues/38)) ([f00f853](https://github.com/jellewillekes/ml-lifecycle-platform/commit/f00f853f5182240d40500ddef7adb8b86f393733))
+* release please root config ([#27](https://github.com/jellewillekes/ml-lifecycle-platform/issues/27)) ([7fa2cea](https://github.com/jellewillekes/ml-lifecycle-platform/commit/7fa2cea63f4824e71a27e7c822e94f6bd94fed33))
+
+
+### Dependencies
+
+* **actions:** bump docker/setup-buildx-action ([#65](https://github.com/jellewillekes/ml-lifecycle-platform/issues/65)) ([493d122](https://github.com/jellewillekes/ml-lifecycle-platform/commit/493d122fae70ce0987749d319debadde6d7b3e0c))
+* **actions:** bump the github-actions group with 4 updates ([#37](https://github.com/jellewillekes/ml-lifecycle-platform/issues/37)) ([f7632f8](https://github.com/jellewillekes/ml-lifecycle-platform/commit/f7632f8001f535b2e20e1414010ea5b4f93b50eb))
+* **docker:** bump python from 3.11-slim to 3.14-slim ([#42](https://github.com/jellewillekes/ml-lifecycle-platform/issues/42)) ([a989897](https://github.com/jellewillekes/ml-lifecycle-platform/commit/a989897c83245b4021b79ca8a4c95c42897c4323))
+
+
+### Documentation
+
+* add production-grade README for model release platform ([f981697](https://github.com/jellewillekes/ml-lifecycle-platform/commit/f981697ce61f3f6449c9c5195d103681eb0efc23))
+* add verified current-state architecture baseline ([#40](https://github.com/jellewillekes/ml-lifecycle-platform/issues/40)) ([d84c353](https://github.com/jellewillekes/ml-lifecycle-platform/commit/d84c353d2c14f5c821adf79851f5aec796a2592c))
+* freeze m0 portability charter and adrs ([#55](https://github.com/jellewillekes/ml-lifecycle-platform/issues/55)) ([5a1f0f4](https://github.com/jellewillekes/ml-lifecycle-platform/commit/5a1f0f4eb54791ef12bd7b9406aec6ee5561d3be))
+
 ## [0.4.0](https://github.com/jellewillekes/ml-lifecycle-platform/compare/v0.3.1...v0.4.0) (2026-03-09)
 
 
