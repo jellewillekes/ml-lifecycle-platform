@@ -227,6 +227,38 @@ Official docs:
 
 ## Local Infrastructure
 
+### Terraform
+
+What it is:
+- Infrastructure as code tool.
+
+Why we use it:
+- Hosted infrastructure should be explicit, reviewable, and reproducible.
+- Existing GCP bootstrap state should move out of shell history and into committed config.
+
+How it is used here:
+- Initializes remote state in the existing GCS backend bucket.
+- Enables and tracks required GCP project APIs for the hosted bootstrap root in `deployments/gcp/terraform/`.
+
+Official docs:
+- https://developer.hashicorp.com/terraform/docs
+
+### Google Cloud CLI
+
+What it is:
+- Command-line interface for Google Cloud.
+
+Why we use it:
+- Terraform uses ADC, so operators need a boring way to authenticate and verify project access.
+- It is the fastest way to inspect enabled APIs and confirm backend bucket access during bootstrap.
+
+How it is used here:
+- Establishes user auth and ADC for Terraform.
+- Verifies access to the adopted project and Terraform backend bucket.
+
+Official docs:
+- https://cloud.google.com/sdk/docs
+
 ### Docker
 
 What it is:
