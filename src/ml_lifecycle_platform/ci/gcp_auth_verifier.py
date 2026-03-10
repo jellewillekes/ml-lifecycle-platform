@@ -215,6 +215,6 @@ def format_success_summary(config: GcpAuthVerificationConfig) -> str:
             f"Verified impersonated service account: {config.service_account}",
             f"Verified Artifact Registry repository: {config.artifact_repository}",
             f"Verified buckets: {config.resolved_artifacts_bucket}, {config.resolved_data_bucket}",
-            "Verified secrets: " + ", ".join(config.secret_ids),
+            f"Verified {len(config.secret_ids)} secret(s).",
         ]
     )
