@@ -26,9 +26,12 @@ variable "required_services" {
   default = [
     "artifactregistry.googleapis.com",
     "cloudresourcemanager.googleapis.com",
+    "compute.googleapis.com",
     "iam.googleapis.com",
     "iamcredentials.googleapis.com",
     "secretmanager.googleapis.com",
+    "servicenetworking.googleapis.com",
+    "sqladmin.googleapis.com",
     "storage.googleapis.com",
     "sts.googleapis.com",
   ]

@@ -86,3 +86,35 @@ output "workload_identity_provider_name" {
   description = "Full workload identity provider name for GitHub Actions auth."
   value       = google_iam_workload_identity_pool_provider.github.name
 }
+
+output "staging_network" {
+  description = "Shared staging VPC and subnet used by later hosted workloads."
+  value = {
+    network_name    = google_compute_network.staging.name
+    network_id      = google_compute_network.staging.id
+    subnetwork_name = google_compute_subnetwork.staging.name
+    subnetwork_id   = google_compute_subnetwork.staging.id
+    subnetwork_cidr = google_compute_subnetwork.staging.ip_cidr_range
+    peering_range   = google_compute_global_address.staging_private_services.name
+    peering_cidr    = google_compute_global_address.staging_private_services.address
+  }
+}
+
+output "mlflow_sql" {
+  description = "Hosted staging SQL contract for MLflow."
+  value = {
+    instance_name   = google_sql_database_instance.mlflow.name
+    connection_name = google_sql_database_instance.mlflow.connection_name
+    private_ip      = google_sql_database_instance.mlflow.private_ip_address
+    database_name   = google_sql_database.mlflow.name
+    database_user   = google_sql_user.mlflow.name
+    artifact_root   = local.mlflow_artifact_root
+  }
+}
+
+output "mlflow_secret_ids" {
+  description = "Secret Manager IDs for hosted staging MLflow runtime configuration."
+  value = {
+    for key, secret in google_secret_manager_secret.mlflow : key => secret.secret_id
+  }
+}

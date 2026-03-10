@@ -4,6 +4,12 @@ This page lists the primary tools the platform uses today.
 
 It does not list every package in `pyproject.toml`. It lists the tools a new engineer needs to understand to run, change, and debug the platform.
 
+Companion references:
+
+- [`configuration.md`](./configuration.md)
+- [`gcp-resources.md`](./gcp-resources.md)
+- [`release-contract.md`](./release-contract.md)
+
 ## Runtime and Serving
 
 ### FastAPI
@@ -189,9 +195,11 @@ What it is:
 
 Why we use it:
 - The local MLflow server needs a real backend store instead of a file-backed metadata DB.
+- Hosted MLflow staging also needs a real managed backend store.
 
 How it is used here:
 - Backs the local MLflow tracking server metadata store in Docker Compose.
+- Will back hosted MLflow metadata in GCP through Cloud SQL Postgres.
 
 Official docs:
 - https://www.postgresql.org/docs/
@@ -240,7 +248,8 @@ How it is used here:
 - Initializes remote state in the existing GCS backend bucket.
 - Manages required GCP project APIs for the shared hosted Terraform root in `deployments/gcp/terraform/`.
 - Manages the current hosted foundation layer: Artifact Registry, buckets, placeholder secrets, service accounts, and GitHub OIDC federation.
-- Will be extended in `M2` for Cloud SQL, Cloud Run services, jobs, and scheduler resources.
+- Manages the current hosted staging infra layer: staging network, private service access, Cloud SQL, and MLflow staging secrets.
+- Will be extended in `M2` for Cloud Run services, jobs, and scheduler resources.
 
 Official docs:
 - https://developer.hashicorp.com/terraform/docs

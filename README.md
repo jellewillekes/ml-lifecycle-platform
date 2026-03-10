@@ -6,14 +6,19 @@
 [![E2E](https://github.com/jellewillekes/ml-lifecycle-platform/actions/workflows/e2e.yml/badge.svg)](https://github.com/jellewillekes/ml-lifecycle-platform/actions/workflows/e2e.yml)
 [![Coverage](https://codecov.io/gh/jellewillekes/ml-lifecycle-platform/branch/master/graph/badge.svg)](https://codecov.io/gh/jellewillekes/ml-lifecycle-platform/branch/master/graph/badge.svg)
 
-An ML platform for training, evaluating, registering, promoting, serving, and reproducing models. MLflow is the control plane. The current implementation is local-first with a GCP hosted foundation and CI-produced runtime images ready for staged rollout.
+An ML platform for training, evaluating, registering, promoting, serving, and reproducing models. MLflow is the control plane. The current implementation is local-first with Terraform-managed GCP foundation and staging infra plus CI-produced runtime images ready for hosted rollout.
 
 Operator and architecture docs live in the handbook:
 
 - [`docs/README.md`](docs/README.md)
+- [`docs/architecture/overview.md`](docs/architecture/overview.md)
 - [`docs/runbooks/gcp-bootstrap.md`](docs/runbooks/gcp-bootstrap.md)
 - [`docs/runbooks/gcp-foundation.md`](docs/runbooks/gcp-foundation.md)
+- [`docs/runbooks/gcp-staging-infra.md`](docs/runbooks/gcp-staging-infra.md)
 - [`docs/architecture/m2-staging-platform.md`](docs/architecture/m2-staging-platform.md)
+- [`docs/reference/configuration.md`](docs/reference/configuration.md)
+- [`docs/reference/gcp-resources.md`](docs/reference/gcp-resources.md)
+- [`docs/reference/release-contract.md`](docs/reference/release-contract.md)
 - [`docs/reference/technology-stack.md`](docs/reference/technology-stack.md)
 
 Starter files for OSS users:

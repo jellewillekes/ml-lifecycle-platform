@@ -11,7 +11,7 @@ Start here if you want to run or change the local platform.
 
 ## Architecture
 
-- [`architecture/overview.md`](./architecture/overview.md): platform shape, control plane, lifecycle
+- [`architecture/overview.md`](./architecture/overview.md): current local and hosted topology, boundaries, and lifecycle
 - [`architecture/local-runtime.md`](./architecture/local-runtime.md): runtime profiles, model specs, serving contract, local paths
 - [`architecture/current-state.md`](./architecture/current-state.md): current M0 scope and non-goals
 - [`architecture/m2-staging-platform.md`](./architecture/m2-staging-platform.md): fixed decisions and execution order for the first hosted GCP staging platform
@@ -21,6 +21,7 @@ Start here if you want to run or change the local platform.
 - [`runbooks/local-bootstrap.md`](./runbooks/local-bootstrap.md): fresh-clone local setup and golden path
 - [`runbooks/gcp-bootstrap.md`](./runbooks/gcp-bootstrap.md): adopt the existing GCP project and Terraform backend
 - [`runbooks/gcp-foundation.md`](./runbooks/gcp-foundation.md): create the first hosted GCP foundation resources
+- [`runbooks/gcp-staging-infra.md`](./runbooks/gcp-staging-infra.md): provision the stateful staging infra for hosted MLflow
 - [`runbooks/gcp-ci-auth.md`](./runbooks/gcp-ci-auth.md): verify GitHub Actions OIDC auth into GCP
 - [`runbooks/promotion.md`](./runbooks/promotion.md): dry-run and real promotion
 - [`runbooks/rollback.md`](./runbooks/rollback.md): rollback current prod
@@ -31,5 +32,8 @@ Start here if you want to run or change the local platform.
 - [`ci.md`](./ci.md): CI lanes and local mapping
 - [`releases.md`](./releases.md): package releases and model release evidence
 - [`reference/technology-stack.md`](./reference/technology-stack.md): primary tools, why they are used, and where they fit
+- [`reference/configuration.md`](./reference/configuration.md): runtime profiles, env vars, serving settings, and hosted staging secrets
+- [`reference/release-contract.md`](./reference/release-contract.md): package, image, and model release identities
+- [`reference/gcp-resources.md`](./reference/gcp-resources.md): current Terraform-managed GCP resource inventory and outputs
 - [`adrs/ADR-0001-portability-surface.md`](./adrs/ADR-0001-portability-surface.md): M0 portability boundary
 - [`adrs/ADR-0002-mlflow-control-plane.md`](./adrs/ADR-0002-mlflow-control-plane.md): MLflow as M0 control plane
