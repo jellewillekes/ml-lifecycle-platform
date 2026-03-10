@@ -1,0 +1,97 @@
+name: GCP Auth Verify
+
+on:
+  workflow_dispatch: {}
+  push:
+    branches: [master]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: gcp-auth-verify-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  GCP_PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
+  GCP_WIF_PROVIDER: ${{ vars.GCP_WIF_PROVIDER }}
+  GCP_CI_SERVICE_ACCOUNT: ${{ vars.GCP_CI_SERVICE_ACCOUNT }}
+  GCP_REGION: europe-west1
+
+jobs:
+  verify:
+    name: Verify GitHub OIDC -> GCP
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      - name: Validate required GitHub Actions variables
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          missing=()
+          for var_name in GCP_PROJECT_ID GCP_WIF_PROVIDER GCP_CI_SERVICE_ACCOUNT; do
+            if [[ -z "${!var_name:-}" ]]; then
+              missing+=("${var_name}")
+            fi
+          done
+
+          if (( ${#missing[@]} > 0 )); then
+            printf 'Missing required GitHub Actions variable(s): %s\n' "${missing[*]}"
+            echo "Set them from Terraform outputs before trusting this workflow."
+            echo "Expected values:"
+            echo "  GCP_PROJECT_ID <- terraform output project_id"
+            echo "  GCP_WIF_PROVIDER <- terraform output workload_identity_provider_name"
+            echo "  GCP_CI_SERVICE_ACCOUNT <- terraform output ci_service_account_email"
+            exit 1
+          fi
+
+      - id: auth
+        name: Authenticate to Google Cloud
+        continue-on-error: true
+        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3
+        with:
+          create_credentials_file: true
+          project_id: ${{ env.GCP_PROJECT_ID }}
+          workload_identity_provider: ${{ env.GCP_WIF_PROVIDER }}
+          service_account: ${{ env.GCP_CI_SERVICE_ACCOUNT }}
+
+      - name: Explain auth failure
+        if: steps.auth.outcome == 'failure'
+        shell: bash
+        run: |
+          cat <<'EOF'
+          GitHub Actions failed to authenticate to GCP via Workload Identity Federation.
+
+          Check these prerequisites:
+          - the job has `permissions.id-token: write`
+          - `GCP_WIF_PROVIDER` matches the Terraform output `workload_identity_provider_name`
+          - `GCP_CI_SERVICE_ACCOUNT` matches the Terraform output `ci_service_account_email`
+          - the service account has `roles/iam.workloadIdentityUser` for this repository principal set
+          - the workload identity pool/provider still exists in `fpl-project-jelle`
+          EOF
+          exit 1
+
+      - name: Set up gcloud
+        if: steps.auth.outcome == 'success'
+        uses: google-github-actions/setup-gcloud@aa5489c8933f4cc7a4f7d45035b3b1440c9c10db # v3.0.1
+        with:
+          version: ">= 363.0.0"
+          project_id: ${{ env.GCP_PROJECT_ID }}
+
+      - name: Verify OIDC auth, impersonation, and resource prerequisites
+        if: steps.auth.outcome == 'success'
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 scripts/verify_gcp_ci_auth.py \
+            --project-id "${GCP_PROJECT_ID}" \
+            --region "${GCP_REGION}" \
+            --service-account "${GCP_CI_SERVICE_ACCOUNT}" \
+            --workload-identity-provider "${GCP_WIF_PROVIDER}"
