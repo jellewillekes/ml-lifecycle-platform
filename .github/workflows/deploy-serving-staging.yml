@@ -147,7 +147,7 @@ jobs:
           export MLFLOW_SERVICE_JSON="${RUNNER_TEMP}/mlflow-service.json"
           terraform -chdir=deployments/gcp/terraform output -json mlflow_service > "${MLFLOW_SERVICE_JSON}"
 
-          mlflow_image="$(python3 -c 'import json, sys; payload = json.load(open(sys.argv[1], encoding="utf-8")); value = payload[\"value\"]; print(value[\"image\"] if value is not None else (_ for _ in ()).throw(SystemExit(\"mlflow_service output is null; deploy hosted MLflow before serving.\")))' "${MLFLOW_SERVICE_JSON}")"
+          mlflow_image="$(python3 -c 'import json, sys; payload = json.load(open(sys.argv[1], encoding="utf-8")); value = payload["value"]; print(value["image"] if value is not None else (_ for _ in ()).throw(SystemExit("mlflow_service output is null; deploy hosted MLflow before serving.")))' "${MLFLOW_SERVICE_JSON}")"
 
           echo "mlflow_image=${mlflow_image}" >> "${GITHUB_OUTPUT}"
 
@@ -169,7 +169,7 @@ jobs:
           export SERVING_SERVICE_JSON="${RUNNER_TEMP}/serving-service.json"
           terraform -chdir=deployments/gcp/terraform output -json serving_service > "${SERVING_SERVICE_JSON}"
 
-          service_url="$(python3 -c 'import json, sys; payload = json.load(open(sys.argv[1], encoding="utf-8")); value = payload[\"value\"]; print(value[\"uri\"] if value is not None else (_ for _ in ()).throw(SystemExit(\"serving_service output is null; deploy did not create the service.\")))' "${SERVING_SERVICE_JSON}")"
+          service_url="$(python3 -c 'import json, sys; payload = json.load(open(sys.argv[1], encoding="utf-8")); value = payload["value"]; print(value["uri"] if value is not None else (_ for _ in ()).throw(SystemExit("serving_service output is null; deploy did not create the service.")))' "${SERVING_SERVICE_JSON}")"
 
           echo "service_url=${service_url}" >> "${GITHUB_OUTPUT}"
 
