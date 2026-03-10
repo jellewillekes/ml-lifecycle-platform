@@ -54,10 +54,14 @@ def test_configure_mlflow_cloud_run_auth_sets_token_and_caches(
     clears: list[str] = []
     token = _jwt(exp=1_800_000_000)
 
+    def _fetch_id_token(_request: object, audience: str) -> str:
+        calls.append(audience)
+        return token
+
     monkeypatch.setattr(
         mlflow_cloud_run_auth.id_token,
         "fetch_id_token",
-        lambda _request, audience: calls.append(audience) or token,
+        _fetch_id_token,
     )
     monkeypatch.setattr(
         mlflow_cloud_run_auth,
