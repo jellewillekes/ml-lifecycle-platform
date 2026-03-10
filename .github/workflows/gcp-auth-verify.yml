@@ -2,6 +2,13 @@ name: GCP Auth Verify
 
 on:
   workflow_dispatch: {}
+  pull_request:
+    paths:
+      - ".github/workflows/gcp-auth-verify.yml"
+      - "scripts/verify_gcp_ci_auth.py"
+      - "src/ml_lifecycle_platform/ci/**"
+      - "docs/ci.md"
+      - "docs/runbooks/gcp-ci-auth.md"
   push:
     branches: [master]
 
