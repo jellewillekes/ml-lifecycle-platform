@@ -190,19 +190,7 @@ jobs:
           export MLFLOW_SERVICE_JSON="${RUNNER_TEMP}/mlflow-service.json"
           terraform -chdir=deployments/gcp/terraform output -json mlflow_service > "${MLFLOW_SERVICE_JSON}"
 
-          service_url="$(
-            python3 - <<'PY'
-            import json
-            import os
-            from pathlib import Path
-
-            payload = json.loads(Path(os.environ["MLFLOW_SERVICE_JSON"]).read_text(encoding="utf-8"))
-            value = payload["value"]
-            if value is None:
-                raise SystemExit("mlflow_service output is null; deploy did not create the service.")
-            print(value["uri"])
-            PY
-          )"
+          service_url="$(python3 -c 'import json, sys; payload = json.load(open(sys.argv[1], encoding="utf-8")); value = payload[\"value\"]; print(value[\"uri\"] if value is not None else (_ for _ in ()).throw(SystemExit(\"mlflow_service output is null; deploy did not create the service.\")))' "${MLFLOW_SERVICE_JSON}")"
 
           echo "service_url=${service_url}" >> "${GITHUB_OUTPUT}"
 
