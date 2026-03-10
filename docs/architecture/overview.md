@@ -11,12 +11,12 @@ hosted path today:
   Terraform -> GCP foundation + staging infra
 ```
 
-The local path is fully operational. The hosted path is only partially operational:
+The local path is fully operational. The hosted path is partially operational:
 
 - CI can authenticate to GCP with WIF.
 - CI can publish immutable runtime images to Artifact Registry.
 - Terraform has created the shared staging network, Cloud SQL, and MLflow staging secrets.
-- Hosted MLflow and hosted serving are not deployed yet.
+- Hosted MLflow and serving deploy paths are committed, but still operator-driven and staging-only.
 
 ## Current topology
 
@@ -98,8 +98,7 @@ The release manifest is the operator-facing release record. It captures source r
 
 ## What is intentionally not true yet
 
-- no hosted MLflow service
-- no hosted serving service
+- no public hosted MLflow or serving edge
 - no Cloud Run jobs
 - no ALB or custom domain
 - no scheduler-driven orchestration

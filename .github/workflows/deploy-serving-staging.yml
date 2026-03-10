@@ -1,0 +1,233 @@
+name: Deploy Serving Staging
+
+on:
+  workflow_dispatch:
+    inputs:
+      git_sha:
+        description: Immutable Git SHA tag previously published by the image workflow.
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-serving-staging-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  GCP_PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
+  GCP_WIF_PROVIDER: ${{ vars.GCP_WIF_PROVIDER }}
+  GCP_CI_SERVICE_ACCOUNT: ${{ vars.GCP_CI_SERVICE_ACCOUNT }}
+  GCP_REGION: europe-west1
+  ARTIFACT_REGISTRY_REPOSITORY: mlp-images
+
+jobs:
+  deploy:
+    name: Deploy
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          persist-credentials: false
+
+      - name: Validate required GitHub Actions variables
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          missing=()
+          for var_name in GCP_PROJECT_ID GCP_WIF_PROVIDER GCP_CI_SERVICE_ACCOUNT; do
+            if [[ -z "${!var_name:-}" ]]; then
+              missing+=("${var_name}")
+            fi
+          done
+
+          if (( ${#missing[@]} > 0 )); then
+            printf 'Missing required GitHub Actions variable(s): %s\n' "${missing[*]}"
+            echo "Expected values:"
+            echo "  GCP_PROJECT_ID <- terraform output project_id"
+            echo "  GCP_WIF_PROVIDER <- terraform output workload_identity_provider_name"
+            echo "  GCP_CI_SERVICE_ACCOUNT <- terraform output ci_service_account_email"
+            exit 1
+          fi
+
+      - id: auth
+        name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3
+        with:
+          create_credentials_file: true
+          project_id: ${{ env.GCP_PROJECT_ID }}
+          workload_identity_provider: ${{ env.GCP_WIF_PROVIDER }}
+          service_account: ${{ env.GCP_CI_SERVICE_ACCOUNT }}
+
+      - name: Set up gcloud
+        uses: google-github-actions/setup-gcloud@aa5489c8933f4cc7a4f7d45035b3b1440c9c10db # v3
+        with:
+          version: ">= 363.0.0"
+          project_id: ${{ env.GCP_PROJECT_ID }}
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd # v3.1.2
+        with:
+          terraform_version: 1.5.7
+
+      - name: Set up Python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6
+        with:
+          python-version: "3.11.7"
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@3259c6206f993105e3a61b142c2d97bf4b9ef83d # v7.1.0
+        with:
+          enable-cache: true
+          cache-dependency-glob: |
+            uv.lock
+            pyproject.toml
+
+      - name: Sync (locked)
+        shell: bash
+        run: |
+          set -euo pipefail
+          uv sync --frozen --group dev
+
+      - id: context
+        name: Resolve deploy context
+        env:
+          GIT_SHA: ${{ github.event.inputs.git_sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          repository="${GCP_REGION}-docker.pkg.dev/${GCP_PROJECT_ID}/${ARTIFACT_REGISTRY_REPOSITORY}"
+          serving_ref="${repository}/serving:${GIT_SHA}"
+
+          echo "git_sha=${GIT_SHA}" >> "${GITHUB_OUTPUT}"
+          echo "repository=${repository}" >> "${GITHUB_OUTPUT}"
+          echo "serving_ref=${serving_ref}" >> "${GITHUB_OUTPUT}"
+
+      - id: capture
+        name: Resolve serving image digest
+        env:
+          SERVING_REF: ${{ steps.context.outputs.serving_ref }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          serving_digest="$(
+            gcloud artifacts docker images describe "${SERVING_REF}" \
+              --format='value(image_summary.digest)'
+          )"
+
+          if [[ -z "${serving_digest}" ]]; then
+            echo "Failed to resolve serving image digest from Artifact Registry."
+            exit 1
+          fi
+
+          echo "serving_digest=${serving_digest}" >> "${GITHUB_OUTPUT}"
+          echo "serving_image=${SERVING_REF%@*}@${serving_digest}" >> "${GITHUB_OUTPUT}"
+
+      - name: Terraform init
+        shell: bash
+        run: |
+          set -euo pipefail
+          make terraform-gcp-init
+
+      - id: mlflow
+        name: Resolve current hosted MLflow image
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          export MLFLOW_SERVICE_JSON="${RUNNER_TEMP}/mlflow-service.json"
+          terraform -chdir=deployments/gcp/terraform output -json mlflow_service > "${MLFLOW_SERVICE_JSON}"
+
+          mlflow_image="$(
+            python3 - <<'PY'
+            import json
+            import os
+            from pathlib import Path
+
+            payload = json.loads(Path(os.environ["MLFLOW_SERVICE_JSON"]).read_text(encoding="utf-8"))
+            value = payload["value"]
+            if value is None:
+                raise SystemExit("mlflow_service output is null; deploy hosted MLflow before serving.")
+            print(value["image"])
+            PY
+          )"
+
+          echo "mlflow_image=${mlflow_image}" >> "${GITHUB_OUTPUT}"
+
+      - name: Terraform apply hosted serving staging
+        env:
+          TF_VAR_mlflow_image: ${{ steps.mlflow.outputs.mlflow_image }}
+          TF_VAR_serving_image: ${{ steps.capture.outputs.serving_image }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          terraform -chdir=deployments/gcp/terraform apply -auto-approve -input=false
+
+      - id: service
+        name: Resolve hosted serving service URL
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          export SERVING_SERVICE_JSON="${RUNNER_TEMP}/serving-service.json"
+          terraform -chdir=deployments/gcp/terraform output -json serving_service > "${SERVING_SERVICE_JSON}"
+
+          service_url="$(
+            python3 - <<'PY'
+            import json
+            import os
+            from pathlib import Path
+
+            payload = json.loads(Path(os.environ["SERVING_SERVICE_JSON"]).read_text(encoding="utf-8"))
+            value = payload["value"]
+            if value is None:
+                raise SystemExit("serving_service output is null; deploy did not create the service.")
+            print(value["uri"])
+            PY
+          )"
+
+          echo "service_url=${service_url}" >> "${GITHUB_OUTPUT}"
+
+      - name: Mint identity token for Cloud Run
+        id: token
+        env:
+          SERVICE_URL: ${{ steps.service.outputs.service_url }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          token="$(gcloud auth print-identity-token --audiences="${SERVICE_URL}")"
+          echo "token=${token}" >> "${GITHUB_OUTPUT}"
+
+      - name: Verify hosted serving staging
+        env:
+          SERVE_URL: ${{ steps.service.outputs.service_url }}
+          SERVE_BEARER_TOKEN: ${{ steps.token.outputs.token }}
+          MODEL_NAME: ""
+        shell: bash
+        run: |
+          set -euo pipefail
+          uv run python -m ml_lifecycle_platform.serving.smoke_test
+
+      - name: Write workflow summary
+        env:
+          SERVING_IMAGE: ${{ steps.capture.outputs.serving_image }}
+          SERVICE_URL: ${{ steps.service.outputs.service_url }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          {
+            echo "## Hosted serving staging"
+            echo
+            echo "- Image: \`${SERVING_IMAGE}\`"
+            echo "- Service URL: \`${SERVICE_URL}\`"
+            echo "- Verification: authenticated smoke test passed"
+          } >> "${GITHUB_STEP_SUMMARY}"

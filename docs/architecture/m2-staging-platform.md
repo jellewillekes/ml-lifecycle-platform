@@ -83,6 +83,7 @@ Do not add public anonymous staging endpoints first and tighten them later unles
 `UP-18` should prove:
 
 - serving revision is ready
+- serving can authenticate to hosted MLflow through Cloud Run IAM
 - `/health` succeeds
 - `/metadata/model` succeeds
 - `/metadata/schema` succeeds

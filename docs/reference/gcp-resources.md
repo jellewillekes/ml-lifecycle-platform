@@ -22,6 +22,7 @@ Managed now:
 - Cloud SQL for hosted MLflow metadata
 - active MLflow staging secrets
 - Cloud Run MLflow service contract and CI deploy IAM bindings
+- Cloud Run serving service contract and runtime-to-MLflow invoke IAM
 
 Not managed yet:
 
@@ -95,10 +96,11 @@ Current deploy-specific CI bindings:
 Current service-specific binding once deployed:
 
 - `roles/run.invoker` on `mlp-mlflow-staging`
+- `roles/run.invoker` on `mlp-serving-staging`
+- `roles/run.invoker` on `mlp-mlflow-staging` for `mlp-runtime`
 
-Not granted yet:
+Still not granted:
 
-- Cloud Run deploy permissions
 - scheduler invoker permissions
 - public ingress configuration
 
@@ -137,6 +139,13 @@ Most important current deploy-facing outputs:
 - `peering_cidr`
 
 ### `mlflow_service`
+
+- `name`
+- `uri`
+- `image`
+- `invoker_sa`
+
+### `serving_service`
 
 - `name`
 - `uri`

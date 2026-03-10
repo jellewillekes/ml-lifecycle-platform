@@ -1,6 +1,6 @@
 # CI
 
-The repo has nine lanes:
+The repo has ten lanes:
 
 | Lane | Trigger | Purpose |
 | --- | --- | --- |
@@ -12,6 +12,7 @@ The repo has nine lanes:
 | `GCP Auth Verify` | push to `master`, manual dispatch | GitHub OIDC to GCP WIF verification plus hosted-foundation prerequisite checks |
 | `Publish Images` | called from `CI` on push to `master`, manual dispatch | builds, smoke-checks, and publishes hosted runtime images to Artifact Registry |
 | `Deploy MLflow Staging` | manual dispatch | builds the hosted MLflow image, deploys Cloud Run staging by digest, and runs authenticated smoke checks |
+| `Deploy Serving Staging` | manual dispatch | resolves a published serving image by SHA, deploys Cloud Run staging by digest, and runs authenticated smoke checks |
 | `E2E` | nightly and manual dispatch | dockerized golden path |
 
 ## Local mapping
@@ -133,3 +134,30 @@ Bootstrap caveat:
 - that initial apply grants the CI service account the Cloud Run deploy permissions it needs later
 
 After that bootstrap apply, the workflow is the normal staging deploy path for MLflow.
+
+## Hosted serving staging deploy
+
+Hosted serving staging deploy lives in:
+
+- `.github/workflows/deploy-serving-staging.yml`
+
+Current shape:
+
+- manual `workflow_dispatch`
+- takes a required `git_sha` input
+- resolves the published `serving:<git-sha>` image from Artifact Registry
+- preserves the current hosted MLflow image input when applying the shared Terraform root
+- applies Terraform with the resolved serving image digest
+- verifies the deployed service with authenticated smoke checks
+
+Serving smoke covers:
+
+- `/health`
+- `/metadata/model`
+- `/metadata/schema`
+- `/predict`
+
+Important precondition:
+
+- hosted MLflow staging must already contain the active model with a `prod` alias
+- image deploy and model release stay separate

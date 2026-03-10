@@ -75,6 +75,22 @@ How it is used here:
 Official docs:
 - https://prometheus.github.io/client_python/
 
+### google-auth
+
+What it is:
+- Google authentication library for Python.
+
+Why we use it:
+- Hosted services need a simple way to mint Google ID tokens for Cloud Run IAM.
+- We want serving to authenticate to hosted MLflow without custom request plumbing everywhere.
+
+How it is used here:
+- Mints ID tokens for MLflow requests when `MLFLOW_CLOUD_RUN_AUDIENCE` is set.
+- Keeps local behavior unchanged when hosted auth is not configured.
+
+Official docs:
+- https://google-auth.readthedocs.io/
+
 ## ML and Data
 
 ### pandas
@@ -199,7 +215,7 @@ Why we use it:
 
 How it is used here:
 - Backs the local MLflow tracking server metadata store in Docker Compose.
-- Will back hosted MLflow metadata in GCP through Cloud SQL Postgres.
+- Backs hosted MLflow metadata in GCP through Cloud SQL Postgres.
 
 Official docs:
 - https://www.postgresql.org/docs/
@@ -246,6 +262,7 @@ Why we use it:
 
 How it is used here:
 - Hosts the staged MLflow control plane in `UP-17`.
+- Hosts the staged serving API in `UP-18`.
 - Uses IAM-authenticated direct `run.app` access before any ALB is added.
 - Uses Direct VPC egress to reach Cloud SQL private IP.
 

@@ -8,6 +8,7 @@ It covers what exists today:
 - env var overrides
 - serving-only env vars
 - hosted staging secrets created by Terraform
+- hosted MLflow and serving runtime env contracts
 
 It does not pretend hosted deploy config already exists. That belongs to later M2 PRs.
 
@@ -110,6 +111,7 @@ The serving container has a smaller config surface than the full runtime profile
 | `MODEL_CACHE_TTL_SEC` | `60.0` | in-process model refresh cache |
 | `LOG_LEVEL` | `INFO` | serving logs |
 | `UNIT_TESTING` | `false` | disables real MLflow model loads in unit tests |
+| `MLFLOW_CLOUD_RUN_AUDIENCE` | unset | when set, MLflow requests carry a Cloud Run ID token for the hosted MLflow service |
 
 Non-obvious constraint:
 
@@ -126,9 +128,9 @@ Non-obvious constraint:
 - `mlp-mlflow-instance-connection-name`
 - `mlp-mlflow-artifact-root`
 
-These secrets exist now, but no hosted service consumes them yet.
+These secrets exist now and are consumed by the hosted MLflow Cloud Run service.
 
-The current values are intended for later `Cloud Run` wiring:
+The current values back the hosted MLflow Cloud Run deploy contract:
 
 - DB user: `mlflow`
 - DB name: `mlflow`
@@ -168,9 +170,31 @@ Hosted MLflow does not use the local Compose-only settings such as:
 
 Those remain local-runtime concerns.
 
+## Hosted serving runtime env
+
+The hosted serving Cloud Run service uses plain env vars, not new secrets.
+
+| Env var | Source | Purpose |
+| --- | --- | --- |
+| `MLP_ENV` | plain env | select the staging runtime profile name for logs and context |
+| `MLFLOW_TRACKING_URI` | Terraform output | hosted MLflow tracking URL |
+| `MLFLOW_REGISTRY_URI` | Terraform output | hosted MLflow registry URL |
+| `MLFLOW_CLOUD_RUN_AUDIENCE` | Terraform output | audience used to mint an ID token for hosted MLflow |
+| `MODEL_NAME` | plain env | active registered model name |
+| `MLP_MODEL_SPEC_PATH` | plain env | active request/feature contract |
+| `PROD_ALIAS` | plain env | primary alias resolved by serving |
+| `CANDIDATE_ALIAS` | plain env | optional secondary alias |
+| `CANARY_PCT` | plain env | canary routing percentage |
+| `MODEL_CACHE_TTL_SEC` | plain env | in-process refresh TTL |
+| `LOG_LEVEL` | plain env | serving logs |
+
+Hosted serving does not use direct MLflow credentials.
+Instead it relies on the runtime service account and Cloud Run IAM-authenticated service-to-service requests.
+
 ## Current operator rules
 
 - Prefer editing committed runtime profiles and model specs over piling on shell-only overrides.
 - Use env var overrides for local experiments, CI, or one-off debugging.
 - Do not introduce a second config layer for hosted deploys when Terraform outputs and Secret Manager already provide the needed contract.
 - Keep model name, model spec, and MLflow aliases aligned. Most serving breakage comes from drifting those independently.
+- Keep hosted MLflow audience and MLflow tracking URI aligned. If the audience points at a different service URL, registry calls fail at runtime.

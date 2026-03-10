@@ -128,3 +128,13 @@ output "mlflow_service" {
     invoker_sa = google_service_account.ci.email
   } : null
 }
+
+output "serving_service" {
+  description = "Hosted staging serving service contract. Null until the first serving image deploy is applied."
+  value = local.serving_deploy_enabled ? {
+    name       = google_cloud_run_v2_service.serving["staging"].name
+    uri        = google_cloud_run_v2_service.serving["staging"].uri
+    image      = google_cloud_run_v2_service.serving["staging"].template[0].containers[0].image
+    invoker_sa = google_service_account.ci.email
+  } : null
+}

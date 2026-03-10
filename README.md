@@ -16,6 +16,7 @@ Operator and architecture docs live in the handbook:
 - [`docs/runbooks/gcp-foundation.md`](docs/runbooks/gcp-foundation.md)
 - [`docs/runbooks/gcp-staging-infra.md`](docs/runbooks/gcp-staging-infra.md)
 - [`docs/runbooks/deploy-mlflow.md`](docs/runbooks/deploy-mlflow.md)
+- [`docs/runbooks/deploy-serving.md`](docs/runbooks/deploy-serving.md)
 - [`docs/architecture/m2-staging-platform.md`](docs/architecture/m2-staging-platform.md)
 - [`docs/reference/configuration.md`](docs/reference/configuration.md)
 - [`docs/reference/gcp-resources.md`](docs/reference/gcp-resources.md)

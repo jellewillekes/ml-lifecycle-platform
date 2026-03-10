@@ -63,6 +63,7 @@ models:/<model_name>@prod
   - GCP auth verification
   - hosted image publication with immutable SHA tags and digest capture
   - hosted MLflow staging deploy by digest with authenticated smoke verification
+  - hosted serving staging deploy by digest with authenticated smoke verification
 
 ## Code layout
 
@@ -114,4 +115,4 @@ versions that do not yet have a manifest.
 - no warehouse integration
 - no distributed training
 - no multi-model serving platform
-- no hosted serving runtime deployed yet
+- no hosted ALB, public edge, or scheduler yet

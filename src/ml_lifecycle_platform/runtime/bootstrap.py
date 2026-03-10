@@ -7,6 +7,9 @@ try:
 except Exception:  # pragma: no cover
     mlflow = None  # type: ignore[assignment]
 
+from ml_lifecycle_platform.common.mlflow_cloud_run_auth import (
+    configure_mlflow_cloud_run_auth,
+)
 from ml_lifecycle_platform.backends.local.artifact_store import LocalArtifactStore
 from ml_lifecycle_platform.backends.local.event_store import LocalEventStore
 from ml_lifecycle_platform.backends.local.job_runner import LocalJobRunner
@@ -58,5 +61,6 @@ def configure_mlflow(context: RuntimeContext | None = None) -> None:
         return
     # Most callers rely on process-global MLflow settings.
     runtime = context or get_runtime_context()
+    configure_mlflow_cloud_run_auth()
     mlflow.set_tracking_uri(runtime.metadata.tracking_uri)
     mlflow.set_registry_uri(runtime.metadata.registry_uri)
