@@ -80,6 +80,7 @@ help:
 	@echo "GCP Terraform:"
 	@echo "  make terraform-gcp-fmt       terraform fmt -check for deployments/gcp/terraform"
 	@echo "  make terraform-gcp-init      init remote state against $(TF_STATE_BUCKET)"
+	@echo "  make terraform-gcp-plan      plan the GCP Terraform root"
 	@echo "  make terraform-gcp-validate  validate the GCP Terraform root"
 	@echo ""
 	@echo "Housekeeping:"
@@ -224,7 +225,7 @@ e2e-keep:
 	@$(MLP) e2e --keep-stack
 	@echo "E2E passed (stack kept up). Use 'make logs' or 'make down' when done."
 
-.PHONY: terraform-gcp-fmt terraform-gcp-init terraform-gcp-validate
+.PHONY: terraform-gcp-fmt terraform-gcp-init terraform-gcp-plan terraform-gcp-validate
 terraform-gcp-fmt:
 	@$(TERRAFORM) -chdir=$(DEPLOYMENTS_GCP_TERRAFORM_DIR) fmt -check -recursive
 
@@ -232,6 +233,9 @@ terraform-gcp-init:
 	@$(TERRAFORM) -chdir=$(DEPLOYMENTS_GCP_TERRAFORM_DIR) init \
 		-backend-config="bucket=$(TF_STATE_BUCKET)" \
 		-backend-config="prefix=$(TF_STATE_PREFIX)"
+
+terraform-gcp-plan:
+	@$(TERRAFORM) -chdir=$(DEPLOYMENTS_GCP_TERRAFORM_DIR) plan
 
 terraform-gcp-validate:
 	@$(TERRAFORM) -chdir=$(DEPLOYMENTS_GCP_TERRAFORM_DIR) validate
