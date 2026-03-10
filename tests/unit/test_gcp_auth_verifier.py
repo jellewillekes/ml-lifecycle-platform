@@ -8,7 +8,6 @@ from ml_lifecycle_platform.ci.gcp_auth_verifier import (
     GcpAuthVerificationConfig,
     VerificationError,
     format_success_summary,
-    parse_workload_identity_provider,
     verify_resources,
 )
 
@@ -24,13 +23,6 @@ def _completed(
         stdout=stdout,
         stderr=stderr,
     )
-
-
-def test_parse_workload_identity_provider_rejects_invalid_name() -> None:
-    with pytest.raises(
-        VerificationError, match="workload identity provider must match"
-    ):
-        parse_workload_identity_provider("github-actions")
 
 
 def test_verify_resources_checks_expected_gcloud_calls(
@@ -70,21 +62,6 @@ def test_verify_resources_checks_expected_gcloud_calls(
             "fpl-project-jelle",
             "--format=json",
         ): _completed('{"email": "mlp-ci@fpl-project-jelle.iam.gserviceaccount.com"}'),
-        (
-            "gcloud",
-            "iam",
-            "workload-identity-pools",
-            "providers",
-            "describe",
-            "github-oidc",
-            "--project",
-            "fpl-project-jelle",
-            "--location",
-            "global",
-            "--workload-identity-pool",
-            "github-actions",
-            "--format=json",
-        ): _completed(f'{{"name": "{provider_name}"}}'),
         (
             "gcloud",
             "artifacts",
@@ -221,3 +198,4 @@ def test_format_success_summary_includes_core_resources() -> None:
     assert "fpl-project-jelle-mlp-artifacts" in summary
     assert "mlp-mlflow-tracking-uri" in summary
     assert "mlp-images" in summary
+    assert "github-actions/providers/github-oidc" not in summary

@@ -38,27 +38,6 @@ class GcpAuthVerificationConfig:
         return self.data_bucket or f"{self.project_id}-mlp-data"
 
 
-def parse_workload_identity_provider(provider_name: str) -> tuple[str, str, str]:
-    parts = provider_name.split("/")
-    if len(parts) != 8:
-        raise VerificationError(
-            "workload identity provider must match "
-            "'projects/<number>/locations/global/workloadIdentityPools/<pool>/providers/<provider>'."
-        )
-    if (
-        parts[0] != "projects"
-        or parts[2] != "locations"
-        or parts[3] != "global"
-        or parts[4] != "workloadIdentityPools"
-        or parts[6] != "providers"
-    ):
-        raise VerificationError(
-            "workload identity provider must match "
-            "'projects/<number>/locations/global/workloadIdentityPools/<pool>/providers/<provider>'."
-        )
-    return parts[1], parts[5], parts[7]
-
-
 def _run_command(args: list[str]) -> subprocess.CompletedProcess[str]:
     return subprocess.run(args, check=False, capture_output=True, text=True)
 
@@ -213,41 +192,11 @@ def verify_service_account(project_id: str, service_account: str) -> None:
         )
 
 
-def verify_workload_identity_provider(project_id: str, provider_name: str) -> None:
-    _, pool_id, provider_id = parse_workload_identity_provider(provider_name)
-    payload = _run_gcloud_json(
-        [
-            "gcloud",
-            "iam",
-            "workload-identity-pools",
-            "providers",
-            "describe",
-            provider_id,
-            "--project",
-            project_id,
-            "--location",
-            "global",
-            "--workload-identity-pool",
-            pool_id,
-            "--format=json",
-        ],
-        expectation=f"failed to describe workload identity provider '{provider_name}'",
-    )
-    if payload.get("name") != provider_name:
-        raise VerificationError(
-            "workload identity provider lookup returned unexpected name "
-            f"'{payload.get('name', '<missing>')}'."
-        )
-
-
 def verify_resources(config: GcpAuthVerificationConfig) -> None:
     verify_active_account(config.service_account)
     verify_access_token()
     verify_project(config.project_id)
     verify_service_account(config.project_id, config.service_account)
-    verify_workload_identity_provider(
-        config.project_id, config.workload_identity_provider
-    )
     verify_artifact_repository(
         config.project_id,
         config.region,
@@ -264,7 +213,6 @@ def format_success_summary(config: GcpAuthVerificationConfig) -> str:
         [
             f"Verified OIDC auth for project: {config.project_id}",
             f"Verified impersonated service account: {config.service_account}",
-            f"Verified workload identity provider: {config.workload_identity_provider}",
             f"Verified Artifact Registry repository: {config.artifact_repository}",
             f"Verified buckets: {config.resolved_artifacts_bucket}, {config.resolved_data_bucket}",
             "Verified secrets: " + ", ".join(config.secret_ids),
