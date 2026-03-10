@@ -84,7 +84,15 @@ The CI service account gets:
 
 - `roles/artifactregistry.writer` on the image repository
 
+Manual bootstrap IAM outside this root:
+
+- `roles/storage.objectAdmin` on `gs://fpl-tf-state-jelle`
+- `roles/storage.admin` on:
+  - `gs://fpl-project-jelle-mlp-artifacts`
+  - `gs://fpl-project-jelle-mlp-data`
+
 Nothing in this root grants deploy-time permissions for Cloud Run or broader project admin actions yet.
+Those bucket grants must be applied once by an operator because `mlp-ci` cannot use Terraform to grant itself the bucket IAM Terraform needs.
 
 ## Handoff to M2
 

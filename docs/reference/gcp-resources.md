@@ -93,6 +93,18 @@ Current deploy-specific CI bindings:
 - `roles/serviceusage.serviceUsageAdmin`
 - `roles/iam.serviceAccountUser` on `mlp-runtime`
 
+Manual bootstrap IAM outside this Terraform root:
+
+- `roles/storage.objectAdmin` on `gs://fpl-tf-state-jelle`
+- `roles/storage.admin` on:
+  - `gs://fpl-project-jelle-mlp-artifacts`
+  - `gs://fpl-project-jelle-mlp-data`
+
+These bindings are required so `mlp-ci` can:
+
+- create the Terraform remote-state lock object
+- read and edit bucket IAM for the already-managed app buckets
+
 Current service-specific binding once deployed:
 
 - `roles/run.invoker` on `mlp-mlflow-staging`

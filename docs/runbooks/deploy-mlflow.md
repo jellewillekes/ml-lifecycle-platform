@@ -59,6 +59,18 @@ make terraform-gcp-apply
 
 That first apply can run with `mlflow_image = ""`. It enables the API and grants the CI service account the deploy permissions it needs later.
 
+One more bootstrap prerequisite exists outside this Terraform root:
+
+- `mlp-ci` must already have bucket IAM on the Terraform backend bucket and the hosted app buckets
+
+Required manual grants:
+
+- `roles/storage.objectAdmin` on `gs://fpl-tf-state-jelle`
+- `roles/storage.admin` on `gs://fpl-project-jelle-mlp-artifacts`
+- `roles/storage.admin` on `gs://fpl-project-jelle-mlp-data`
+
+Without those bindings, the workflow fails before deploy when Terraform tries to lock state or read bucket IAM.
+
 ## Normal deploy path
 
 Run the GitHub Actions workflow:
