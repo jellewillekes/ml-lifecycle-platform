@@ -1,17 +1,30 @@
 name: Publish Images
 
 on:
+  workflow_call:
+    outputs:
+      git_sha:
+        description: Published Git SHA.
+        value: ${{ jobs.build-and-push.outputs.git_sha }}
+      platform_ref:
+        description: Published Artifact Registry ref for the platform image.
+        value: ${{ jobs.build-and-push.outputs.platform_ref }}
+      platform_digest:
+        description: Published digest for the platform image.
+        value: ${{ jobs.build-and-push.outputs.platform_digest }}
+      serving_ref:
+        description: Published Artifact Registry ref for the serving image.
+        value: ${{ jobs.build-and-push.outputs.serving_ref }}
+      serving_digest:
+        description: Published digest for the serving image.
+        value: ${{ jobs.build-and-push.outputs.serving_digest }}
   workflow_dispatch: {}
-  workflow_run:
-    workflows: ["CI"]
-    types: [completed]
-    branches: [master]
 
 permissions:
   contents: read
 
 concurrency:
-  group: publish-images-${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_branch || github.ref }}
+  group: publish-images-${{ github.ref }}
   cancel-in-progress: true
 
 env:
@@ -24,7 +37,6 @@ env:
 jobs:
   build-and-push:
     name: Build And Push
-    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
@@ -40,16 +52,13 @@ jobs:
     steps:
       - id: context
         name: Resolve publish context
+        env:
+          GIT_SHA: ${{ github.sha }}
         shell: bash
         run: |
           set -euo pipefail
 
-          if [[ "${GITHUB_EVENT_NAME}" == "workflow_run" ]]; then
-            git_sha="${{ github.event.workflow_run.head_sha }}"
-          else
-            git_sha="${GITHUB_SHA}"
-          fi
-
+          git_sha="${GIT_SHA}"
           repository="${GCP_REGION}-docker.pkg.dev/${GCP_PROJECT_ID}/${ARTIFACT_REGISTRY_REPOSITORY}"
 
           echo "git_sha=${git_sha}" >> "${GITHUB_OUTPUT}"
@@ -100,66 +109,87 @@ jobs:
           project_id: ${{ env.GCP_PROJECT_ID }}
 
       - name: Build platform image
+        env:
+          GIT_SHA: ${{ steps.context.outputs.git_sha }}
         shell: bash
         run: |
           set -euo pipefail
-          docker build --target platform --tag "mlp-platform:${{ steps.context.outputs.git_sha }}" .
+          docker build --target platform --tag "mlp-platform:${GIT_SHA}" .
 
       - name: Build serving image
+        env:
+          GIT_SHA: ${{ steps.context.outputs.git_sha }}
         shell: bash
         run: |
           set -euo pipefail
-          docker build --target serving --tag "mlp-serving:${{ steps.context.outputs.git_sha }}" .
+          docker build --target serving --tag "mlp-serving:${GIT_SHA}" .
 
       - name: Smoke test platform image
+        env:
+          GIT_SHA: ${{ steps.context.outputs.git_sha }}
         shell: bash
         run: |
           set -euo pipefail
-          docker run --rm "mlp-platform:${{ steps.context.outputs.git_sha }}" \
+          docker run --rm "mlp-platform:${GIT_SHA}" \
             python -c "import ml_lifecycle_platform.pipeline.orchestrate"
 
       - name: Smoke test serving image
+        env:
+          GIT_SHA: ${{ steps.context.outputs.git_sha }}
         shell: bash
         run: |
           set -euo pipefail
-          docker run --rm "mlp-serving:${{ steps.context.outputs.git_sha }}" \
+          docker run --rm "mlp-serving:${GIT_SHA}" \
             python -c "import ml_lifecycle_platform.serving.app"
 
       - name: Log in to Artifact Registry
+        env:
+          REGISTRY_HOST: ${{ env.GCP_REGION }}-docker.pkg.dev
         shell: bash
         run: |
           set -euo pipefail
           gcloud auth print-access-token | docker login \
             --username oauth2accesstoken \
             --password-stdin \
-            "https://${GCP_REGION}-docker.pkg.dev"
+            "https://${REGISTRY_HOST}"
 
       - name: Push platform image
+        env:
+          GIT_SHA: ${{ steps.context.outputs.git_sha }}
+          PLATFORM_REF: ${{ steps.context.outputs.platform_ref }}
         shell: bash
         run: |
           set -euo pipefail
-          docker tag "mlp-platform:${{ steps.context.outputs.git_sha }}" "${{ steps.context.outputs.platform_ref }}"
-          docker push "${{ steps.context.outputs.platform_ref }}"
+          docker tag "mlp-platform:${GIT_SHA}" "${PLATFORM_REF}"
+          docker push "${PLATFORM_REF}"
 
       - name: Push serving image
+        env:
+          GIT_SHA: ${{ steps.context.outputs.git_sha }}
+          SERVING_REF: ${{ steps.context.outputs.serving_ref }}
         shell: bash
         run: |
           set -euo pipefail
-          docker tag "mlp-serving:${{ steps.context.outputs.git_sha }}" "${{ steps.context.outputs.serving_ref }}"
-          docker push "${{ steps.context.outputs.serving_ref }}"
+          docker tag "mlp-serving:${GIT_SHA}" "${SERVING_REF}"
+          docker push "${SERVING_REF}"
 
       - id: capture
         name: Capture remote image digests
+        env:
+          GIT_SHA: ${{ steps.context.outputs.git_sha }}
+          IMAGE_REPOSITORY: ${{ steps.context.outputs.repository }}
+          PLATFORM_REF: ${{ steps.context.outputs.platform_ref }}
+          SERVING_REF: ${{ steps.context.outputs.serving_ref }}
         shell: bash
         run: |
           set -euo pipefail
 
           platform_digest="$(
-            gcloud artifacts docker images describe "${{ steps.context.outputs.platform_ref }}" \
+            gcloud artifacts docker images describe "${PLATFORM_REF}" \
               --format='value(image_summary.digest)'
           )"
           serving_digest="$(
-            gcloud artifacts docker images describe "${{ steps.context.outputs.serving_ref }}" \
+            gcloud artifacts docker images describe "${SERVING_REF}" \
               --format='value(image_summary.digest)'
           )"
 
@@ -172,12 +202,9 @@ jobs:
           echo "serving_digest=${serving_digest}" >> "${GITHUB_OUTPUT}"
 
           export IMAGE_DIGESTS_JSON="${RUNNER_TEMP}/image-digests.json"
-          export PLATFORM_REF="${{ steps.context.outputs.platform_ref }}"
           export PLATFORM_DIGEST="${platform_digest}"
-          export SERVING_REF="${{ steps.context.outputs.serving_ref }}"
           export SERVING_DIGEST="${serving_digest}"
-          export IMAGE_REPOSITORY="${{ steps.context.outputs.repository }}"
-          export IMAGE_GIT_SHA="${{ steps.context.outputs.git_sha }}"
+          export IMAGE_GIT_SHA="${GIT_SHA}"
 
           python3 - <<'PY'
           import json
@@ -210,6 +237,11 @@ jobs:
           cp "${IMAGE_DIGESTS_JSON}" "${GITHUB_WORKSPACE}/image-digests.json"
 
       - name: Write workflow summary
+        env:
+          PLATFORM_REF: ${{ steps.context.outputs.platform_ref }}
+          PLATFORM_DIGEST: ${{ steps.capture.outputs.platform_digest }}
+          SERVING_REF: ${{ steps.context.outputs.serving_ref }}
+          SERVING_DIGEST: ${{ steps.capture.outputs.serving_digest }}
         shell: bash
         run: |
           set -euo pipefail
@@ -218,8 +250,8 @@ jobs:
             echo
             echo "| Image | Ref | Digest |"
             echo "| --- | --- | --- |"
-            echo "| platform | \`${{ steps.context.outputs.platform_ref }}\` | \`${{ steps.capture.outputs.platform_digest }}\` |"
-            echo "| serving | \`${{ steps.context.outputs.serving_ref }}\` | \`${{ steps.capture.outputs.serving_digest }}\` |"
+            echo "| platform | \`${PLATFORM_REF}\` | \`${PLATFORM_DIGEST}\` |"
+            echo "| serving | \`${SERVING_REF}\` | \`${SERVING_DIGEST}\` |"
             echo
             echo "Artifact: \`image-digests.json\`"
           } >> "${GITHUB_STEP_SUMMARY}"

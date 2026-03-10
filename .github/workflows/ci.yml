@@ -256,3 +256,9 @@ jobs:
         with:
           name: pytest-integration-output
           path: pytest-integration.txt
+
+  publish-images:
+    name: Publish Images
+    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+    needs: integration
+    uses: ./.github/workflows/publish-images.yml

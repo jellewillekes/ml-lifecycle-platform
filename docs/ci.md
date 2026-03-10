@@ -10,7 +10,7 @@ The repo has eight lanes:
 | `Gitleaks` | pull requests, push to `master`, weekly, manual dispatch | secret scanning for committed credentials, keys, and tokens |
 | `Zizmor` | pull requests, push to `master`, weekly, manual dispatch | GitHub Actions security lint and SARIF upload |
 | `GCP Auth Verify` | push to `master`, manual dispatch | GitHub OIDC to GCP WIF verification plus hosted-foundation prerequisite checks |
-| `Publish Images` | successful `CI` completion on `master`, manual dispatch | builds, smoke-checks, and publishes hosted runtime images to Artifact Registry |
+| `Publish Images` | called from `CI` on push to `master`, manual dispatch | builds, smoke-checks, and publishes hosted runtime images to Artifact Registry |
 | `E2E` | nightly and manual dispatch | dockerized golden path |
 
 ## Local mapping
@@ -74,7 +74,7 @@ Hosted image publication lives in:
 
 Trigger model:
 
-- automatic after `CI` succeeds on `master`
+- automatic as the final reusable workflow job in `CI` on push to `master`
 - manual via `workflow_dispatch` for branch verification
 
 Published image refs:
