@@ -22,6 +22,7 @@ Start here if you want to run or change the local platform.
 - [`runbooks/gcp-bootstrap.md`](./runbooks/gcp-bootstrap.md): adopt the existing GCP project and Terraform backend
 - [`runbooks/gcp-foundation.md`](./runbooks/gcp-foundation.md): create the first hosted GCP foundation resources
 - [`runbooks/gcp-staging-infra.md`](./runbooks/gcp-staging-infra.md): provision the stateful staging infra for hosted MLflow
+- [`runbooks/deploy-mlflow.md`](./runbooks/deploy-mlflow.md): build, deploy, and verify hosted MLflow staging
 - [`runbooks/gcp-ci-auth.md`](./runbooks/gcp-ci-auth.md): verify GitHub Actions OIDC auth into GCP
 - [`runbooks/promotion.md`](./runbooks/promotion.md): dry-run and real promotion
 - [`runbooks/rollback.md`](./runbooks/rollback.md): rollback current prod

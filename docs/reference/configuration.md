@@ -143,6 +143,31 @@ Legacy foundation placeholders still exist:
 
 Treat those as reserved foundation names, not the active hosted-staging contract.
 
+## Hosted MLflow runtime env
+
+The hosted MLflow Cloud Run service uses a narrower env surface than the local Compose server.
+
+| Env var | Source | Purpose |
+| --- | --- | --- |
+| `MLFLOW_HOST` | plain env | bind host inside the container |
+| `MLFLOW_PORT` | plain env | bind port inside the container |
+| `DB_HOST` | Terraform output | Cloud SQL private IP |
+| `DB_PORT` | plain env | Postgres port, currently `5432` |
+| `DB_NAME` | Secret Manager | MLflow metadata database |
+| `DB_USER` | Secret Manager | MLflow DB user |
+| `DB_PASSWORD` | Secret Manager | MLflow DB password |
+| `ARTIFACTS_DESTINATION` | Secret Manager | GCS artifact root for MLflow artifact proxying |
+
+Hosted MLflow does not use the local Compose-only settings such as:
+
+- `BACKEND_STORE_URI`
+- `ARTIFACT_ROOT`
+- `MLFLOW_S3_ENDPOINT_URL`
+- `AWS_ACCESS_KEY_ID`
+- `AWS_SECRET_ACCESS_KEY`
+
+Those remain local-runtime concerns.
+
 ## Current operator rules
 
 - Prefer editing committed runtime profiles and model specs over piling on shell-only overrides.

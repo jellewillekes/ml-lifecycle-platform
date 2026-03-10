@@ -64,7 +64,7 @@ make terraform-gcp-fmt
 make terraform-gcp-init
 make terraform-gcp-validate
 make terraform-gcp-plan
-terraform -chdir=deployments/gcp/terraform apply
+make terraform-gcp-apply
 ```
 
 ## Outputs used by later tickets

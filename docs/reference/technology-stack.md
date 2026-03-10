@@ -235,6 +235,23 @@ Official docs:
 
 ## Local Infrastructure
 
+### Google Cloud Run
+
+What it is:
+- Managed container runtime for HTTP services and jobs.
+
+Why we use it:
+- It is the hosted runtime target for the first staging platform.
+- It gives a boring deploy surface for MLflow first, then serving and jobs later.
+
+How it is used here:
+- Hosts the staged MLflow control plane in `UP-17`.
+- Uses IAM-authenticated direct `run.app` access before any ALB is added.
+- Uses Direct VPC egress to reach Cloud SQL private IP.
+
+Official docs:
+- https://cloud.google.com/run/docs/
+
 ### Terraform
 
 What it is:

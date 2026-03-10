@@ -21,10 +21,10 @@ Managed now:
 - private service access for Cloud SQL
 - Cloud SQL for hosted MLflow metadata
 - active MLflow staging secrets
+- Cloud Run MLflow service contract and CI deploy IAM bindings
 
 Not managed yet:
 
-- Cloud Run services
 - Cloud Run jobs
 - ALB or custom domain
 - Cloud Scheduler
@@ -81,9 +81,20 @@ Active staging secrets:
 Current important bindings:
 
 - `mlp-ci` can push images to Artifact Registry
+- `mlp-ci` can deploy Cloud Run services after the one-time bootstrap apply
 - `mlp-runtime` can read the hosted MLflow secrets
 - `mlp-runtime` can write objects to the hosted artifacts and data buckets
 - `mlp-runtime` has `roles/cloudsql.client`
+
+Current deploy-specific CI bindings:
+
+- `roles/run.admin`
+- `roles/serviceusage.serviceUsageAdmin`
+- `roles/iam.serviceAccountUser` on `mlp-runtime`
+
+Current service-specific binding once deployed:
+
+- `roles/run.invoker` on `mlp-mlflow-staging`
 
 Not granted yet:
 
@@ -124,6 +135,13 @@ Most important current deploy-facing outputs:
 - `subnetwork_cidr`
 - `peering_range`
 - `peering_cidr`
+
+### `mlflow_service`
+
+- `name`
+- `uri`
+- `image`
+- `invoker_sa`
 
 ## Operator checks
 
