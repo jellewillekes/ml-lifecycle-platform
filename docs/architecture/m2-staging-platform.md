@@ -45,6 +45,8 @@ The intended order is:
 
 Do not skip ahead. Each step depends on the previous one being operationally boring first.
 
+The concrete `UP-16` infra contract is documented in [`../runbooks/gcp-staging-infra.md`](../runbooks/gcp-staging-infra.md).
+
 ## Deploy contracts
 
 Hosted deploys should consume image digests from the publish workflow artifact contract in [`../ci.md`](../ci.md).

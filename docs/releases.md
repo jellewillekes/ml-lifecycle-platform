@@ -8,6 +8,8 @@ This document covers two separate release concepts:
 - model release evidence emitted by the registry workflows
 - hosted runtime image publication for deploy workflows
 
+For the full identity contract across package releases, image digests, and MLflow aliases, see [`reference/release-contract.md`](./reference/release-contract.md).
+
 ## Source of truth
 
 - PRs are squash-merged into `master`

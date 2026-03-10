@@ -148,6 +148,7 @@ The next staged additions are:
 - hosted serving on Cloud Run
 
 See [`../architecture/m2-staging-platform.md`](../architecture/m2-staging-platform.md) for the fixed decisions and implementation order.
+See [`./gcp-staging-infra.md`](./gcp-staging-infra.md) for the concrete `UP-16` stateful infra contract.
 
 ## Debugging
 
