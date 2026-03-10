@@ -1,10 +1,11 @@
 # Current State
 
-Last verified: 2026-03-09
+Last verified: 2026-03-10
 
 ## Summary
 
 This repo is a local-first ML platform with MLflow as the tracking, registry, and release-control system.
+The local runtime is still the main operator path, but the first hosted GCP foundation layer and hosted image publication lane now exist.
 
 Current lifecycle:
 
@@ -46,6 +47,15 @@ models:/<model_name>@prod
   - `shadow`
 - Docker Compose local environment
 - unit, integration, and dockerized e2e coverage
+- Terraform-managed GCP foundation for:
+  - Artifact Registry
+  - hosted buckets
+  - placeholder secrets
+  - runtime and CI service accounts
+  - GitHub OIDC federation
+- CI workflows for:
+  - GCP auth verification
+  - hosted image publication with immutable SHA tags and digest capture
 
 ## Code layout
 
@@ -97,4 +107,4 @@ versions that do not yet have a manifest.
 - no warehouse integration
 - no distributed training
 - no multi-model serving platform
-- no hosted control plane outside MLflow
+- no hosted runtime deployed yet

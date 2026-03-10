@@ -1,6 +1,6 @@
 # GCP Foundation
 
-Last verified: 2026-03-09
+Last verified: 2026-03-10
 
 This runbook creates the first hosted GCP foundation layer on top of the adopted project and Terraform backend from [`gcp-bootstrap.md`](./gcp-bootstrap.md).
 
@@ -85,6 +85,23 @@ The CI service account gets:
 - `roles/artifactregistry.writer` on the image repository
 
 Nothing in this root grants deploy-time permissions for Cloud Run or broader project admin actions yet.
+
+## Handoff to M2
+
+This foundation layer is intentionally enough for:
+
+- GitHub Actions auth through WIF
+- image publication into Artifact Registry
+- reserving stable bucket and secret names for hosted follow-up work
+
+`M2` should build on this root by adding:
+
+- Cloud SQL
+- hosted MLflow
+- hosted serving
+- edge and orchestration later
+
+Use the fixed decisions in [`../architecture/m2-staging-platform.md`](../architecture/m2-staging-platform.md) as the default shape unless a later ADR changes them.
 
 ## Operator flow
 

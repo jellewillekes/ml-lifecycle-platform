@@ -6,13 +6,14 @@
 [![E2E](https://github.com/jellewillekes/ml-lifecycle-platform/actions/workflows/e2e.yml/badge.svg)](https://github.com/jellewillekes/ml-lifecycle-platform/actions/workflows/e2e.yml)
 [![Coverage](https://codecov.io/gh/jellewillekes/ml-lifecycle-platform/branch/master/graph/badge.svg)](https://codecov.io/gh/jellewillekes/ml-lifecycle-platform/branch/master/graph/badge.svg)
 
-An ML platform for training, evaluating, registering, promoting, serving, and reproducing models. MLflow is the control plane. The current implementation is local-first. Hosted backends in `GCP` and `AWS` are planned.
+An ML platform for training, evaluating, registering, promoting, serving, and reproducing models. MLflow is the control plane. The current implementation is local-first with a GCP hosted foundation and CI-produced runtime images ready for staged rollout.
 
 Operator and architecture docs live in the handbook:
 
 - [`docs/README.md`](docs/README.md)
 - [`docs/runbooks/gcp-bootstrap.md`](docs/runbooks/gcp-bootstrap.md)
 - [`docs/runbooks/gcp-foundation.md`](docs/runbooks/gcp-foundation.md)
+- [`docs/architecture/m2-staging-platform.md`](docs/architecture/m2-staging-platform.md)
 - [`docs/reference/technology-stack.md`](docs/reference/technology-stack.md)
 
 Starter files for OSS users:
