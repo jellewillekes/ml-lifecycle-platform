@@ -1,8 +1,8 @@
 # GCP Bootstrap
 
-Last verified: 2026-03-09
+Last verified: 2026-03-10
 
-This runbook adopts the existing Google Cloud project and the existing Terraform state bucket as the M1 bootstrap foundation.
+This runbook covers the shared Terraform root that adopts the existing GCP project and remote state bucket and now also manages the first hosted foundation resources.
 
 Current adopted identifiers:
 
@@ -15,12 +15,20 @@ What this root does:
 - targets the existing GCP project
 - initializes remote Terraform state in the existing GCS bucket
 - enables the required project APIs from Terraform
+- manages the first hosted foundation resources:
+  - Artifact Registry repository
+  - hosted buckets
+  - placeholder secrets
+  - CI and runtime service accounts
+  - GitHub Actions Workload Identity Federation
 
 What this root does not do:
 
 - create or rename the project
 - create, rename, or manage the backend state bucket in the same state
-- deploy Cloud Run, load balancing, or runtime resources yet
+- provision Cloud SQL yet
+- deploy Cloud Run services or jobs yet
+- deploy load balancing or scheduler resources yet
 
 ## Why the backend bucket is not a Terraform resource here
 
@@ -95,8 +103,13 @@ Managed APIs today:
 - `serviceusage.googleapis.com`
 - `cloudresourcemanager.googleapis.com`
 - `iam.googleapis.com`
+- `artifactregistry.googleapis.com`
+- `iamcredentials.googleapis.com`
+- `secretmanager.googleapis.com`
+- `storage.googleapis.com`
+- `sts.googleapis.com`
 
-These are the minimum boring APIs needed for project-level bootstrap and the next round of IAM work.
+These are the minimum boring APIs needed for the adopted project, hosted foundation, and CI federation path.
 
 We are not using the authoritative `google_project_services` resource yet because that would disable every API not listed here. That is a bad default while the project may still contain old manual experiments.
 
@@ -122,6 +135,19 @@ Expected result:
 
 - Terraform state lives in `gs://fpl-tf-state-jelle/ml-lifecycle-platform/gcp/bootstrap`
 - Terraform tracks required API enablement for project `fpl-project-jelle`
+- the hosted foundation resources from [`gcp-foundation.md`](./gcp-foundation.md) exist and match the committed naming contract
+
+## What comes next
+
+This root is the starting point for `M2`, not the end state.
+
+The next staged additions are:
+
+- Cloud SQL and MLflow storage wiring
+- hosted MLflow on Cloud Run
+- hosted serving on Cloud Run
+
+See [`../architecture/m2-staging-platform.md`](../architecture/m2-staging-platform.md) for the fixed decisions and implementation order.
 
 ## Debugging
 

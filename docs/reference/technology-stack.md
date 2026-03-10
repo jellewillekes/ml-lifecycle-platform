@@ -234,11 +234,13 @@ What it is:
 
 Why we use it:
 - Hosted infrastructure should be explicit, reviewable, and reproducible.
-- Existing GCP bootstrap state should move out of shell history and into committed config.
+- Existing GCP project setup, foundation resources, and hosted follow-up work should live in committed config.
 
 How it is used here:
 - Initializes remote state in the existing GCS backend bucket.
-- Enables and tracks required GCP project APIs for the hosted bootstrap root in `deployments/gcp/terraform/`.
+- Manages required GCP project APIs for the shared hosted Terraform root in `deployments/gcp/terraform/`.
+- Manages the current hosted foundation layer: Artifact Registry, buckets, placeholder secrets, service accounts, and GitHub OIDC federation.
+- Will be extended in `M2` for Cloud SQL, Cloud Run services, jobs, and scheduler resources.
 
 Official docs:
 - https://developer.hashicorp.com/terraform/docs
@@ -250,11 +252,12 @@ What it is:
 
 Why we use it:
 - Terraform uses ADC, so operators need a boring way to authenticate and verify project access.
-- It is the fastest way to inspect enabled APIs and confirm backend bucket access during bootstrap.
+- It is the fastest way to inspect foundation resources, Artifact Registry, Workload Identity Federation, and later hosted staging resources.
 
 How it is used here:
 - Establishes user auth and ADC for Terraform.
 - Verifies access to the adopted project and Terraform backend bucket.
+- Verifies hosted foundation resources and CI auth prerequisites during bring-up and debugging.
 
 Official docs:
 - https://cloud.google.com/sdk/docs

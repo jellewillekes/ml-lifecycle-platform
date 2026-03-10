@@ -6,6 +6,7 @@ This document covers two separate release concepts:
 
 - GitHub/package releases managed by Release Please
 - model release evidence emitted by the registry workflows
+- hosted runtime image publication for deploy workflows
 
 ## Source of truth
 
@@ -103,3 +104,19 @@ Local runtime behavior:
 
 - the same bundle is mirrored under the configured local artifacts directory
 - a release event may also be appended to the local file-backed `EventStore`
+
+## Hosted runtime images
+
+Hosted runtime images are published by the `Publish Images` workflow described in [`ci.md`](./ci.md).
+
+Current published image contracts:
+
+- `platform`
+- `serving`
+
+Deploy workflows should consume image digests from the `image-digests.json` artifact, not mutable tags.
+
+This is separate from model release state:
+
+- image digest selects the runtime container
+- MLflow model version and alias select the served model

@@ -14,6 +14,7 @@ Start here if you want to run or change the local platform.
 - [`architecture/overview.md`](./architecture/overview.md): platform shape, control plane, lifecycle
 - [`architecture/local-runtime.md`](./architecture/local-runtime.md): runtime profiles, model specs, serving contract, local paths
 - [`architecture/current-state.md`](./architecture/current-state.md): current M0 scope and non-goals
+- [`architecture/m2-staging-platform.md`](./architecture/m2-staging-platform.md): fixed decisions and execution order for the first hosted GCP staging platform
 
 ## Runbooks
 
