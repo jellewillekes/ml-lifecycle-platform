@@ -9,6 +9,7 @@ permissions:
 
 jobs:
   semantic-title:
+    name: Semantic Title
     runs-on: ubuntu-latest
     steps:
       - name: Validate PR title

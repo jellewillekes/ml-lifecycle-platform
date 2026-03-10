@@ -12,7 +12,7 @@ permissions: {}
 
 jobs:
   zizmor:
-    name: GA Lint
+    name: Workflow Lint
     runs-on: ubuntu-latest
     permissions:
       actions: read
