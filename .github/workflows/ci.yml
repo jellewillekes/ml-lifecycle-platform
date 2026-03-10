@@ -20,7 +20,7 @@ env:
 
 jobs:
   hygiene:
-    name: Repo Hygiene
+    name: Hygiene
     runs-on: ubuntu-latest
     timeout-minutes: 5
 
@@ -38,7 +38,7 @@ jobs:
           fi
 
   lint:
-    name: Lint (ruff)
+    name: Lint
     runs-on: ubuntu-latest
     timeout-minutes: 10
     needs: hygiene
@@ -75,7 +75,7 @@ jobs:
           uv run ruff check --output-format=github .
 
   docker-python-version-check:
-    name: Docker Python Version Check
+    name: Python Version
     runs-on: ubuntu-latest
     timeout-minutes: 5
     needs: hygiene
@@ -91,7 +91,7 @@ jobs:
           scripts/check_docker_python_version.sh "${{ env.SUPPORTED_PYTHON_MM }}"
 
   docker-build:
-    name: Docker Build (platform + serving)
+    name: Docker Build
     runs-on: ubuntu-latest
     timeout-minutes: 15
     needs: docker-python-version-check
@@ -112,7 +112,7 @@ jobs:
           docker build --target serving --tag mlp-serving:ci .
 
   typecheck:
-    name: Typecheck (mypy)
+    name: Typecheck
     runs-on: ubuntu-latest
     timeout-minutes: 10
     needs: hygiene

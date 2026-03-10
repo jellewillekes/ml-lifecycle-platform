@@ -97,6 +97,12 @@ resource "google_artifact_registry_repository_iam_member" "ci_writer" {
   member     = "serviceAccount:${google_service_account.ci.email}"
 }
 
+resource "google_project_iam_member" "ci_viewer" {
+  project = data.google_project.current.project_id
+  role    = "roles/viewer"
+  member  = "serviceAccount:${google_service_account.ci.email}"
+}
+
 resource "google_storage_bucket_iam_member" "runtime_bucket_admin" {
   for_each = google_storage_bucket.foundation
 

@@ -20,6 +20,7 @@ Start here if you want to run or change the local platform.
 - [`runbooks/local-bootstrap.md`](./runbooks/local-bootstrap.md): fresh-clone local setup and golden path
 - [`runbooks/gcp-bootstrap.md`](./runbooks/gcp-bootstrap.md): adopt the existing GCP project and Terraform backend
 - [`runbooks/gcp-foundation.md`](./runbooks/gcp-foundation.md): create the first hosted GCP foundation resources
+- [`runbooks/gcp-ci-auth.md`](./runbooks/gcp-ci-auth.md): verify GitHub Actions OIDC auth into GCP
 - [`runbooks/promotion.md`](./runbooks/promotion.md): dry-run and real promotion
 - [`runbooks/rollback.md`](./runbooks/rollback.md): rollback current prod
 - [`runbooks/reproduce.md`](./runbooks/reproduce.md): reproduce a registered model

@@ -54,3 +54,6 @@ override.tf.json
 *_override.tf
 *_override.tf.json
 deployments/gcp/terraform/terraform.tfvars
+
+# Generated GitHub Actions GCP credentials
+gha-creds-*.json
