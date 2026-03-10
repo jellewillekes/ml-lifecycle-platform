@@ -1,0 +1,264 @@
+name: Publish Images
+
+on:
+  workflow_call:
+    outputs:
+      git_sha:
+        description: Published Git SHA.
+        value: ${{ jobs.build-and-push.outputs.git_sha }}
+      platform_ref:
+        description: Published Artifact Registry ref for the platform image.
+        value: ${{ jobs.build-and-push.outputs.platform_ref }}
+      platform_digest:
+        description: Published digest for the platform image.
+        value: ${{ jobs.build-and-push.outputs.platform_digest }}
+      serving_ref:
+        description: Published Artifact Registry ref for the serving image.
+        value: ${{ jobs.build-and-push.outputs.serving_ref }}
+      serving_digest:
+        description: Published digest for the serving image.
+        value: ${{ jobs.build-and-push.outputs.serving_digest }}
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: publish-images-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  GCP_PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
+  GCP_WIF_PROVIDER: ${{ vars.GCP_WIF_PROVIDER }}
+  GCP_CI_SERVICE_ACCOUNT: ${{ vars.GCP_CI_SERVICE_ACCOUNT }}
+  GCP_REGION: europe-west1
+  ARTIFACT_REGISTRY_REPOSITORY: mlp-images
+
+jobs:
+  build-and-push:
+    name: Build And Push
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      id-token: write
+    outputs:
+      git_sha: ${{ steps.context.outputs.git_sha }}
+      platform_ref: ${{ steps.context.outputs.platform_ref }}
+      platform_digest: ${{ steps.capture.outputs.platform_digest }}
+      serving_ref: ${{ steps.context.outputs.serving_ref }}
+      serving_digest: ${{ steps.capture.outputs.serving_digest }}
+
+    steps:
+      - id: context
+        name: Resolve publish context
+        env:
+          GIT_SHA: ${{ github.sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          git_sha="${GIT_SHA}"
+          repository="${GCP_REGION}-docker.pkg.dev/${GCP_PROJECT_ID}/${ARTIFACT_REGISTRY_REPOSITORY}"
+
+          echo "git_sha=${git_sha}" >> "${GITHUB_OUTPUT}"
+          echo "repository=${repository}" >> "${GITHUB_OUTPUT}"
+          echo "platform_ref=${repository}/platform:${git_sha}" >> "${GITHUB_OUTPUT}"
+          echo "serving_ref=${repository}/serving:${git_sha}" >> "${GITHUB_OUTPUT}"
+
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          persist-credentials: false
+          ref: ${{ steps.context.outputs.git_sha }}
+
+      - name: Validate required GitHub Actions variables
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          missing=()
+          for var_name in GCP_PROJECT_ID GCP_WIF_PROVIDER GCP_CI_SERVICE_ACCOUNT; do
+            if [[ -z "${!var_name:-}" ]]; then
+              missing+=("${var_name}")
+            fi
+          done
+
+          if (( ${#missing[@]} > 0 )); then
+            printf 'Missing required GitHub Actions variable(s): %s\n' "${missing[*]}"
+            echo "Set them from Terraform outputs before trusting this workflow."
+            echo "Expected values:"
+            echo "  GCP_PROJECT_ID <- terraform output project_id"
+            echo "  GCP_WIF_PROVIDER <- terraform output workload_identity_provider_name"
+            echo "  GCP_CI_SERVICE_ACCOUNT <- terraform output ci_service_account_email"
+            exit 1
+          fi
+
+      - id: auth
+        name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3
+        with:
+          create_credentials_file: true
+          project_id: ${{ env.GCP_PROJECT_ID }}
+          workload_identity_provider: ${{ env.GCP_WIF_PROVIDER }}
+          service_account: ${{ env.GCP_CI_SERVICE_ACCOUNT }}
+
+      - name: Set up gcloud
+        uses: google-github-actions/setup-gcloud@aa5489c8933f4cc7a4f7d45035b3b1440c9c10db # v3.0.1
+        with:
+          version: ">= 363.0.0"
+          project_id: ${{ env.GCP_PROJECT_ID }}
+
+      - name: Build platform image
+        env:
+          GIT_SHA: ${{ steps.context.outputs.git_sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker build --target platform --tag "mlp-platform:${GIT_SHA}" .
+
+      - name: Build serving image
+        env:
+          GIT_SHA: ${{ steps.context.outputs.git_sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker build --target serving --tag "mlp-serving:${GIT_SHA}" .
+
+      - name: Smoke test platform image
+        env:
+          GIT_SHA: ${{ steps.context.outputs.git_sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker run --rm "mlp-platform:${GIT_SHA}" \
+            python -c "import ml_lifecycle_platform.pipeline.orchestrate"
+
+      - name: Smoke test serving image
+        env:
+          GIT_SHA: ${{ steps.context.outputs.git_sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker run --rm "mlp-serving:${GIT_SHA}" \
+            python -c "import ml_lifecycle_platform.serving.app"
+
+      - name: Log in to Artifact Registry
+        env:
+          REGISTRY_HOST: ${{ env.GCP_REGION }}-docker.pkg.dev
+        shell: bash
+        run: |
+          set -euo pipefail
+          gcloud auth print-access-token | docker login \
+            --username oauth2accesstoken \
+            --password-stdin \
+            "https://${REGISTRY_HOST}"
+
+      - name: Push platform image
+        env:
+          GIT_SHA: ${{ steps.context.outputs.git_sha }}
+          PLATFORM_REF: ${{ steps.context.outputs.platform_ref }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker tag "mlp-platform:${GIT_SHA}" "${PLATFORM_REF}"
+          docker push "${PLATFORM_REF}"
+
+      - name: Push serving image
+        env:
+          GIT_SHA: ${{ steps.context.outputs.git_sha }}
+          SERVING_REF: ${{ steps.context.outputs.serving_ref }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker tag "mlp-serving:${GIT_SHA}" "${SERVING_REF}"
+          docker push "${SERVING_REF}"
+
+      - id: capture
+        name: Capture remote image digests
+        env:
+          GIT_SHA: ${{ steps.context.outputs.git_sha }}
+          IMAGE_REPOSITORY: ${{ steps.context.outputs.repository }}
+          PLATFORM_REF: ${{ steps.context.outputs.platform_ref }}
+          SERVING_REF: ${{ steps.context.outputs.serving_ref }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          platform_digest="$(
+            gcloud artifacts docker images describe "${PLATFORM_REF}" \
+              --format='value(image_summary.digest)'
+          )"
+          serving_digest="$(
+            gcloud artifacts docker images describe "${SERVING_REF}" \
+              --format='value(image_summary.digest)'
+          )"
+
+          if [[ -z "${platform_digest}" || -z "${serving_digest}" ]]; then
+            echo "Failed to resolve one or more image digests from Artifact Registry."
+            exit 1
+          fi
+
+          echo "platform_digest=${platform_digest}" >> "${GITHUB_OUTPUT}"
+          echo "serving_digest=${serving_digest}" >> "${GITHUB_OUTPUT}"
+
+          export IMAGE_DIGESTS_JSON="${RUNNER_TEMP}/image-digests.json"
+          export PLATFORM_DIGEST="${platform_digest}"
+          export SERVING_DIGEST="${serving_digest}"
+          export IMAGE_GIT_SHA="${GIT_SHA}"
+
+          python3 - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          payload = {
+              "project_id": os.environ["GCP_PROJECT_ID"],
+              "repository": os.environ["IMAGE_REPOSITORY"],
+              "git_sha": os.environ["IMAGE_GIT_SHA"],
+              "images": {
+                  "platform": {
+                      "tag": os.environ["IMAGE_GIT_SHA"],
+                      "ref": os.environ["PLATFORM_REF"],
+                      "digest": os.environ["PLATFORM_DIGEST"],
+                  },
+                  "serving": {
+                      "tag": os.environ["IMAGE_GIT_SHA"],
+                      "ref": os.environ["SERVING_REF"],
+                      "digest": os.environ["SERVING_DIGEST"],
+                  },
+              },
+          }
+          Path(os.environ["IMAGE_DIGESTS_JSON"]).write_text(
+              json.dumps(payload, indent=2) + "\n",
+              encoding="utf-8",
+          )
+          PY
+
+          cp "${IMAGE_DIGESTS_JSON}" "${GITHUB_WORKSPACE}/image-digests.json"
+
+      - name: Write workflow summary
+        env:
+          PLATFORM_REF: ${{ steps.context.outputs.platform_ref }}
+          PLATFORM_DIGEST: ${{ steps.capture.outputs.platform_digest }}
+          SERVING_REF: ${{ steps.context.outputs.serving_ref }}
+          SERVING_DIGEST: ${{ steps.capture.outputs.serving_digest }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          {
+            echo "## Published images"
+            echo
+            echo "| Image | Ref | Digest |"
+            echo "| --- | --- | --- |"
+            echo "| platform | \`${PLATFORM_REF}\` | \`${PLATFORM_DIGEST}\` |"
+            echo "| serving | \`${SERVING_REF}\` | \`${SERVING_DIGEST}\` |"
+            echo
+            echo "Artifact: \`image-digests.json\`"
+          } >> "${GITHUB_STEP_SUMMARY}"
+
+      - name: Upload image digests artifact
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
+        with:
+          name: image-digests-${{ steps.context.outputs.git_sha }}
+          path: image-digests.json
+          if-no-files-found: error

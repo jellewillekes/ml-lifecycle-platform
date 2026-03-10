@@ -1,6 +1,6 @@
 # CI
 
-The repo has seven lanes:
+The repo has eight lanes:
 
 | Lane | Trigger | Purpose |
 | --- | --- | --- |
@@ -10,6 +10,7 @@ The repo has seven lanes:
 | `Gitleaks` | pull requests, push to `master`, weekly, manual dispatch | secret scanning for committed credentials, keys, and tokens |
 | `Zizmor` | pull requests, push to `master`, weekly, manual dispatch | GitHub Actions security lint and SARIF upload |
 | `GCP Auth Verify` | push to `master`, manual dispatch | GitHub OIDC to GCP WIF verification plus hosted-foundation prerequisite checks |
+| `Publish Images` | called from `CI` on push to `master`, manual dispatch | builds, smoke-checks, and publishes hosted runtime images to Artifact Registry |
 | `E2E` | nightly and manual dispatch | dockerized golden path |
 
 ## Local mapping
@@ -64,3 +65,49 @@ Populate them from Terraform outputs in `deployments/gcp/terraform/`.
 The workflow authenticates with `google-github-actions/auth`, impersonates the CI service account, then verifies the expected project, Artifact Registry repository, buckets, secrets, and WIF provider still exist.
 
 Do not add static service account keys for this repo. The hosted path should stay on OIDC + Workload Identity Federation.
+
+## Hosted image publishing
+
+Hosted image publication lives in:
+
+- `.github/workflows/publish-images.yml`
+
+Trigger model:
+
+- automatic as the final reusable workflow job in `CI` on push to `master`
+- manual via `workflow_dispatch` for branch verification
+
+Published image refs:
+
+- `europe-west1-docker.pkg.dev/fpl-project-jelle/mlp-images/platform:<git-sha>`
+- `europe-west1-docker.pkg.dev/fpl-project-jelle/mlp-images/serving:<git-sha>`
+
+Contract:
+
+- only immutable Git SHA tags are published
+- each image is built once, smoke-tested locally in CI, then that same image is pushed
+- digests are captured after push and recorded in both the workflow summary and `image-digests.json`
+
+Downstream deploy workflows should consume digests, not tags. Treat tags as discovery aids and digests as the deploy contract.
+
+Expected artifact shape:
+
+```json
+{
+  "project_id": "fpl-project-jelle",
+  "repository": "europe-west1-docker.pkg.dev/fpl-project-jelle/mlp-images",
+  "git_sha": "<sha>",
+  "images": {
+    "platform": {
+      "tag": "<sha>",
+      "ref": ".../platform:<sha>",
+      "digest": "sha256:..."
+    },
+    "serving": {
+      "tag": "<sha>",
+      "ref": ".../serving:<sha>",
+      "digest": "sha256:..."
+    }
+  }
+}
+```
