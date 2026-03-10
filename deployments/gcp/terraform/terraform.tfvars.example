@@ -2,6 +2,16 @@ project_id = "fpl-project-jelle"
 region     = "europe-west1"
 
 required_services = [
+  "artifactregistry.googleapis.com",
   "cloudresourcemanager.googleapis.com",
   "iam.googleapis.com",
+  "iamcredentials.googleapis.com",
+  "secretmanager.googleapis.com",
+  "storage.googleapis.com",
+  "sts.googleapis.com",
 ]
+
+github_repository_owner    = "jellewillekes"
+github_repository          = "ml-lifecycle-platform"
+github_repository_owner_id = "94389770"
+github_repository_id       = "1141930340"

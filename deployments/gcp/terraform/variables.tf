@@ -24,8 +24,13 @@ variable "required_services" {
   description = "Project services enabled and maintained by this bootstrap root."
   type        = list(string)
   default = [
+    "artifactregistry.googleapis.com",
     "cloudresourcemanager.googleapis.com",
     "iam.googleapis.com",
+    "iamcredentials.googleapis.com",
+    "secretmanager.googleapis.com",
+    "storage.googleapis.com",
+    "sts.googleapis.com",
   ]
 
   validation {
@@ -36,5 +41,49 @@ variable "required_services" {
   validation {
     condition     = !contains(var.required_services, "serviceusage.googleapis.com")
     error_message = "required_services must not include serviceusage.googleapis.com; it is managed separately."
+  }
+}
+
+variable "github_repository_owner" {
+  description = "GitHub repository owner allowed to federate into the CI service account."
+  type        = string
+  default     = "jellewillekes"
+
+  validation {
+    condition     = length(trimspace(var.github_repository_owner)) > 0
+    error_message = "github_repository_owner must not be empty."
+  }
+}
+
+variable "github_repository" {
+  description = "GitHub repository name allowed to federate into the CI service account."
+  type        = string
+  default     = "ml-lifecycle-platform"
+
+  validation {
+    condition     = length(trimspace(var.github_repository)) > 0
+    error_message = "github_repository must not be empty."
+  }
+}
+
+variable "github_repository_owner_id" {
+  description = "Stable GitHub owner ID used in the WIF provider condition."
+  type        = string
+  default     = "94389770"
+
+  validation {
+    condition     = can(regex("^[0-9]+$", var.github_repository_owner_id))
+    error_message = "github_repository_owner_id must contain only digits."
+  }
+}
+
+variable "github_repository_id" {
+  description = "Stable GitHub repository ID used in the WIF provider condition."
+  type        = string
+  default     = "1141930340"
+
+  validation {
+    condition     = can(regex("^[0-9]+$", var.github_repository_id))
+    error_message = "github_repository_id must contain only digits."
   }
 }
