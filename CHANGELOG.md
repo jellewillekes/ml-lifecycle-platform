@@ -4,6 +4,24 @@ All important changes and updates to this project are documented here.
 
 This repo uses Conventional Commits and Release Please.
 
+## [0.5.2](https://github.com/jellewillekes/ml-lifecycle-platform/compare/v0.5.1...v0.5.2) (2026-03-10)
+
+
+### Features
+
+* add GCP Terraform bootstrap root ([#89](https://github.com/jellewillekes/ml-lifecycle-platform/issues/89)) ([b31cfb1](https://github.com/jellewillekes/ml-lifecycle-platform/commit/b31cfb191cba755819a89d55c44e294ccd07e22f))
+* emit release evidence bundles for promote rollback and reproduce ([#75](https://github.com/jellewillekes/ml-lifecycle-platform/issues/75)) ([df2301b](https://github.com/jellewillekes/ml-lifecycle-platform/commit/df2301bb1b06745299c46b9022d17abd8314af7d))
+* harden hosted runtime and serving contracts ([#86](https://github.com/jellewillekes/ml-lifecycle-platform/issues/86)) ([ee55463](https://github.com/jellewillekes/ml-lifecycle-platform/commit/ee55463229a6ff8e138b66a0e02cb0fb544e13b7))
+* improve hosted runtime and serving contracts ([#88](https://github.com/jellewillekes/ml-lifecycle-platform/issues/88)) ([8f68fcf](https://github.com/jellewillekes/ml-lifecycle-platform/commit/8f68fcf99ca5fd3969b1903acf04d889c2f7ed81))
+* **serving:** enforce model-spec feature contracts ([#73](https://github.com/jellewillekes/ml-lifecycle-platform/issues/73)) ([c78e032](https://github.com/jellewillekes/ml-lifecycle-platform/commit/c78e032c640566187a5b7fa49e08e2152baea567))
+
+
+### Documentation
+
+* add platform handbook and local operator runbooks ([#76](https://github.com/jellewillekes/ml-lifecycle-platform/issues/76)) ([457a45c](https://github.com/jellewillekes/ml-lifecycle-platform/commit/457a45c6d52b9d747c9e03b12e59d8dc4b07bff7))
+* m2 readiness alignment ([#103](https://github.com/jellewillekes/ml-lifecycle-platform/issues/103)) ([a2645f8](https://github.com/jellewillekes/ml-lifecycle-platform/commit/a2645f85b5d19e66d9b62994a183484e8da3e45c))
+* update readme ([#85](https://github.com/jellewillekes/ml-lifecycle-platform/issues/85)) ([482c074](https://github.com/jellewillekes/ml-lifecycle-platform/commit/482c0740d2a6edcd47c4fd25b2cfe03eab19915a))
+
 ## [0.5.1](https://github.com/jellewillekes/ml-lifecycle-platform/compare/v0.5.0...v0.5.1) (2026-03-09)
 
 
