@@ -128,7 +128,7 @@ Delete stale resources manually before expanding this Terraform root. Do not try
 After the plan looks correct:
 
 ```bash
-terraform -chdir=deployments/gcp/terraform apply
+make terraform-gcp-apply
 ```
 
 Expected result:

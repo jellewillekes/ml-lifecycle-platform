@@ -118,3 +118,13 @@ output "mlflow_secret_ids" {
     for key, secret in google_secret_manager_secret.mlflow : key => secret.secret_id
   }
 }
+
+output "mlflow_service" {
+  description = "Hosted staging MLflow service contract. Null until the first MLflow image deploy is applied."
+  value = local.mlflow_deploy_enabled ? {
+    name       = google_cloud_run_v2_service.mlflow["staging"].name
+    uri        = google_cloud_run_v2_service.mlflow["staging"].uri
+    image      = google_cloud_run_v2_service.mlflow["staging"].template[0].containers[0].image
+    invoker_sa = google_service_account.ci.email
+  } : null
+}

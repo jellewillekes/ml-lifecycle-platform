@@ -1,6 +1,6 @@
 # CI
 
-The repo has eight lanes:
+The repo has nine lanes:
 
 | Lane | Trigger | Purpose |
 | --- | --- | --- |
@@ -11,6 +11,7 @@ The repo has eight lanes:
 | `Zizmor` | pull requests, push to `master`, weekly, manual dispatch | GitHub Actions security lint and SARIF upload |
 | `GCP Auth Verify` | push to `master`, manual dispatch | GitHub OIDC to GCP WIF verification plus hosted-foundation prerequisite checks |
 | `Publish Images` | called from `CI` on push to `master`, manual dispatch | builds, smoke-checks, and publishes hosted runtime images to Artifact Registry |
+| `Deploy MLflow Staging` | manual dispatch | builds the hosted MLflow image, deploys Cloud Run staging by digest, and runs authenticated smoke checks |
 | `E2E` | nightly and manual dispatch | dockerized golden path |
 
 ## Local mapping
@@ -111,3 +112,24 @@ Expected artifact shape:
   }
 }
 ```
+
+## Hosted MLflow staging deploy
+
+Hosted MLflow staging deploy lives in:
+
+- `.github/workflows/deploy-mlflow-staging.yml`
+
+Current shape:
+
+- manual `workflow_dispatch`
+- builds the hosted MLflow image from `deployments/gcp/mlflow/`
+- pushes `mlflow:<git-sha>` to Artifact Registry
+- applies Terraform with the resolved image digest
+- verifies the deployed service with an authenticated MLflow smoke script
+
+Bootstrap caveat:
+
+- the first apply for this capability is still manual
+- that initial apply grants the CI service account the Cloud Run deploy permissions it needs later
+
+After that bootstrap apply, the workflow is the normal staging deploy path for MLflow.

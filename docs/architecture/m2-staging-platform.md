@@ -75,6 +75,7 @@ Do not add public anonymous staging endpoints first and tighten them later unles
 
 `UP-17` should prove:
 
+- the hosted MLflow image is built from committed source and deployed by digest
 - MLflow revision is ready
 - authenticated request succeeds
 - MLflow can use Cloud SQL and GCS

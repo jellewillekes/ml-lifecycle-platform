@@ -118,7 +118,7 @@ make terraform-gcp-plan
 Apply when the plan looks correct:
 
 ```bash
-terraform -chdir=deployments/gcp/terraform apply
+make terraform-gcp-apply
 ```
 
 ## Outputs for later tickets

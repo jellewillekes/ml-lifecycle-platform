@@ -6,7 +6,7 @@ Last verified: 2026-03-10
 
 This repo is a local-first ML platform with MLflow as the tracking, registry, and release-control system.
 The local runtime is still the main operator path, but the first hosted GCP foundation layer and hosted image publication lane now exist.
-The Terraform root also defines the stateful staging prerequisites for hosted MLflow: private network wiring, Cloud SQL, and staging secret contracts.
+The Terraform root also defines the stateful staging prerequisites for hosted MLflow: private network wiring, Cloud SQL, staging secret contracts, and the Cloud Run service contract.
 
 Current lifecycle:
 
@@ -62,6 +62,7 @@ models:/<model_name>@prod
 - CI workflows for:
   - GCP auth verification
   - hosted image publication with immutable SHA tags and digest capture
+  - hosted MLflow staging deploy by digest with authenticated smoke verification
 
 ## Code layout
 
@@ -113,4 +114,4 @@ versions that do not yet have a manifest.
 - no warehouse integration
 - no distributed training
 - no multi-model serving platform
-- no hosted runtime deployed yet
+- no hosted serving runtime deployed yet

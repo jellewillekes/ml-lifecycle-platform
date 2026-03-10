@@ -29,6 +29,7 @@ variable "required_services" {
     "compute.googleapis.com",
     "iam.googleapis.com",
     "iamcredentials.googleapis.com",
+    "run.googleapis.com",
     "secretmanager.googleapis.com",
     "servicenetworking.googleapis.com",
     "sqladmin.googleapis.com",
@@ -89,4 +90,10 @@ variable "github_repository_id" {
     condition     = can(regex("^[0-9]+$", var.github_repository_id))
     error_message = "github_repository_id must contain only digits."
   }
+}
+
+variable "mlflow_image" {
+  description = "Hosted MLflow container image ref. Leave empty to bootstrap IAM and APIs before the first deploy workflow run."
+  type        = string
+  default     = ""
 }

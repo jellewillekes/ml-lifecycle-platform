@@ -15,6 +15,7 @@ Operator and architecture docs live in the handbook:
 - [`docs/runbooks/gcp-bootstrap.md`](docs/runbooks/gcp-bootstrap.md)
 - [`docs/runbooks/gcp-foundation.md`](docs/runbooks/gcp-foundation.md)
 - [`docs/runbooks/gcp-staging-infra.md`](docs/runbooks/gcp-staging-infra.md)
+- [`docs/runbooks/deploy-mlflow.md`](docs/runbooks/deploy-mlflow.md)
 - [`docs/architecture/m2-staging-platform.md`](docs/architecture/m2-staging-platform.md)
 - [`docs/reference/configuration.md`](docs/reference/configuration.md)
 - [`docs/reference/gcp-resources.md`](docs/reference/gcp-resources.md)
@@ -145,6 +146,7 @@ Infra:
 - `make terraform-gcp-fmt`
 - `make terraform-gcp-init`
 - `make terraform-gcp-plan`
+- `make terraform-gcp-apply`
 - `make terraform-gcp-validate`
 
 Registry and serving:
