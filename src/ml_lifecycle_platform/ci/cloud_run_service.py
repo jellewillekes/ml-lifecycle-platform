@@ -56,24 +56,39 @@ def _non_empty_string(value: Any, *, field_name: str) -> str:
     raise CloudRunServiceError(f"Cloud Run service payload is missing '{field_name}'.")
 
 
-def parse_cloud_run_service_contract(
-    payload: Mapping[str, Any], *, expected_service_name: str | None = None
-) -> CloudRunServiceContract:
-    metadata = _mapping(payload.get("metadata"), field_name="metadata")
-    status = _mapping(payload.get("status"), field_name="status")
+def _first_container(payload: Mapping[str, Any]) -> Mapping[str, Any]:
     spec = _mapping(payload.get("spec"), field_name="spec")
     template = _mapping(spec.get("template"), field_name="spec.template")
+
     containers = template.get("containers")
+    field_name = "spec.template.containers[0]"
+    if not isinstance(containers, list) or not containers:
+        template_spec = template.get("spec")
+        if isinstance(template_spec, Mapping):
+            containers = template_spec.get("containers")
+            field_name = "spec.template.spec.containers[0]"
+
     if not isinstance(containers, list) or not containers:
         raise CloudRunServiceError(
-            "Cloud Run service payload is missing 'spec.template.containers[0]'."
+            "Cloud Run service payload is missing "
+            "'spec.template.containers[0]' or 'spec.template.spec.containers[0]'."
         )
 
     first_container = containers[0]
     if not isinstance(first_container, Mapping):
         raise CloudRunServiceError(
-            "Cloud Run service payload is missing 'spec.template.containers[0]'."
+            f"Cloud Run service payload is missing '{field_name}'."
         )
+
+    return first_container
+
+
+def parse_cloud_run_service_contract(
+    payload: Mapping[str, Any], *, expected_service_name: str | None = None
+) -> CloudRunServiceContract:
+    metadata = _mapping(payload.get("metadata"), field_name="metadata")
+    status = _mapping(payload.get("status"), field_name="status")
+    first_container = _first_container(payload)
 
     service_name = _non_empty_string(metadata.get("name"), field_name="metadata.name")
     if expected_service_name is not None and service_name != expected_service_name:

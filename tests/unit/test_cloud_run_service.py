@@ -55,6 +55,31 @@ def test_parse_cloud_run_service_contract_returns_expected_values() -> None:
     assert contract.service_image.endswith("sha256:abc")
 
 
+def test_parse_cloud_run_service_contract_supports_nested_template_spec() -> None:
+    payload = {
+        "metadata": {"name": "mlp-serving-staging"},
+        "status": {"url": "https://mlp-serving-staging.run.app"},
+        "spec": {
+            "template": {
+                "spec": {
+                    "containers": [
+                        {
+                            "image": "europe-west1-docker.pkg.dev/project/mlp-images/serving@sha256:def"
+                        }
+                    ]
+                }
+            }
+        },
+    }
+
+    contract = parse_cloud_run_service_contract(
+        payload,
+        expected_service_name="mlp-serving-staging",
+    )
+
+    assert contract.service_image.endswith("sha256:def")
+
+
 def test_parse_cloud_run_service_contract_rejects_missing_status_url() -> None:
     payload = _service_payload(service_url="")
 
