@@ -131,9 +131,20 @@ jobs:
           terraform -chdir=deployments/gcp/terraform output -json serving_service > "${SERVING_SERVICE_JSON}"
 
           mapfile -t service_values < <(
-            python3 -c 'import json, sys; value = json.load(open(sys.argv[1], encoding="utf-8")); \
-if value is None: raise SystemExit("serving_service output is null; deploy hosted serving before running the baseline."); \
-print(value["name"]); print(value["uri"]); print(value["image"])' "${SERVING_SERVICE_JSON}"
+            python3 - "${SERVING_SERVICE_JSON}" <<'PY'
+            import json
+            import sys
+
+            value = json.load(open(sys.argv[1], encoding="utf-8"))
+            if value is None:
+                raise SystemExit(
+                    "serving_service output is null; deploy hosted serving before running the baseline."
+                )
+
+            print(value["name"])
+            print(value["uri"])
+            print(value["image"])
+            PY
           )
 
           echo "service_name=${service_values[0]}" >> "${GITHUB_OUTPUT}"
