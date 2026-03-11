@@ -66,7 +66,6 @@ def _configure_logging(settings: Settings) -> None:
 async def lifespan(_app: FastAPI) -> AsyncGenerator[None, None]:
     settings = get_settings()
     _configure_logging(settings)
-    configure_mlflow()
     logger.info("serving started")
     yield
     logger.info("serving stopped")
