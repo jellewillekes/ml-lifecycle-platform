@@ -97,3 +97,9 @@ variable "mlflow_image" {
   type        = string
   default     = ""
 }
+
+variable "serving_image" {
+  description = "Hosted serving container image ref. Leave empty until the first serving deploy workflow run."
+  type        = string
+  default     = ""
+}

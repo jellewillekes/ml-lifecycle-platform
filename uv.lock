@@ -1244,6 +1244,7 @@ source = { editable = "." }
 dependencies = [
     { name = "boto3" },
     { name = "fastapi" },
+    { name = "google-auth" },
     { name = "joblib" },
     { name = "matplotlib" },
     { name = "mlflow" },
@@ -1274,6 +1275,7 @@ dev = [
 requires-dist = [
     { name = "boto3", specifier = ">=1.42.34" },
     { name = "fastapi", specifier = ">=0.128.0" },
+    { name = "google-auth", specifier = ">=2.48.0" },
     { name = "joblib", specifier = ">=1.5.3" },
     { name = "matplotlib", specifier = ">=3.10.8" },
     { name = "mlflow", specifier = ">=2.13,<3.0" },

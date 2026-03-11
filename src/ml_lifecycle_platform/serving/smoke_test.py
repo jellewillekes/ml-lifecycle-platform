@@ -15,7 +15,14 @@ except Exception:  # pragma: no cover
     mlflow = None  # type: ignore[assignment]
 
 SERVE_URL = os.getenv("SERVE_URL", "http://localhost:8000")
+SERVE_BEARER_TOKEN = os.getenv("SERVE_BEARER_TOKEN", "").strip()
 MODEL_NAME = os.getenv("MODEL_NAME", "").strip()
+
+
+def _request_headers() -> dict[str, str]:
+    if not SERVE_BEARER_TOKEN:
+        return {}
+    return {"Authorization": f"Bearer {SERVE_BEARER_TOKEN}"}
 
 
 def _wait_for_service() -> None:
@@ -25,7 +32,9 @@ def _wait_for_service() -> None:
 
     for _ in range(30):
         try:
-            r = requests.get(f"{SERVE_URL}/health", timeout=2)
+            r = requests.get(
+                f"{SERVE_URL}/health", timeout=2, headers=_request_headers()
+            )
             last_status = r.status_code
             last_body = r.text
             if r.status_code == 200:
@@ -134,14 +143,18 @@ def _assert_schema_metadata_response(body: dict[str, Any]) -> None:
 
 
 def _check_metadata_endpoints() -> None:
-    model_resp = requests.get(f"{SERVE_URL}/metadata/model", timeout=10)
+    model_resp = requests.get(
+        f"{SERVE_URL}/metadata/model", timeout=10, headers=_request_headers()
+    )
     if model_resp.status_code >= 400:
         raise RuntimeError(
             f"[smoke] /metadata/model failed: {model_resp.status_code} detail={model_resp.text!r}"
         )
     _assert_model_metadata_response(model_resp.json())
 
-    schema_resp = requests.get(f"{SERVE_URL}/metadata/schema", timeout=10)
+    schema_resp = requests.get(
+        f"{SERVE_URL}/metadata/schema", timeout=10, headers=_request_headers()
+    )
     if schema_resp.status_code >= 400:
         raise RuntimeError(
             f"[smoke] /metadata/schema failed: {schema_resp.status_code} detail={schema_resp.text!r}"
@@ -150,7 +163,12 @@ def _check_metadata_endpoints() -> None:
 
 
 def _call(mode: str, payload: dict[str, Any], *, required: bool) -> None:
-    r = requests.post(f"{SERVE_URL}/predict?mode={mode}", json=payload, timeout=15)
+    r = requests.post(
+        f"{SERVE_URL}/predict?mode={mode}",
+        json=payload,
+        timeout=15,
+        headers=_request_headers(),
+    )
 
     # Many deployments only guarantee prod.
     if r.status_code == 503 and not required:

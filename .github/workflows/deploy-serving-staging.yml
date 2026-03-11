@@ -1,13 +1,18 @@
-name: Deploy MLflow Staging
+name: Deploy Serving Staging
 
 on:
-  workflow_dispatch: {}
+  workflow_dispatch:
+    inputs:
+      git_sha:
+        description: Immutable Git SHA tag previously published by the image workflow.
+        required: true
+        type: string
 
 permissions:
   contents: read
 
 concurrency:
-  group: deploy-mlflow-staging-${{ github.ref }}
+  group: deploy-serving-staging-${{ github.ref }}
   cancel-in-progress: true
 
 env:
@@ -94,78 +99,38 @@ jobs:
       - id: context
         name: Resolve deploy context
         env:
-          GIT_SHA: ${{ github.sha }}
+          GIT_SHA: ${{ github.event.inputs.git_sha }}
         shell: bash
         run: |
           set -euo pipefail
 
           repository="${GCP_REGION}-docker.pkg.dev/${GCP_PROJECT_ID}/${ARTIFACT_REGISTRY_REPOSITORY}"
-          mlflow_ref="${repository}/mlflow:${GIT_SHA}"
+          serving_ref="${repository}/serving:${GIT_SHA}"
 
           echo "git_sha=${GIT_SHA}" >> "${GITHUB_OUTPUT}"
           echo "repository=${repository}" >> "${GITHUB_OUTPUT}"
-          echo "mlflow_ref=${mlflow_ref}" >> "${GITHUB_OUTPUT}"
-
-      - name: Build hosted MLflow image
-        env:
-          GIT_SHA: ${{ steps.context.outputs.git_sha }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          docker build \
-            --file deployments/gcp/mlflow/Dockerfile \
-            --tag "mlp-mlflow:${GIT_SHA}" \
-            deployments/gcp/mlflow
-
-      - name: Smoke test hosted MLflow image
-        env:
-          GIT_SHA: ${{ steps.context.outputs.git_sha }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          docker run --rm --entrypoint mlflow "mlp-mlflow:${GIT_SHA}" --version
-
-      - name: Log in to Artifact Registry
-        env:
-          REGISTRY_HOST: ${{ env.GCP_REGION }}-docker.pkg.dev
-        shell: bash
-        run: |
-          set -euo pipefail
-          gcloud auth print-access-token | docker login \
-            --username oauth2accesstoken \
-            --password-stdin \
-            "https://${REGISTRY_HOST}"
-
-      - name: Push hosted MLflow image
-        env:
-          GIT_SHA: ${{ steps.context.outputs.git_sha }}
-          MLFLOW_REF: ${{ steps.context.outputs.mlflow_ref }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          docker tag "mlp-mlflow:${GIT_SHA}" "${MLFLOW_REF}"
-          docker push "${MLFLOW_REF}"
+          echo "serving_ref=${serving_ref}" >> "${GITHUB_OUTPUT}"
 
       - id: capture
-        name: Capture hosted MLflow image digest
+        name: Resolve serving image digest
         env:
-          MLFLOW_REF: ${{ steps.context.outputs.mlflow_ref }}
+          SERVING_REF: ${{ steps.context.outputs.serving_ref }}
         shell: bash
         run: |
           set -euo pipefail
 
-          mlflow_digest="$(
-            gcloud artifacts docker images describe "${MLFLOW_REF}" \
+          serving_digest="$(
+            gcloud artifacts docker images describe "${SERVING_REF}" \
               --format='value(image_summary.digest)'
           )"
 
-          if [[ -z "${mlflow_digest}" ]]; then
-            echo "Failed to resolve MLflow image digest from Artifact Registry."
+          if [[ -z "${serving_digest}" ]]; then
+            echo "Failed to resolve serving image digest from Artifact Registry."
             exit 1
           fi
 
-          echo "mlflow_digest=${mlflow_digest}" >> "${GITHUB_OUTPUT}"
-          echo "mlflow_image=${MLFLOW_REF%@*}@${mlflow_digest}" >> "${GITHUB_OUTPUT}"
+          echo "serving_digest=${serving_digest}" >> "${GITHUB_OUTPUT}"
+          echo "serving_image=${SERVING_REF%@*}@${serving_digest}" >> "${GITHUB_OUTPUT}"
 
       - name: Terraform init
         shell: bash
@@ -173,16 +138,8 @@ jobs:
           set -euo pipefail
           make terraform-gcp-init
 
-      - name: Terraform apply hosted MLflow staging
-        env:
-          TF_VAR_mlflow_image: ${{ steps.capture.outputs.mlflow_image }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          terraform -chdir=deployments/gcp/terraform apply -auto-approve -input=false
-
-      - id: service
-        name: Resolve hosted MLflow service URL
+      - id: mlflow
+        name: Resolve current hosted MLflow image
         shell: bash
         run: |
           set -euo pipefail
@@ -190,7 +147,29 @@ jobs:
           export MLFLOW_SERVICE_JSON="${RUNNER_TEMP}/mlflow-service.json"
           terraform -chdir=deployments/gcp/terraform output -json mlflow_service > "${MLFLOW_SERVICE_JSON}"
 
-          service_url="$(python3 -c 'import json, sys; value = json.load(open(sys.argv[1], encoding="utf-8")); print(value["uri"] if value is not None else (_ for _ in ()).throw(SystemExit("mlflow_service output is null; deploy did not create the service.")))' "${MLFLOW_SERVICE_JSON}")"
+          mlflow_image="$(python3 -c 'import json, sys; value = json.load(open(sys.argv[1], encoding="utf-8")); print(value["image"] if value is not None else (_ for _ in ()).throw(SystemExit("mlflow_service output is null; deploy hosted MLflow before serving.")))' "${MLFLOW_SERVICE_JSON}")"
+
+          echo "mlflow_image=${mlflow_image}" >> "${GITHUB_OUTPUT}"
+
+      - name: Terraform apply hosted serving staging
+        env:
+          TF_VAR_mlflow_image: ${{ steps.mlflow.outputs.mlflow_image }}
+          TF_VAR_serving_image: ${{ steps.capture.outputs.serving_image }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          terraform -chdir=deployments/gcp/terraform apply -auto-approve -input=false
+
+      - id: service
+        name: Resolve hosted serving service URL
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          export SERVING_SERVICE_JSON="${RUNNER_TEMP}/serving-service.json"
+          terraform -chdir=deployments/gcp/terraform output -json serving_service > "${SERVING_SERVICE_JSON}"
+
+          service_url="$(python3 -c 'import json, sys; value = json.load(open(sys.argv[1], encoding="utf-8")); print(value["uri"] if value is not None else (_ for _ in ()).throw(SystemExit("serving_service output is null; deploy did not create the service.")))' "${SERVING_SERVICE_JSON}")"
 
           echo "service_url=${service_url}" >> "${GITHUB_OUTPUT}"
 
@@ -205,29 +184,27 @@ jobs:
           id_token_audience: ${{ steps.service.outputs.service_url }}
           id_token_include_email: true
 
-      - name: Verify hosted MLflow staging
+      - name: Verify hosted serving staging
         env:
-          MLFLOW_TRACKING_TOKEN: ${{ steps.token.outputs.id_token }}
-          TRACKING_URI: ${{ steps.service.outputs.service_url }}
-          EXPERIMENT_NAME: mlflow-staging-smoke-${{ github.run_id }}-${{ github.run_attempt }}
+          SERVE_URL: ${{ steps.service.outputs.service_url }}
+          SERVE_BEARER_TOKEN: ${{ steps.token.outputs.id_token }}
+          MODEL_NAME: ""
         shell: bash
         run: |
           set -euo pipefail
-          uv run python scripts/verify_mlflow_staging.py \
-            --tracking-uri "${TRACKING_URI}" \
-            --experiment-name "${EXPERIMENT_NAME}"
+          uv run python -m ml_lifecycle_platform.serving.smoke_test
 
       - name: Write workflow summary
         env:
-          MLFLOW_IMAGE: ${{ steps.capture.outputs.mlflow_image }}
+          SERVING_IMAGE: ${{ steps.capture.outputs.serving_image }}
           SERVICE_URL: ${{ steps.service.outputs.service_url }}
         shell: bash
         run: |
           set -euo pipefail
           {
-            echo "## Hosted MLflow staging"
+            echo "## Hosted serving staging"
             echo
-            echo "- Image: \`${MLFLOW_IMAGE}\`"
+            echo "- Image: \`${SERVING_IMAGE}\`"
             echo "- Service URL: \`${SERVICE_URL}\`"
-            echo "- Verification: metadata write + artifact write passed"
+            echo "- Verification: authenticated smoke test passed"
           } >> "${GITHUB_STEP_SUMMARY}"

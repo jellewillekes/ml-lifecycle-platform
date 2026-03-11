@@ -21,7 +21,8 @@ Managed now:
 - private service access for Cloud SQL
 - Cloud SQL for hosted MLflow metadata
 - active MLflow staging secrets
-- Cloud Run MLflow service contract and CI deploy IAM bindings
+- Cloud Run MLflow service and CI deploy IAM bindings
+- Cloud Run serving service and runtime-to-MLflow invoke IAM
 
 Not managed yet:
 
@@ -92,13 +93,43 @@ Current deploy-specific CI bindings:
 - `roles/serviceusage.serviceUsageAdmin`
 - `roles/iam.serviceAccountUser` on `mlp-runtime`
 
+Manual bootstrap IAM outside this Terraform root:
+
+- `roles/storage.objectAdmin` on `gs://fpl-tf-state-jelle`
+- `roles/storage.admin` on:
+  - `gs://fpl-project-jelle-mlp-artifacts`
+  - `gs://fpl-project-jelle-mlp-data`
+
+These bindings are required so `mlp-ci` can:
+
+- create the Terraform remote-state lock object
+- read and edit bucket IAM for the already-managed app buckets
+
 Current service-specific binding once deployed:
 
 - `roles/run.invoker` on `mlp-mlflow-staging`
+- `roles/run.invoker` on `mlp-serving-staging`
+- `roles/run.invoker` on `mlp-mlflow-staging` for `mlp-runtime`
 
-Not granted yet:
+## Current staging runtime inventory
 
-- Cloud Run deploy permissions
+| Resource | Name | Notes |
+| --- | --- | --- |
+| Cloud Run MLflow service | `mlp-mlflow-staging` | live, IAM-protected |
+| Cloud Run serving service | `mlp-serving-staging` | deploy contract in repo, staging deploy workflow present |
+| Cloud SQL instance | `mlp-mlflow-staging` | Postgres metadata backend for MLflow |
+| artifact bucket prefix | `gs://fpl-project-jelle-mlp-artifacts/mlflow/` | MLflow artifact root |
+| runtime service account | `mlp-runtime@fpl-project-jelle.iam.gserviceaccount.com` | used by hosted MLflow and serving |
+| CI service account | `mlp-ci@fpl-project-jelle.iam.gserviceaccount.com` | used by GitHub Actions via WIF |
+
+Bootstrap note:
+
+- the Cloud Run services are Terraform-managed here
+- some `mlp-ci` bucket IAM is intentionally still manual and out-of-band
+- that is a bootstrap limitation, not hidden behavior
+
+Still not granted:
+
 - scheduler invoker permissions
 - public ingress configuration
 
@@ -137,6 +168,13 @@ Most important current deploy-facing outputs:
 - `peering_cidr`
 
 ### `mlflow_service`
+
+- `name`
+- `uri`
+- `image`
+- `invoker_sa`
+
+### `serving_service`
 
 - `name`
 - `uri`

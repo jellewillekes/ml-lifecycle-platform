@@ -106,7 +106,7 @@ Do not encode model rollout into image tagging.
 
 ### Hosted runtime rollback
 
-Not deployed yet, but the contract is already fixed:
+The deploy contract is already fixed:
 
 - rollback by image digest, not tag
 - model rollback remains an MLflow alias operation

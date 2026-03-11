@@ -43,6 +43,42 @@ Managing the backend bucket from the same state that depends on that bucket crea
 - access to project `fpl-project-jelle`
 - access to bucket `gs://fpl-tf-state-jelle`
 
+## Manual bootstrap IAM for `mlp-ci`
+
+The Terraform backend bucket is external to this root, and the hosted app buckets are already managed resources inside the root.
+
+That creates one boring bootstrap rule:
+
+- `mlp-ci` cannot use Terraform to grant itself the bucket IAM it needs to run Terraform
+
+So these bindings must exist before GitHub Actions deploy workflows can apply this root:
+
+- `roles/storage.objectAdmin` on `gs://fpl-tf-state-jelle`
+- `roles/storage.admin` on `gs://fpl-project-jelle-mlp-artifacts`
+- `roles/storage.admin` on `gs://fpl-project-jelle-mlp-data`
+
+Member:
+
+- `serviceAccount:mlp-ci@fpl-project-jelle.iam.gserviceaccount.com`
+
+Apply them once with an operator identity:
+
+```bash
+gcloud storage buckets add-iam-policy-binding gs://fpl-tf-state-jelle \
+  --member=serviceAccount:mlp-ci@fpl-project-jelle.iam.gserviceaccount.com \
+  --role=roles/storage.objectAdmin
+
+gcloud storage buckets add-iam-policy-binding gs://fpl-project-jelle-mlp-artifacts \
+  --member=serviceAccount:mlp-ci@fpl-project-jelle.iam.gserviceaccount.com \
+  --role=roles/storage.admin
+
+gcloud storage buckets add-iam-policy-binding gs://fpl-project-jelle-mlp-data \
+  --member=serviceAccount:mlp-ci@fpl-project-jelle.iam.gserviceaccount.com \
+  --role=roles/storage.admin
+```
+
+This is intentionally documented as bootstrap state, not hidden as if the root were self-provisioning.
+
 Authenticate once on a new machine:
 
 ```bash
@@ -164,4 +200,5 @@ If `terraform init` fails on the backend:
 
 - confirm your ADC credentials are valid
 - confirm you can read `gs://fpl-tf-state-jelle`
+- confirm `mlp-ci` has `roles/storage.objectAdmin` on `gs://fpl-tf-state-jelle` before relying on GitHub Actions applies
 - confirm the bucket name is unchanged and globally unique

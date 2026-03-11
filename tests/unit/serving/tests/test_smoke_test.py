@@ -82,3 +82,17 @@ def test_assert_schema_metadata_response_accepts_valid_payload() -> None:
             ],
         }
     )
+
+
+def test_request_headers_are_empty_without_token(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(smoke_test, "SERVE_BEARER_TOKEN", "")
+
+    assert smoke_test._request_headers() == {}
+
+
+def test_request_headers_include_bearer_token(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(smoke_test, "SERVE_BEARER_TOKEN", "token-123")
+
+    assert smoke_test._request_headers() == {"Authorization": "Bearer token-123"}
