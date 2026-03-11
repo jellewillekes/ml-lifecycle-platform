@@ -175,18 +175,19 @@ jobs:
 
       - name: Mint identity token for Cloud Run
         id: token
-        env:
-          SERVICE_URL: ${{ steps.service.outputs.service_url }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          token="$(gcloud auth print-identity-token --audiences="${SERVICE_URL}")"
-          echo "token=${token}" >> "${GITHUB_OUTPUT}"
+        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3
+        with:
+          project_id: ${{ env.GCP_PROJECT_ID }}
+          workload_identity_provider: ${{ env.GCP_WIF_PROVIDER }}
+          service_account: ${{ env.GCP_CI_SERVICE_ACCOUNT }}
+          token_format: id_token
+          id_token_audience: ${{ steps.service.outputs.service_url }}
+          id_token_include_email: true
 
       - name: Verify hosted serving staging
         env:
           SERVE_URL: ${{ steps.service.outputs.service_url }}
-          SERVE_BEARER_TOKEN: ${{ steps.token.outputs.token }}
+          SERVE_BEARER_TOKEN: ${{ steps.token.outputs.id_token }}
           MODEL_NAME: ""
         shell: bash
         run: |
