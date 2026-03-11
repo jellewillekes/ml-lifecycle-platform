@@ -1,0 +1,259 @@
+name: Serving Staging Baseline
+
+on:
+  workflow_dispatch:
+    inputs:
+      git_sha:
+        description: Optional Git SHA label to attach to the baseline report.
+        required: false
+        type: string
+      duration:
+        description: Sustained-load duration for the light baseline scenario.
+        required: false
+        default: "5m"
+        type: string
+      rate:
+        description: Requests per second for the light sustained-load scenario.
+        required: false
+        default: "1"
+        type: string
+      realistic_iterations:
+        description: Iterations for the warmed realistic request scenario.
+        required: false
+        default: "25"
+        type: string
+      notes:
+        description: Optional operator notes to attach to the baseline report.
+        required: false
+        default: ""
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: serving-staging-baseline-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  GCP_PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
+  GCP_WIF_PROVIDER: ${{ vars.GCP_WIF_PROVIDER }}
+  GCP_CI_SERVICE_ACCOUNT: ${{ vars.GCP_CI_SERVICE_ACCOUNT }}
+  GCP_REGION: europe-west1
+
+jobs:
+  baseline:
+    name: Baseline
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          persist-credentials: false
+
+      - name: Validate required GitHub Actions variables
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          missing=()
+          for var_name in GCP_PROJECT_ID GCP_WIF_PROVIDER GCP_CI_SERVICE_ACCOUNT; do
+            if [[ -z "${!var_name:-}" ]]; then
+              missing+=("${var_name}")
+            fi
+          done
+
+          if (( ${#missing[@]} > 0 )); then
+            printf 'Missing required GitHub Actions variable(s): %s\n' "${missing[*]}"
+            echo "Expected values:"
+            echo "  GCP_PROJECT_ID <- terraform output project_id"
+            echo "  GCP_WIF_PROVIDER <- terraform output workload_identity_provider_name"
+            echo "  GCP_CI_SERVICE_ACCOUNT <- terraform output ci_service_account_email"
+            exit 1
+          fi
+
+      - id: auth
+        name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3
+        with:
+          create_credentials_file: true
+          project_id: ${{ env.GCP_PROJECT_ID }}
+          workload_identity_provider: ${{ env.GCP_WIF_PROVIDER }}
+          service_account: ${{ env.GCP_CI_SERVICE_ACCOUNT }}
+
+      - name: Set up gcloud
+        uses: google-github-actions/setup-gcloud@aa5489c8933f4cc7a4f7d45035b3b1440c9c10db # v3
+        with:
+          version: ">= 363.0.0"
+          project_id: ${{ env.GCP_PROJECT_ID }}
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd # v3.1.2
+        with:
+          terraform_version: 1.5.7
+
+      - name: Set up Python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6
+        with:
+          python-version: "3.11.7"
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@3259c6206f993105e3a61b142c2d97bf4b9ef83d # v7.1.0
+        with:
+          enable-cache: true
+          cache-dependency-glob: |
+            uv.lock
+            pyproject.toml
+
+      - name: Sync (locked)
+        shell: bash
+        run: |
+          set -euo pipefail
+          uv sync --frozen --group dev
+
+      - name: Terraform init
+        shell: bash
+        run: |
+          set -euo pipefail
+          make terraform-gcp-init
+
+      - id: service
+        name: Resolve hosted serving service contract
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          export SERVING_SERVICE_JSON="${RUNNER_TEMP}/serving-service.json"
+          terraform -chdir=deployments/gcp/terraform output -json serving_service > "${SERVING_SERVICE_JSON}"
+
+          mapfile -t service_values < <(
+            python3 -c 'import json, sys; value = json.load(open(sys.argv[1], encoding="utf-8")); \
+if value is None: raise SystemExit("serving_service output is null; deploy hosted serving before running the baseline."); \
+print(value["name"]); print(value["uri"]); print(value["image"])' "${SERVING_SERVICE_JSON}"
+          )
+
+          echo "service_name=${service_values[0]}" >> "${GITHUB_OUTPUT}"
+          echo "service_url=${service_values[1]}" >> "${GITHUB_OUTPUT}"
+          echo "service_image=${service_values[2]}" >> "${GITHUB_OUTPUT}"
+
+      - name: Mint identity token for Cloud Run
+        id: token
+        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3
+        with:
+          project_id: ${{ env.GCP_PROJECT_ID }}
+          workload_identity_provider: ${{ env.GCP_WIF_PROVIDER }}
+          service_account: ${{ env.GCP_CI_SERVICE_ACCOUNT }}
+          token_format: id_token
+          id_token_audience: ${{ steps.service.outputs.service_url }}
+          id_token_include_email: true
+
+      - name: Preflight hosted serving smoke
+        env:
+          SERVE_URL: ${{ steps.service.outputs.service_url }}
+          SERVE_BEARER_TOKEN: ${{ steps.token.outputs.id_token }}
+          MODEL_NAME: ""
+        shell: bash
+        run: |
+          set -euo pipefail
+          uv run python -m ml_lifecycle_platform.serving.smoke_test
+
+      - name: Write baseline context
+        env:
+          SERVICE_URL: ${{ steps.service.outputs.service_url }}
+          SERVICE_NAME: ${{ steps.service.outputs.service_name }}
+          SERVICE_IMAGE: ${{ steps.service.outputs.service_image }}
+          INPUT_GIT_SHA: ${{ inputs.git_sha }}
+          INPUT_DURATION: ${{ inputs.duration }}
+          INPUT_RATE: ${{ inputs.rate }}
+          INPUT_REALISTIC_ITERATIONS: ${{ inputs.realistic_iterations }}
+          INPUT_NOTES: ${{ inputs.notes }}
+          GITHUB_RUN_ID: ${{ github.run_id }}
+          GITHUB_RUN_ATTEMPT: ${{ github.run_attempt }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts/perf/serving-staging
+          uv run python scripts/write_serving_staging_baseline_context.py \
+            --output-path artifacts/perf/serving-staging/baseline-context.json \
+            --service-url "${SERVICE_URL}" \
+            --service-name "${SERVICE_NAME}" \
+            --service-image "${SERVICE_IMAGE}" \
+            --duration "${INPUT_DURATION}" \
+            --rate "${INPUT_RATE}" \
+            --realistic-iterations "${INPUT_REALISTIC_ITERATIONS}" \
+            --git-sha "${INPUT_GIT_SHA}" \
+            --notes "${INPUT_NOTES}" \
+            --workflow-run-id "${GITHUB_RUN_ID}" \
+            --workflow-run-attempt "${GITHUB_RUN_ATTEMPT}"
+
+      - id: k6
+        name: Run k6 staging baseline
+        continue-on-error: true
+        env:
+          SERVE_URL: ${{ steps.service.outputs.service_url }}
+          SERVE_BEARER_TOKEN: ${{ steps.token.outputs.id_token }}
+          BASELINE_DURATION: ${{ inputs.duration }}
+          BASELINE_RATE: ${{ inputs.rate }}
+          REALISTIC_ITERATIONS: ${{ inputs.realistic_iterations }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts/perf/serving-staging
+          docker run --rm \
+            -e SERVE_URL \
+            -e SERVE_BEARER_TOKEN \
+            -e BASELINE_DURATION \
+            -e BASELINE_RATE \
+            -e REALISTIC_ITERATIONS \
+            -v "${PWD}:/work" \
+            -w /work/perf/k6 \
+            grafana/k6:0.49.0 run \
+            --summary-export /work/artifacts/perf/serving-staging/k6-summary.json \
+            serving_staging_baseline.js \
+            | tee /work/artifacts/perf/serving-staging/k6-output.txt
+
+      - name: Verify baseline artifacts exist
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s artifacts/perf/serving-staging/baseline-context.json
+          test -s artifacts/perf/serving-staging/k6-summary.json
+          test -s artifacts/perf/serving-staging/k6-output.txt
+
+      - name: Render markdown baseline report
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          uv run python scripts/render_serving_staging_baseline_report.py \
+            --summary-json artifacts/perf/serving-staging/k6-summary.json \
+            --context-json artifacts/perf/serving-staging/baseline-context.json \
+            --output-path artifacts/perf/serving-staging/k6-summary.md
+
+      - name: Upload baseline artifacts
+        if: always()
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
+        with:
+          name: serving-staging-baseline-${{ github.run_id }}
+          path: artifacts/perf/serving-staging
+          if-no-files-found: error
+
+      - name: Write workflow summary
+        if: always()
+        env:
+          K6_OUTCOME: ${{ steps.k6.outcome }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat artifacts/perf/serving-staging/k6-summary.md >> "${GITHUB_STEP_SUMMARY}"
+          if [[ "${K6_OUTCOME}" == "failure" ]]; then
+            {
+              echo
+              echo "> Advisory note: k6 reported a threshold breach or runtime failure. Review the uploaded artifacts before treating this run as the active baseline."
+            } >> "${GITHUB_STEP_SUMMARY}"
+          fi

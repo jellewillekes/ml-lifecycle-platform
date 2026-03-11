@@ -137,6 +137,8 @@ curl -fsS -H "Authorization: Bearer ${TOKEN}" "${SERVICE_URL}/metadata/schema"
 
 If you need to verify `/predict`, use the workflow smoke path instead of ad hoc requests.
 
+If you need a staged performance reference, run the `Serving Staging Baseline` workflow described in [`serving-staging-baseline.md`](./serving-staging-baseline.md).
+
 ## Failure modes
 
 | Symptom | Likely cause | Fix |
