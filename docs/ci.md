@@ -127,6 +127,7 @@ Current shape:
 - pushes `mlflow:<git-sha>` to Artifact Registry
 - applies Terraform with the resolved image digest
 - verifies the deployed service with an authenticated MLflow smoke script
+- mints the Cloud Run verification token with `google-github-actions/auth`
 
 Bootstrap caveat:
 
@@ -134,6 +135,12 @@ Bootstrap caveat:
 - that initial apply grants the CI service account the Cloud Run deploy permissions it needs later
 
 After that bootstrap apply, the workflow is the normal staging deploy path for MLflow.
+
+Operational notes:
+
+- `terraform output -json <name>` returns the raw output value for a named output
+- the workflow parses that raw JSON directly
+- keep the shell parsing simple; the earlier heredoc-based version was fragile under GitHub Actions
 
 ## Hosted serving staging deploy
 
@@ -149,6 +156,7 @@ Current shape:
 - preserves the current hosted MLflow image input when applying the shared Terraform root
 - applies Terraform with the resolved serving image digest
 - verifies the deployed service with authenticated smoke checks
+- mints the Cloud Run verification token with `google-github-actions/auth`
 
 Serving smoke covers:
 
@@ -161,3 +169,17 @@ Important precondition:
 
 - hosted MLflow staging must already contain the active model with a `prod` alias
 - image deploy and model release stay separate
+
+## Deploy workflow troubleshooting
+
+Common staged deploy failures:
+
+- Terraform lock failure on `gs://fpl-tf-state-jelle`
+  - cause: missing state bucket bootstrap IAM for `mlp-ci`
+- bucket IAM policy read failure on app buckets
+  - cause: missing `roles/storage.admin` for `mlp-ci` on the artifacts or data bucket
+- `KeyError: 'value'` while reading Terraform output
+  - cause: wrong assumption about the shape of `terraform output -json <name>`
+- `Invalid account type for --audiences`
+  - cause: trying to use `gcloud auth print-identity-token --audiences` under WIF
+  - fix: use `google-github-actions/auth` with `token_format: id_token`

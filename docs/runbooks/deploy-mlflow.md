@@ -1,6 +1,6 @@
 # Deploy MLflow Staging
 
-Last verified: 2026-03-10
+Last verified: 2026-03-11
 
 This runbook covers the hosted MLflow staging deploy path added in `UP-17`.
 
@@ -40,15 +40,14 @@ Runtime wiring:
 - artifact destination: `gs://fpl-project-jelle-mlp-artifacts/mlflow/`
 - runtime service account: `mlp-runtime@fpl-project-jelle.iam.gserviceaccount.com`
 
-## Important bootstrapping rule
+## Bootstrap prerequisites
 
-The deploy workflow uses the CI service account through GitHub OIDC.
+The deploy workflow uses the CI service account through GitHub OIDC + Workload Identity Federation.
 
-That service account cannot grant itself new deploy permissions from nothing.
-So the first apply for this PR still has a manual bootstrap step:
+Two things must already exist before the workflow can work reliably:
 
-1. apply the Terraform root once with local operator credentials so the new CI deploy IAM bindings and `run.googleapis.com` exist
-2. after that, use the `Deploy MLflow Staging` workflow for normal image build, deploy, and smoke verification
+1. the Terraform root must have been applied once with operator credentials so the Cloud Run API and CI deploy IAM bindings exist
+2. `mlp-ci` must have manual bucket IAM outside this Terraform root
 
 Bootstrap apply:
 
@@ -57,19 +56,18 @@ make terraform-gcp-init
 make terraform-gcp-apply
 ```
 
-That first apply can run with `mlflow_image = ""`. It enables the API and grants the CI service account the deploy permissions it needs later.
-
-One more bootstrap prerequisite exists outside this Terraform root:
-
-- `mlp-ci` must already have bucket IAM on the Terraform backend bucket and the hosted app buckets
-
 Required manual grants:
 
 - `roles/storage.objectAdmin` on `gs://fpl-tf-state-jelle`
 - `roles/storage.admin` on `gs://fpl-project-jelle-mlp-artifacts`
 - `roles/storage.admin` on `gs://fpl-project-jelle-mlp-data`
 
-Without those bindings, the workflow fails before deploy when Terraform tries to lock state or read bucket IAM.
+Why these are manual:
+
+- the backend state bucket is not owned by this Terraform root
+- Terraform cannot use `mlp-ci` to grant `mlp-ci` the bucket IAM it already needs to run Terraform
+
+After that bootstrap apply, `Deploy MLflow Staging` is the normal deploy path.
 
 ## Normal deploy path
 
@@ -86,6 +84,12 @@ What it does:
 5. apply Terraform with `TF_VAR_mlflow_image=<ref@sha256:...>`
 6. mint an identity token for the Cloud Run URL
 7. verify authenticated MLflow metadata and artifact writes
+
+Important auth note:
+
+- the workflow uses `google-github-actions/auth` to mint the Cloud Run ID token
+- do not use `gcloud auth print-identity-token --audiences` here
+- that fails under this WIF setup
 
 ## Runtime env contract
 
@@ -118,7 +122,7 @@ The smoke path proves three things:
 
 The workflow uses:
 
-- `gcloud auth print-identity-token`
+- `google-github-actions/auth`
 - `MLFLOW_TRACKING_TOKEN`
 - `scripts/verify_mlflow_staging.py`
 
@@ -138,9 +142,9 @@ To test the root path manually:
 ```bash
 SERVICE_URL="$(
   terraform -chdir=deployments/gcp/terraform output -json mlflow_service \
-    | python3 -c 'import json,sys; print(json.load(sys.stdin)["value"]["uri"])'
+    | python3 -c 'import json,sys; print(json.load(sys.stdin)["uri"])'
 )"
-TOKEN="$(gcloud auth print-identity-token --audiences="${SERVICE_URL}")"
+TOKEN="$(gcloud auth print-identity-token)"
 curl -fsS -H "Authorization: Bearer ${TOKEN}" "${SERVICE_URL}/"
 ```
 
@@ -148,17 +152,20 @@ If you need a richer check, rerun the workflow smoke step instead of ad hoc shel
 
 ## Failure modes
 
-If the service deploys but smoke fails:
+| Symptom | Likely cause | Fix |
+| --- | --- | --- |
+| `storage.objects.create` denied on `.tflock` | `mlp-ci` missing state bucket access | grant `roles/storage.objectAdmin` on `gs://fpl-tf-state-jelle` |
+| `storage.buckets.getIamPolicy` denied on app bucket | `mlp-ci` missing app bucket IAM admin | grant `roles/storage.admin` on the artifacts and data buckets |
+| `unexpected EOF while looking for matching ')'` | broken heredoc shell in workflow | keep Terraform output parsing as simple `python3 -c` commands |
+| `KeyError: 'value'` while reading Terraform output | wrong assumption about `terraform output -json <name>` | parse the raw JSON object, not a nested `value` field |
+| `Invalid account type for --audiences` | wrong token minting path under WIF | mint the ID token with `google-github-actions/auth` |
+| MLflow deploy succeeds but smoke fails | runtime cannot reach Cloud SQL or GCS | check Cloud Run revision logs, secret access, network wiring, and artifact proxying |
 
-- check Cloud Run revision logs first
-- check the service can reach Cloud SQL private IP
-- check the runtime service account still has bucket and secret access
-- check the service is running the digest the workflow just pushed
+## Expected success state
 
-Common root causes:
+After a good deploy you should see:
 
-- `run.googleapis.com` not enabled yet
-- CI service account missing `run.admin` or `iam.serviceAccountUser`
-- bad Cloud SQL private IP or network wiring
-- hosted MLflow image missing `google-cloud-storage`
-- artifact proxying not enabled
+- workflow summary showing image digest, service URL, and successful verification
+- Terraform output `mlflow_service.uri`
+- Cloud Run service `mlp-mlflow-staging`
+- authenticated smoke passed for metadata write and artifact write

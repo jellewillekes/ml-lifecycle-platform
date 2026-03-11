@@ -1,6 +1,6 @@
 # Deploy Serving Staging
 
-Last verified: 2026-03-10
+Last verified: 2026-03-11
 
 This runbook covers the hosted serving staging deploy path added in `UP-18`.
 
@@ -53,6 +53,9 @@ Do not hide that inside serving deploy.
 
 If staging MLflow does not have a `prod` alias yet, `/predict` fails and the deploy workflow should fail.
 
+Serving also depends on hosted MLflow already being live.
+If `mlflow_service` is still null in Terraform output, fix MLflow first and rerun serving later.
+
 ## Normal deploy path
 
 Run the GitHub Actions workflow:
@@ -80,6 +83,12 @@ What it does:
 
 The workflow preserves the current MLflow image input on apply.
 That avoids accidental MLflow removal when serving is deployed from the shared Terraform root.
+
+Important auth note:
+
+- the workflow mints the Cloud Run ID token with `google-github-actions/auth`
+- do not use `gcloud auth print-identity-token --audiences` here
+- that failed under the repo's WIF-based deploy path
 
 ## Runtime env contract
 
@@ -117,9 +126,9 @@ To call the service manually:
 ```bash
 SERVICE_URL="$(
   terraform -chdir=deployments/gcp/terraform output -json serving_service \
-    | python3 -c 'import json,sys; print(json.load(sys.stdin)["value"]["uri"])'
+    | python3 -c 'import json,sys; print(json.load(sys.stdin)["uri"])'
 )"
-TOKEN="$(gcloud auth print-identity-token --audiences="${SERVICE_URL}")"
+TOKEN="$(gcloud auth print-identity-token)"
 
 curl -fsS -H "Authorization: Bearer ${TOKEN}" "${SERVICE_URL}/health"
 curl -fsS -H "Authorization: Bearer ${TOKEN}" "${SERVICE_URL}/metadata/model"
@@ -130,18 +139,20 @@ If you need to verify `/predict`, use the workflow smoke path instead of ad hoc 
 
 ## Failure modes
 
-If the service deploys but smoke fails:
+| Symptom | Likely cause | Fix |
+| --- | --- | --- |
+| `mlflow_service output is null` | hosted MLflow not deployed yet | rerun `Deploy MLflow Staging` first |
+| serving apply updates MLflow unexpectedly | shared Terraform root missing current MLflow image input | keep resolving `mlflow_service.image` before apply |
+| `/health` works but `/predict` fails | no `prod` alias in staged MLflow | register the model and assign `prod` before rerunning |
+| metadata endpoints work but model loading fails | serving cannot call hosted MLflow | check `MLFLOW_CLOUD_RUN_AUDIENCE` and `mlp-runtime` `run.invoker` on `mlp-mlflow-staging` |
+| deploy workflow cannot resolve serving digest | image was not published for that SHA | rerun `Publish Images` or use the correct `git_sha` |
+| response schema or prediction payload fails | model spec drift | check `MODEL_NAME` and `MLP_MODEL_SPEC_PATH` against the registered model |
 
-- check Cloud Run revision logs first
-- check `mlp-runtime` still has `run.invoker` on `mlp-mlflow-staging`
-- check serving env vars point at the hosted MLflow URL, not local defaults
-- check the staged model really has a `prod` alias
-- check `MODEL_NAME` and `MLP_MODEL_SPEC_PATH` still match
+## Expected success state
 
-Common root causes:
+After a good deploy you should see:
 
-- hosted MLflow not deployed yet
-- hosted MLflow missing `prod` alias for the configured model
-- serving image digest does not exist in Artifact Registry
-- wrong Cloud Run audience token on MLflow requests
-- model spec drift between committed config and the staged model
+- workflow summary showing the serving image digest and service URL
+- Terraform output `serving_service.uri`
+- Cloud Run service `mlp-serving-staging`
+- authenticated smoke passed for `/health`, `/metadata/model`, `/metadata/schema`, and `/predict`
