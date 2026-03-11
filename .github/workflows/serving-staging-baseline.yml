@@ -119,7 +119,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          make terraform-gcp-init
+          bash scripts/retry_terraform_gcp_init.sh
 
       - id: service
         name: Resolve hosted serving service contract
