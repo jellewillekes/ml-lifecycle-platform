@@ -23,10 +23,10 @@ Managed now:
 - active MLflow staging secrets
 - Cloud Run MLflow service and CI deploy IAM bindings
 - Cloud Run serving service and runtime-to-MLflow invoke IAM
+- Cloud Run jobs for hosted platform actions
 
 Not managed yet:
 
-- Cloud Run jobs
 - ALB or custom domain
 - Cloud Scheduler
 
@@ -117,6 +117,11 @@ Current service-specific binding once deployed:
 | --- | --- | --- |
 | Cloud Run MLflow service | `mlp-mlflow-staging` | live, IAM-protected |
 | Cloud Run serving service | `mlp-serving-staging` | deploy contract in repo, staging deploy workflow present |
+| Cloud Run job | `mlp-maintenance-staging` | deployed by `UP-21`; safe hosted control-plane verification |
+| Cloud Run job | `mlp-reproduce-staging` | deployed by `UP-21`; read-heavy reproduce path for `prod` |
+| Cloud Run job | `mlp-promote-staging` | deployed by `UP-21`; release action, first validation should use `--dry-run` |
+| Cloud Run job | `mlp-rollback-staging` | deployed by `UP-21`; release action, first validation should use `--dry-run` |
+| Cloud Run job | `mlp-pipeline-staging` | deployed by `UP-21`; hosted pipeline path, may create candidate state |
 | Cloud SQL instance | `mlp-mlflow-staging` | Postgres metadata backend for MLflow |
 | artifact bucket prefix | `gs://fpl-project-jelle-mlp-artifacts/mlflow/` | MLflow artifact root |
 | runtime service account | `mlp-runtime@fpl-project-jelle.iam.gserviceaccount.com` | used by hosted MLflow and serving |
@@ -180,6 +185,17 @@ Most important current deploy-facing outputs:
 - `uri`
 - `image`
 - `invoker_sa`
+
+### `platform_jobs`
+
+Per-job contract fields:
+
+- `name`
+- `image`
+- `command`
+- `args`
+- `mutates_model_state`
+- `safe_validation_args`
 
 ## Operator checks
 

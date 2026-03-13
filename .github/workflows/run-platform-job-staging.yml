@@ -1,0 +1,126 @@
+name: Run Platform Job Staging
+
+on:
+  workflow_dispatch:
+    inputs:
+      job_name:
+        description: Deployed Cloud Run job to execute in staging.
+        required: true
+        type: choice
+        options:
+          - maintenance
+          - reproduce
+          - promote
+          - rollback
+          - pipeline
+      args_csv:
+        description: Optional comma-separated argument override. Leave empty to use the deployed job defaults.
+        required: false
+        default: ""
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: run-platform-job-staging-${{ github.ref }}-${{ inputs.job_name }}
+  cancel-in-progress: false
+
+env:
+  GCP_PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
+  GCP_WIF_PROVIDER: ${{ vars.GCP_WIF_PROVIDER }}
+  GCP_CI_SERVICE_ACCOUNT: ${{ vars.GCP_CI_SERVICE_ACCOUNT }}
+  GCP_REGION: europe-west1
+
+jobs:
+  run:
+    name: Run
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          persist-credentials: false
+
+      - name: Validate required GitHub Actions variables
+        shell: bash
+        run: |
+          set -euo pipefail
+          missing=()
+          for var_name in GCP_PROJECT_ID GCP_WIF_PROVIDER GCP_CI_SERVICE_ACCOUNT; do
+            if [[ -z "${!var_name:-}" ]]; then
+              missing+=("${var_name}")
+            fi
+          done
+          if (( ${#missing[@]} > 0 )); then
+            printf 'Missing required GitHub Actions variable(s): %s\n' "${missing[*]}"
+            exit 1
+          fi
+
+      - id: auth
+        name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3
+        with:
+          create_credentials_file: true
+          project_id: ${{ env.GCP_PROJECT_ID }}
+          workload_identity_provider: ${{ env.GCP_WIF_PROVIDER }}
+          service_account: ${{ env.GCP_CI_SERVICE_ACCOUNT }}
+
+      - name: Set up gcloud
+        uses: google-github-actions/setup-gcloud@aa5489c8933f4cc7a4f7d45035b3b1440c9c10db # v3
+        with:
+          version: ">= 363.0.0"
+          project_id: ${{ env.GCP_PROJECT_ID }}
+
+      - id: context
+        name: Resolve job execution target
+        env:
+          JOB_NAME_INPUT: ${{ inputs.job_name }}
+          JOB_ARGS_CSV: ${{ inputs.args_csv }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          job_resource="mlp-${JOB_NAME_INPUT}-staging"
+          echo "job_resource=${job_resource}" >> "${GITHUB_OUTPUT}"
+          echo "job_args_csv=${JOB_ARGS_CSV}" >> "${GITHUB_OUTPUT}"
+
+      - name: Execute Cloud Run job
+        env:
+          JOB_RESOURCE: ${{ steps.context.outputs.job_resource }}
+          JOB_ARGS_CSV: ${{ steps.context.outputs.job_args_csv }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          execute_args=(
+            run jobs execute "${JOB_RESOURCE}"
+            --region "${GCP_REGION}"
+            --project "${GCP_PROJECT_ID}"
+            --wait
+            --format=json
+          )
+          if [[ -n "${JOB_ARGS_CSV}" ]]; then
+            execute_args+=(--args "${JOB_ARGS_CSV}")
+          fi
+          gcloud "${execute_args[@]}" | tee "${RUNNER_TEMP}/job-execution.json"
+
+      - name: Write workflow summary
+        env:
+          JOB_NAME_INPUT: ${{ inputs.job_name }}
+          JOB_ARGS_CSV: ${{ inputs.args_csv }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          {
+            echo "## Hosted platform job execution"
+            echo
+            echo "- Job: \`mlp-${JOB_NAME_INPUT}-staging\`"
+            if [[ -n "${JOB_ARGS_CSV}" ]]; then
+              echo "- Arg override: \`${JOB_ARGS_CSV}\`"
+            else
+              echo "- Arg override: none"
+            fi
+          } >> "${GITHUB_STEP_SUMMARY}"

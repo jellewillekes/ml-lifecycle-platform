@@ -76,6 +76,7 @@ What it does:
 4. apply Terraform with:
    - `TF_VAR_mlflow_image=<current-mlflow-ref@sha256:...>`
    - `TF_VAR_serving_image=<serving-ref@sha256:...>`
+   - `TF_VAR_platform_image=<current-platform-ref@sha256:...>`
 5. mint an identity token for the serving service URL
 6. run authenticated smoke checks for:
    - `/health`
@@ -84,7 +85,8 @@ What it does:
    - `/predict`
 
 The workflow preserves the current MLflow image input on apply.
-That avoids accidental MLflow removal when serving is deployed from the shared Terraform root.
+It also preserves the current platform jobs image input.
+That avoids accidental MLflow or platform-job removal when serving is deployed from the shared Terraform root.
 
 Important auth note:
 

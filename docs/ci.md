@@ -1,6 +1,6 @@
 # CI
 
-The repo has eleven lanes:
+The repo has fourteen lanes:
 
 | Lane | Trigger | Purpose |
 | --- | --- | --- |
@@ -15,6 +15,8 @@ The repo has eleven lanes:
 | `Seed Hosted Staging Model` | manual dispatch | runs the demo pipeline against hosted MLflow staging, registers a candidate, and promotes it to `prod` |
 | `Deploy Serving Staging` | manual dispatch | resolves a published serving image by SHA, deploys Cloud Run staging by digest, and runs authenticated smoke checks |
 | `Serving Staging Baseline` | manual dispatch | runs an advisory k6 baseline against the direct hosted serving staging URL and uploads artifacts |
+| `Deploy Platform Jobs Staging` | manual dispatch | resolves a published platform image by SHA, deploys Cloud Run Jobs by digest, and preserves the current MLflow/serving images |
+| `Run Platform Job Staging` | manual dispatch | executes one deployed Cloud Run Job in staging with an optional args override |
 | `E2E` | nightly and manual dispatch | dockerized golden path |
 
 ## Local mapping
@@ -196,6 +198,37 @@ The baseline is intentionally small in `UP-19`:
 - one warmed realistic request scenario
 - one light sustained-load scenario
 - direct Cloud Run URL only, before `UP-20` adds an edge
+
+## Hosted platform jobs staging
+
+Hosted platform jobs live in:
+
+- `.github/workflows/deploy-platform-jobs-staging.yml`
+- `.github/workflows/run-platform-job-staging.yml`
+
+Current shape:
+
+- deploy workflow is manual `workflow_dispatch`
+- deploy resolves `platform:<git-sha>` from Artifact Registry by digest
+- deploy preserves the current hosted MLflow and serving image inputs when applying the shared Terraform root
+- run executes one named Cloud Run Job in staging
+
+Deployed jobs:
+
+- `maintenance`
+- `reproduce`
+- `promote`
+- `rollback`
+- `pipeline`
+
+Recommended first hosted proofs:
+
+- `maintenance`
+- `reproduce`
+- `promote --dry-run`
+- `rollback --dry-run`
+
+Only after those are boring should operators move on to the mutating paths such as `pipeline` or an actual rollback.
 
 ## Deploy workflow troubleshooting
 

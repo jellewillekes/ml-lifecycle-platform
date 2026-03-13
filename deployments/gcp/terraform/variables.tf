@@ -103,3 +103,9 @@ variable "serving_image" {
   type        = string
   default     = ""
 }
+
+variable "platform_image" {
+  description = "Hosted platform jobs container image ref. Leave empty until the first platform-jobs deploy workflow run."
+  type        = string
+  default     = ""
+}
