@@ -4,6 +4,18 @@ All important changes and updates to this project are documented here.
 
 This repo uses Conventional Commits and Release Please.
 
+## [0.5.3](https://github.com/jellewillekes/ml-lifecycle-platform/compare/v0.5.2...v0.5.3) (2026-03-13)
+
+
+### Features
+
+* add hosted serving staging baseline workflow ([#109](https://github.com/jellewillekes/ml-lifecycle-platform/issues/109)) ([9e241cd](https://github.com/jellewillekes/ml-lifecycle-platform/commit/9e241cd83b9aebf088a62b990c8fe10ba461ace5))
+
+
+### Bug Fixes
+
+* stabilize hosted mlflow and staging baseline workflows ([#112](https://github.com/jellewillekes/ml-lifecycle-platform/issues/112)) ([18deee4](https://github.com/jellewillekes/ml-lifecycle-platform/commit/18deee477b5a3f2eff594471db249cc7361affab))
+
 ## [0.5.2](https://github.com/jellewillekes/ml-lifecycle-platform/compare/v0.5.1...v0.5.2) (2026-03-10)
 
 
