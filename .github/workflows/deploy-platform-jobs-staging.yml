@@ -117,7 +117,18 @@ jobs:
           set -euo pipefail
           export MLFLOW_SERVICE_JSON="${RUNNER_TEMP}/mlflow-service.json"
           terraform -chdir=deployments/gcp/terraform output -json mlflow_service > "${MLFLOW_SERVICE_JSON}"
-          mlflow_image="$(python3 -c 'import json, sys; value = json.load(open(sys.argv[1], encoding="utf-8")); print(value[\"image\"] if value is not None else (_ for _ in ()).throw(SystemExit(\"mlflow_service output is null; deploy hosted MLflow before platform jobs.\")))' "${MLFLOW_SERVICE_JSON}")"
+          mlflow_image="$(python3 - "${MLFLOW_SERVICE_JSON}" <<'PY'
+          import json
+          import sys
+
+          value = json.load(open(sys.argv[1], encoding="utf-8"))
+          if value is None:
+              raise SystemExit(
+                  "mlflow_service output is null; deploy hosted MLflow before platform jobs."
+              )
+          print(value["image"])
+          PY
+          )"
           echo "mlflow_image=${mlflow_image}" >> "${GITHUB_OUTPUT}"
 
       - id: serving
@@ -127,7 +138,18 @@ jobs:
           set -euo pipefail
           export SERVING_SERVICE_JSON="${RUNNER_TEMP}/serving-service.json"
           terraform -chdir=deployments/gcp/terraform output -json serving_service > "${SERVING_SERVICE_JSON}"
-          serving_image="$(python3 -c 'import json, sys; value = json.load(open(sys.argv[1], encoding="utf-8")); print(value[\"image\"] if value is not None else (_ for _ in ()).throw(SystemExit(\"serving_service output is null; deploy hosted serving before platform jobs.\")))' "${SERVING_SERVICE_JSON}")"
+          serving_image="$(python3 - "${SERVING_SERVICE_JSON}" <<'PY'
+          import json
+          import sys
+
+          value = json.load(open(sys.argv[1], encoding="utf-8"))
+          if value is None:
+              raise SystemExit(
+                  "serving_service output is null; deploy hosted serving before platform jobs."
+              )
+          print(value["image"])
+          PY
+          )"
           echo "serving_image=${serving_image}" >> "${GITHUB_OUTPUT}"
 
       - name: Terraform apply hosted platform jobs staging
