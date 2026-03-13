@@ -22,6 +22,11 @@ def _run_command(args: list[str]) -> subprocess.CompletedProcess[str]:
     return subprocess.run(args, check=False, capture_output=True, text=True)
 
 
+def _is_not_found_error(stderr: str) -> bool:
+    lowered = stderr.lower()
+    return "not found" in lowered or "was not found" in lowered
+
+
 def _run_gcloud_json(args: list[str], *, expectation: str) -> Any:
     completed = _run_command(args)
     if completed.returncode != 0:
@@ -131,6 +136,21 @@ def resolve_cloud_run_service_contract(
     return parse_cloud_run_service_contract(payload, expected_service_name=service_name)
 
 
+def try_resolve_cloud_run_service_contract(
+    *, project_id: str, region: str, service_name: str
+) -> CloudRunServiceContract | None:
+    try:
+        return resolve_cloud_run_service_contract(
+            project_id=project_id,
+            region=region,
+            service_name=service_name,
+        )
+    except CloudRunServiceError as error:
+        if _is_not_found_error(str(error)):
+            return None
+        raise
+
+
 def write_github_output(path: Path, contract: CloudRunServiceContract) -> None:
     path.write_text(
         "\n".join(
@@ -143,3 +163,15 @@ def write_github_output(path: Path, contract: CloudRunServiceContract) -> None:
         ),
         encoding="utf-8",
     )
+
+
+def write_optional_github_output(
+    path: Path, contract: CloudRunServiceContract | None
+) -> None:
+    if contract is None:
+        path.write_text(
+            "service_name=\nservice_url=\nservice_image=\n",
+            encoding="utf-8",
+        )
+        return
+    write_github_output(path, contract)
