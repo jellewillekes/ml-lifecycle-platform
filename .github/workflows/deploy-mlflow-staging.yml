@@ -173,9 +173,22 @@ jobs:
           set -euo pipefail
           bash scripts/retry_terraform_gcp_init.sh
 
+      - id: serving
+        name: Resolve current hosted serving service contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          uv run python scripts/resolve_cloud_run_service_contract.py \
+            --project-id "${GCP_PROJECT_ID}" \
+            --region "${GCP_REGION}" \
+            --service-name "mlp-serving-staging" \
+            --github-output "${GITHUB_OUTPUT}" \
+            --allow-missing
+
       - name: Terraform apply hosted MLflow staging
         env:
           TF_VAR_mlflow_image: ${{ steps.capture.outputs.mlflow_image }}
+          TF_VAR_serving_image: ${{ steps.serving.outputs.service_image }}
         shell: bash
         run: |
           set -euo pipefail

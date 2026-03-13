@@ -10,7 +10,9 @@ from ml_lifecycle_platform.ci.cloud_run_service import (
     CloudRunServiceError,
     parse_cloud_run_service_contract,
     resolve_cloud_run_service_contract,
+    try_resolve_cloud_run_service_contract,
     write_github_output,
+    write_optional_github_output,
 )
 
 pytestmark = pytest.mark.unit
@@ -178,6 +180,37 @@ def test_resolve_cloud_run_service_contract_raises_actionable_error_on_invalid_j
         )
 
 
+def test_try_resolve_cloud_run_service_contract_returns_none_when_service_missing(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def fake_run(
+        args: list[str],
+        *,
+        check: bool,
+        capture_output: bool,
+        text: bool,
+    ) -> subprocess.CompletedProcess[str]:
+        del args, check, capture_output, text
+        return _completed(
+            "",
+            returncode=1,
+            stderr="ERROR: (gcloud.run.services.describe) Service [mlp-serving-staging] not found",
+        )
+
+    monkeypatch.setattr(
+        "ml_lifecycle_platform.ci.cloud_run_service.subprocess.run",
+        fake_run,
+    )
+
+    contract = try_resolve_cloud_run_service_contract(
+        project_id="fpl-project-jelle",
+        region="europe-west1",
+        service_name="mlp-serving-staging",
+    )
+
+    assert contract is None
+
+
 def test_write_github_output_writes_expected_keys(tmp_path: Path) -> None:
     output_path = tmp_path / "github-output.txt"
 
@@ -194,4 +227,16 @@ def test_write_github_output_writes_expected_keys(tmp_path: Path) -> None:
         "service_name=mlp-serving-staging\n"
         "service_url=https://mlp-serving-staging.run.app\n"
         "service_image=europe-west1-docker.pkg.dev/project/mlp-images/serving@sha256:abc\n"
+    )
+
+
+def test_write_optional_github_output_writes_empty_values_when_missing(
+    tmp_path: Path,
+) -> None:
+    output_path = tmp_path / "github-output.txt"
+
+    write_optional_github_output(output_path, None)
+
+    assert output_path.read_text(encoding="utf-8") == (
+        "service_name=\nservice_url=\nservice_image=\n"
     )

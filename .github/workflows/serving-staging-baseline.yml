@@ -196,6 +196,7 @@ jobs:
           set -euo pipefail
           mkdir -p artifacts/perf/serving-staging
           docker run --rm \
+            --user "$(id -u):$(id -g)" \
             -e SERVE_URL \
             -e SERVE_BEARER_TOKEN \
             -e BASELINE_DURATION \
@@ -206,7 +207,7 @@ jobs:
             grafana/k6:0.49.0 run \
             --summary-export /work/artifacts/perf/serving-staging/k6-summary.json \
             serving_staging_baseline.js \
-            | tee /work/artifacts/perf/serving-staging/k6-output.txt
+            | tee artifacts/perf/serving-staging/k6-output.txt
 
       - name: Verify baseline artifacts exist
         if: always()
