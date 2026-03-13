@@ -82,6 +82,9 @@ What it does:
 3. push `mlflow:<git-sha>` to Artifact Registry
 4. resolve the pushed digest
 5. apply Terraform with `TF_VAR_mlflow_image=<ref@sha256:...>`
+   and preserve:
+   - `TF_VAR_serving_image=<current-serving-ref@sha256:...>`
+   - `TF_VAR_platform_image=<current-platform-ref@sha256:...>`
 6. mint an identity token for the Cloud Run URL
 7. verify authenticated MLflow metadata and artifact writes
 
@@ -90,6 +93,12 @@ Important auth note:
 - the workflow uses `google-github-actions/auth` to mint the Cloud Run ID token
 - do not use `gcloud auth print-identity-token --audiences` here
 - that fails under this WIF setup
+
+Shared-root note:
+
+- the Terraform root still manages MLflow, serving, and platform jobs together
+- MLflow deploy must preserve the current serving and platform images on apply
+- otherwise an MLflow-only apply can unintentionally remove those runtime paths
 
 ## Runtime env contract
 

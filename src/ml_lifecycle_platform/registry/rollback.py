@@ -1,8 +1,11 @@
 from __future__ import annotations
 
+import argparse
+import json
 import logging
 import tempfile
 from pathlib import Path
+import sys
 from typing import Any
 
 from mlflow.tracking import MlflowClient
@@ -34,6 +37,20 @@ from ml_lifecycle_platform.registry.release_evidence import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+def parse_args(argv: list[str]) -> argparse.Namespace:
+    parser = argparse.ArgumentParser(
+        description="Roll back prod to the previously recorded prod version."
+    )
+    parser.add_argument("--model-name", default=get_model_name())
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Resolve the rollback target only; do not mutate the registry.",
+    )
+    parser.add_argument("--format", choices=["json", "text"], default="json")
+    return parser.parse_args(argv)
 
 
 def _source_run_id(model_version: Any) -> str:
@@ -73,18 +90,18 @@ def _previous_prod_from_manifest(
     return manifest.previous_prod_version, "manifest"
 
 
-def rollback_prod(client: MlflowClient, model_name: str) -> None:
-    """Roll back prod to the recorded previous prod version."""
+def _resolve_rollback_target(
+    client: MlflowClient, *, model_name: str
+) -> tuple[Any, str, str | None, str | None, str]:
     current_prod = client.get_model_version_by_alias(model_name, ALIAS_PROD)
-    current_tags = current_prod.tags or {}
-    current_source_run_id = _source_run_id(current_prod)
-
     previous_prod, resolution_source = _previous_prod_from_manifest(
         client,
         current_prod=current_prod,
     )
     if not previous_prod:
-        previous_prod = str(current_tags.get(TAG_PREVIOUS_PROD_VERSION, "")).strip()
+        previous_prod = str(
+            (current_prod.tags or {}).get(TAG_PREVIOUS_PROD_VERSION, "")
+        ).strip()
 
     if not previous_prod:
         raise RuntimeError(
@@ -95,6 +112,53 @@ def rollback_prod(client: MlflowClient, model_name: str) -> None:
 
     target = client.get_model_version(model_name, previous_prod)
     target_source_run_id = _source_run_id(target) or None
+    return (
+        current_prod,
+        previous_prod,
+        target_source_run_id,
+        _source_run_id(current_prod) or None,
+        resolution_source,
+    )
+
+
+def _render_rollback_plan(
+    *,
+    model_name: str,
+    current_prod_version: str,
+    target_version: str,
+    resolution_source: str,
+) -> dict[str, str]:
+    return {
+        "status": "ready",
+        "model_name": model_name,
+        "current_prod_version": current_prod_version,
+        "target_version": target_version,
+        "resolution_source": resolution_source,
+    }
+
+
+def _print_rollback_plan(payload: dict[str, str], fmt: str) -> None:
+    if fmt == "json":
+        print(json.dumps(payload, indent=2, sort_keys=True))
+        return
+
+    for key, value in payload.items():
+        print(f"{key}={value}")
+
+
+def rollback_prod(client: MlflowClient, model_name: str) -> None:
+    """Roll back prod to the recorded previous prod version."""
+    (
+        current_prod,
+        previous_prod,
+        target_source_run_id,
+        current_source_run_id,
+        resolution_source,
+    ) = _resolve_rollback_target(
+        client,
+        model_name=model_name,
+    )
+    current_tags = current_prod.tags or {}
 
     client.set_registered_model_alias(model_name, ALIAS_PROD, previous_prod)
 
@@ -193,9 +257,41 @@ def rollback_prod(client: MlflowClient, model_name: str) -> None:
     )
 
 
-def main() -> None:
+def main(argv: list[str] | None = None) -> None:
     logging.basicConfig(level=get_log_level())
-    rollback_prod(mlflow_client(), get_model_name())
+    args = parse_args(sys.argv[1:] if argv is None else argv)
+    client = mlflow_client()
+
+    try:
+        current_prod, target_version, _, _, resolution_source = (
+            _resolve_rollback_target(
+                client,
+                model_name=args.model_name,
+            )
+        )
+    except RuntimeError as error:
+        payload = {
+            "status": "blocked",
+            "model_name": args.model_name,
+            "reason": str(error),
+        }
+        _print_rollback_plan(payload, args.format)
+        raise SystemExit(2) from error
+
+    _print_rollback_plan(
+        _render_rollback_plan(
+            model_name=args.model_name,
+            current_prod_version=str(current_prod.version),
+            target_version=target_version,
+            resolution_source=resolution_source,
+        ),
+        args.format,
+    )
+
+    if args.dry_run:
+        raise SystemExit(0)
+
+    rollback_prod(client, args.model_name)
 
 
 if __name__ == "__main__":

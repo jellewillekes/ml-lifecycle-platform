@@ -185,10 +185,21 @@ jobs:
             --github-output "${GITHUB_OUTPUT}" \
             --allow-missing
 
+      - id: platform
+        name: Resolve current hosted platform jobs
+        shell: bash
+        run: |
+          set -euo pipefail
+          export PLATFORM_JOBS_JSON="${RUNNER_TEMP}/platform-jobs.json"
+          terraform -chdir=deployments/gcp/terraform output -json platform_jobs > "${PLATFORM_JOBS_JSON}"
+          platform_image="$(python3 -c 'import json, sys; value = json.load(open(sys.argv[1], encoding="utf-8")); print(next(iter(value.values()))["image"] if value else "")' "${PLATFORM_JOBS_JSON}")"
+          echo "platform_image=${platform_image}" >> "${GITHUB_OUTPUT}"
+
       - name: Terraform apply hosted MLflow staging
         env:
           TF_VAR_mlflow_image: ${{ steps.capture.outputs.mlflow_image }}
           TF_VAR_serving_image: ${{ steps.serving.outputs.service_image }}
+          TF_VAR_platform_image: ${{ steps.platform.outputs.platform_image }}
         shell: bash
         run: |
           set -euo pipefail

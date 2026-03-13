@@ -1,0 +1,176 @@
+name: Deploy Platform Jobs Staging
+
+on:
+  workflow_dispatch:
+    inputs:
+      git_sha:
+        description: Optional Git SHA for a platform image previously published by Publish Images. Uses the selected workflow commit SHA when empty.
+        required: false
+        default: ""
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-platform-jobs-staging-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  GCP_PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
+  GCP_WIF_PROVIDER: ${{ vars.GCP_WIF_PROVIDER }}
+  GCP_CI_SERVICE_ACCOUNT: ${{ vars.GCP_CI_SERVICE_ACCOUNT }}
+  GCP_REGION: europe-west1
+  ARTIFACT_REGISTRY_REPOSITORY: mlp-images
+
+jobs:
+  deploy:
+    name: Deploy
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          persist-credentials: false
+
+      - name: Validate required GitHub Actions variables
+        shell: bash
+        run: |
+          set -euo pipefail
+          missing=()
+          for var_name in GCP_PROJECT_ID GCP_WIF_PROVIDER GCP_CI_SERVICE_ACCOUNT; do
+            if [[ -z "${!var_name:-}" ]]; then
+              missing+=("${var_name}")
+            fi
+          done
+          if (( ${#missing[@]} > 0 )); then
+            printf 'Missing required GitHub Actions variable(s): %s\n' "${missing[*]}"
+            exit 1
+          fi
+
+      - id: auth
+        name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3
+        with:
+          create_credentials_file: true
+          project_id: ${{ env.GCP_PROJECT_ID }}
+          workload_identity_provider: ${{ env.GCP_WIF_PROVIDER }}
+          service_account: ${{ env.GCP_CI_SERVICE_ACCOUNT }}
+
+      - name: Set up gcloud
+        uses: google-github-actions/setup-gcloud@aa5489c8933f4cc7a4f7d45035b3b1440c9c10db # v3
+        with:
+          version: ">= 363.0.0"
+          project_id: ${{ env.GCP_PROJECT_ID }}
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd # v3.1.2
+        with:
+          terraform_version: 1.5.7
+
+      - id: platform_context
+        name: Resolve published platform image
+        env:
+          INPUT_GIT_SHA: ${{ inputs.git_sha }}
+          WORKFLOW_GIT_SHA: ${{ github.sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          repository="${GCP_REGION}-docker.pkg.dev/${GCP_PROJECT_ID}/${ARTIFACT_REGISTRY_REPOSITORY}"
+          git_sha="${INPUT_GIT_SHA:-}"
+          if [[ -z "${git_sha}" ]]; then
+            git_sha="${WORKFLOW_GIT_SHA}"
+          fi
+
+          platform_ref="${repository}/platform:${git_sha}"
+          if ! platform_digest="$(
+            gcloud artifacts docker images describe "${platform_ref}" \
+              --format='value(image_summary.digest)'
+          )"; then
+            echo "Publish Images has not published platform:${git_sha} yet. Run Publish Images first or provide an explicit git_sha."
+            exit 1
+          fi
+
+          if [[ -z "${platform_digest}" ]]; then
+            echo "Failed to resolve platform image digest from Artifact Registry."
+            exit 1
+          fi
+
+          echo "git_sha=${git_sha}" >> "${GITHUB_OUTPUT}"
+          echo "platform_image=${platform_ref%@*}@${platform_digest}" >> "${GITHUB_OUTPUT}"
+
+      - name: Terraform init
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash scripts/retry_terraform_gcp_init.sh
+
+      - id: mlflow
+        name: Resolve current hosted MLflow contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          export MLFLOW_SERVICE_JSON="${RUNNER_TEMP}/mlflow-service.json"
+          terraform -chdir=deployments/gcp/terraform output -json mlflow_service > "${MLFLOW_SERVICE_JSON}"
+          mlflow_image="$(python3 -c 'import json, sys; value = json.load(open(sys.argv[1], encoding="utf-8")); print(value[\"image\"] if value is not None else (_ for _ in ()).throw(SystemExit(\"mlflow_service output is null; deploy hosted MLflow before platform jobs.\")))' "${MLFLOW_SERVICE_JSON}")"
+          echo "mlflow_image=${mlflow_image}" >> "${GITHUB_OUTPUT}"
+
+      - id: serving
+        name: Resolve current hosted serving contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          export SERVING_SERVICE_JSON="${RUNNER_TEMP}/serving-service.json"
+          terraform -chdir=deployments/gcp/terraform output -json serving_service > "${SERVING_SERVICE_JSON}"
+          serving_image="$(python3 -c 'import json, sys; value = json.load(open(sys.argv[1], encoding="utf-8")); print(value[\"image\"] if value is not None else (_ for _ in ()).throw(SystemExit(\"serving_service output is null; deploy hosted serving before platform jobs.\")))' "${SERVING_SERVICE_JSON}")"
+          echo "serving_image=${serving_image}" >> "${GITHUB_OUTPUT}"
+
+      - name: Terraform apply hosted platform jobs staging
+        env:
+          TF_VAR_mlflow_image: ${{ steps.mlflow.outputs.mlflow_image }}
+          TF_VAR_serving_image: ${{ steps.serving.outputs.serving_image }}
+          TF_VAR_platform_image: ${{ steps.platform_context.outputs.platform_image }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          terraform -chdir=deployments/gcp/terraform apply -auto-approve -input=false
+
+      - id: jobs
+        name: Resolve deployed platform jobs
+        shell: bash
+        run: |
+          set -euo pipefail
+          export PLATFORM_JOBS_JSON="${RUNNER_TEMP}/platform-jobs.json"
+          terraform -chdir=deployments/gcp/terraform output -json platform_jobs > "${PLATFORM_JOBS_JSON}"
+          python3 - "${PLATFORM_JOBS_JSON}" "${GITHUB_OUTPUT}" <<'PY'
+          import json
+          import sys
+
+          jobs = json.load(open(sys.argv[1], encoding="utf-8"))
+          if not jobs:
+            raise SystemExit("platform_jobs output is null after apply.")
+          names = ",".join(sorted(job["name"] for job in jobs.values()))
+          with open(sys.argv[2], "a", encoding="utf-8") as handle:
+            handle.write(f"job_names={names}\n")
+          PY
+
+      - name: Write workflow summary
+        env:
+          PLATFORM_IMAGE: ${{ steps.platform_context.outputs.platform_image }}
+          GIT_SHA: ${{ steps.platform_context.outputs.git_sha }}
+          JOB_NAMES: ${{ steps.jobs.outputs.job_names }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          {
+            echo "## Hosted platform jobs staging"
+            echo
+            echo "- Platform image: \`${PLATFORM_IMAGE}\`"
+            echo "- Git SHA: \`${GIT_SHA}\`"
+            echo "- Jobs: \`${JOB_NAMES}\`"
+          } >> "${GITHUB_STEP_SUMMARY}"

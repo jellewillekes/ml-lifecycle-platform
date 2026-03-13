@@ -138,3 +138,18 @@ output "serving_service" {
     invoker_sa = google_service_account.ci.email
   } : null
 }
+
+output "platform_jobs" {
+  description = "Hosted staging Cloud Run job contracts. Null until the first platform image deploy is applied."
+  value = local.platform_jobs_enabled ? {
+    for key, job in google_cloud_run_v2_job.platform :
+    key => {
+      name                 = job.name
+      image                = job.template[0].template[0].containers[0].image
+      command              = local.platform_jobs[key].command
+      args                 = local.platform_jobs[key].args
+      mutates_model_state  = local.platform_jobs[key].mutates_model_state
+      safe_validation_args = local.platform_jobs[key].safe_validation_args
+    }
+  } : null
+}

@@ -1,0 +1,1 @@
+"""Hosted platform job entrypoints."""
