@@ -145,7 +145,7 @@ jobs:
           terraform -chdir=deployments/gcp/terraform untaint 'google_cloud_run_v2_service.serving["staging"]' || true
 
       - id: mlflow
-        name: Resolve current hosted MLflow image
+        name: Resolve current hosted MLflow service contract
         shell: bash
         run: |
           set -euo pipefail
@@ -154,8 +154,34 @@ jobs:
           terraform -chdir=deployments/gcp/terraform output -json mlflow_service > "${MLFLOW_SERVICE_JSON}"
 
           mlflow_image="$(python3 -c 'import json, sys; value = json.load(open(sys.argv[1], encoding="utf-8")); print(value["image"] if value is not None else (_ for _ in ()).throw(SystemExit("mlflow_service output is null; deploy hosted MLflow before serving.")))' "${MLFLOW_SERVICE_JSON}")"
+          mlflow_url="$(python3 -c 'import json, sys; value = json.load(open(sys.argv[1], encoding="utf-8")); print(value["uri"] if value is not None and value.get("uri") else (_ for _ in ()).throw(SystemExit("mlflow_service output is missing uri; deploy hosted MLflow before serving.")))' "${MLFLOW_SERVICE_JSON}")"
 
           echo "mlflow_image=${mlflow_image}" >> "${GITHUB_OUTPUT}"
+          echo "mlflow_url=${mlflow_url}" >> "${GITHUB_OUTPUT}"
+
+      - name: Mint identity token for hosted MLflow
+        id: mlflow_token
+        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3
+        with:
+          project_id: ${{ env.GCP_PROJECT_ID }}
+          workload_identity_provider: ${{ env.GCP_WIF_PROVIDER }}
+          service_account: ${{ env.GCP_CI_SERVICE_ACCOUNT }}
+          token_format: id_token
+          id_token_audience: ${{ steps.mlflow.outputs.mlflow_url }}
+          id_token_include_email: true
+
+      - name: Verify hosted MLflow prod alias exists
+        env:
+          MLFLOW_TRACKING_TOKEN: ${{ steps.mlflow_token.outputs.id_token }}
+          MLFLOW_TRACKING_URI: ${{ steps.mlflow.outputs.mlflow_url }}
+          MLFLOW_REGISTRY_URI: ${{ steps.mlflow.outputs.mlflow_url }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          uv run python scripts/verify_hosted_model_alias.py \
+            --tracking-uri "${MLFLOW_TRACKING_URI}" \
+            --model-name "breast_cancer_clf" \
+            --alias "prod"
 
       - id: apply
         name: Terraform apply hosted serving staging

@@ -34,6 +34,10 @@ from ml_lifecycle_platform.common.constants import (
     TAG_SOURCE_RUN_ID,
     TAG_TRAINING_RUN_ID,
 )
+from ml_lifecycle_platform.ci.hosted_model_alias_verifier import (
+    HostedModelAliasVerificationConfig,
+    verify_model_alias,
+)
 from ml_lifecycle_platform.registry.promote import main as promote_main
 from ml_lifecycle_platform.registry.release_evidence import artifact_root
 from ml_lifecycle_platform.registry.rollback import rollback_prod
@@ -114,9 +118,17 @@ def test_register_then_promote_flow_uses_local_mlflow_registry(
     prod = client.get_model_version_by_alias(model_name, ALIAS_PROD)
     champion = client.get_model_version_by_alias(model_name, ALIAS_CHAMPION)
     promoted = client.get_model_version(model_name, prod.version)
+    resolved_prod_version = verify_model_alias(
+        HostedModelAliasVerificationConfig(
+            tracking_uri=mlflow.get_tracking_uri(),
+            tracking_token="local-test-token",
+            model_name=model_name,
+        )
+    )
 
     assert str(prod.version) == str(candidate.version)
     assert str(champion.version) == str(candidate.version)
+    assert resolved_prod_version == str(candidate.version)
     assert promoted.tags[TAG_RELEASE_STATUS] == ALIAS_PROD
     assert promoted.tags[TAG_PROMOTED_FROM_ALIAS] == ALIAS_CANDIDATE
     assert promoted.tags[TAG_RELEASE_MANIFEST_PATH] == (
