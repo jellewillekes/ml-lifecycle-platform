@@ -146,6 +146,9 @@ def test_staging_runtime_profile_is_committed() -> None:
     assert profile.environment == "staging"
     assert profile.model_name == "breast_cancer_clf"
     assert profile.compose_file.exists()
+    assert profile.data_dir == Path("/app/data")
+    assert profile.artifacts_dir == Path("/app/artifacts")
+    assert profile.event_log_path == Path("/app/artifacts/runtime-events.jsonl")
 
 
 def teardown_function() -> None:
