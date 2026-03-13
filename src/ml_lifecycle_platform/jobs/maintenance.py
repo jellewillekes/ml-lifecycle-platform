@@ -7,6 +7,8 @@ import os
 import sys
 from dataclasses import asdict, dataclass
 
+import requests
+
 from ml_lifecycle_platform.ci.hosted_model_alias_verifier import (
     HostedModelAliasVerificationConfig,
     verify_model_alias,
@@ -24,6 +26,8 @@ from ml_lifecycle_platform.runtime.bootstrap import (
     configure_mlflow,
     get_runtime_context,
 )
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -54,14 +58,20 @@ def run_maintenance_check(*, alias: str = "prod") -> MaintenanceReport:
     http_reachable = False
 
     if tracking_token:
-        verify_http_reachable(
-            MlflowStagingVerificationConfig(
-                tracking_uri=tracking_uri,
-                tracking_token=tracking_token,
-                experiment_name="maintenance-unused",
+        try:
+            verify_http_reachable(
+                MlflowStagingVerificationConfig(
+                    tracking_uri=tracking_uri,
+                    tracking_token=tracking_token,
+                    experiment_name="maintenance-unused",
+                )
             )
-        )
-        http_reachable = True
+        except requests.RequestException as error:
+            logger.warning(
+                "Hosted MLflow root probe failed during maintenance: %s", error
+            )
+        else:
+            http_reachable = True
 
     resolved_version = verify_model_alias(
         HostedModelAliasVerificationConfig(

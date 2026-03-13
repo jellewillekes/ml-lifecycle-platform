@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 
 import pytest
+import requests
 
 from ml_lifecycle_platform.jobs.maintenance import (
     MaintenanceReport,
@@ -52,6 +53,41 @@ def test_run_maintenance_check_verifies_http_and_prod_alias(
     assert report.resolved_version == "7"
     assert report.http_reachable is True
     assert calls == ["configure:object", "http:https://mlflow.example"]
+
+
+def test_run_maintenance_check_tolerates_http_probe_timeout(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        "ml_lifecycle_platform.jobs.maintenance.get_runtime_context",
+        lambda: object(),
+    )
+    monkeypatch.setattr(
+        "ml_lifecycle_platform.jobs.maintenance.configure_mlflow",
+        lambda runtime: None,
+    )
+    monkeypatch.setattr(
+        "ml_lifecycle_platform.jobs.maintenance.get_tracking_uri",
+        lambda: "https://mlflow.example",
+    )
+    monkeypatch.setattr(
+        "ml_lifecycle_platform.jobs.maintenance.get_model_name",
+        lambda: "breast_cancer_clf",
+    )
+    monkeypatch.setenv("MLFLOW_TRACKING_TOKEN", "token")
+    monkeypatch.setattr(
+        "ml_lifecycle_platform.jobs.maintenance.verify_http_reachable",
+        lambda config: (_ for _ in ()).throw(requests.ReadTimeout("slow root")),
+    )
+    monkeypatch.setattr(
+        "ml_lifecycle_platform.jobs.maintenance.verify_model_alias",
+        lambda config: "7",
+    )
+
+    report = run_maintenance_check(alias="prod")
+
+    assert report.resolved_version == "7"
+    assert report.http_reachable is False
 
 
 def test_maintenance_main_prints_json(monkeypatch: pytest.MonkeyPatch, capsys) -> None:
