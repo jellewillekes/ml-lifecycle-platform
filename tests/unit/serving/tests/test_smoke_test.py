@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Iterator
 from typing import Any
 
 import pandas as pd
@@ -96,3 +97,35 @@ def test_request_headers_include_bearer_token(monkeypatch: pytest.MonkeyPatch) -
     monkeypatch.setattr(smoke_test, "SERVE_BEARER_TOKEN", "token-123")
 
     assert smoke_test._request_headers() == {"Authorization": "Bearer token-123"}
+
+
+class _FakeResponse:
+    def __init__(self, status_code: int, text: str = "") -> None:
+        self.status_code = status_code
+        self.text = text
+
+
+def test_wait_for_service_uses_readyz(monkeypatch: pytest.MonkeyPatch) -> None:
+    calls: list[str] = []
+    responses: Iterator[_FakeResponse] = iter(
+        [
+            _FakeResponse(503, "warming"),
+            _FakeResponse(200, "ready"),
+        ]
+    )
+
+    def fake_get(url: str, timeout: int, headers: dict[str, str]) -> _FakeResponse:
+        del timeout, headers
+        calls.append(url)
+        return next(responses)
+
+    monkeypatch.setattr(smoke_test.requests, "get", fake_get)
+    monkeypatch.setattr(smoke_test.time, "sleep", lambda seconds: None)
+    monkeypatch.setattr(smoke_test, "SERVE_URL", "https://serving.example")
+
+    smoke_test._wait_for_service()
+
+    assert calls == [
+        "https://serving.example/readyz",
+        "https://serving.example/readyz",
+    ]
