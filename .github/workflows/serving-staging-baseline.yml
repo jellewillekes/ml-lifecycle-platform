@@ -196,6 +196,7 @@ jobs:
           set -euo pipefail
           mkdir -p artifacts/perf/serving-staging
           docker run --rm \
+            --user "$(id -u):$(id -g)" \
             -e SERVE_URL \
             -e SERVE_BEARER_TOKEN \
             -e BASELINE_DURATION \
