@@ -1,6 +1,6 @@
 # CI
 
-The repo has ten lanes:
+The repo has eleven lanes:
 
 | Lane | Trigger | Purpose |
 | --- | --- | --- |
@@ -12,7 +12,9 @@ The repo has ten lanes:
 | `GCP Auth Verify` | push to `master`, manual dispatch | GitHub OIDC to GCP WIF verification plus hosted-foundation prerequisite checks |
 | `Publish Images` | called from `CI` on push to `master`, manual dispatch | builds, smoke-checks, and publishes hosted runtime images to Artifact Registry |
 | `Deploy MLflow Staging` | manual dispatch | builds the hosted MLflow image, deploys Cloud Run staging by digest, and runs authenticated smoke checks |
+| `Seed Hosted Staging Model` | manual dispatch | runs the demo pipeline against hosted MLflow staging, registers a candidate, and promotes it to `prod` |
 | `Deploy Serving Staging` | manual dispatch | resolves a published serving image by SHA, deploys Cloud Run staging by digest, and runs authenticated smoke checks |
+| `Serving Staging Baseline` | manual dispatch | runs an advisory k6 baseline against the direct hosted serving staging URL and uploads artifacts |
 | `E2E` | nightly and manual dispatch | dockerized golden path |
 
 ## Local mapping
@@ -169,6 +171,31 @@ Important precondition:
 
 - hosted MLflow staging must already contain the active model with a `prod` alias
 - image deploy and model release stay separate
+
+If hosted MLflow is live but the alias is missing, run:
+
+- `.github/workflows/seed-staging-model.yml`
+
+## Hosted serving staging baseline
+
+Hosted serving staging baseline lives in:
+
+- `.github/workflows/serving-staging-baseline.yml`
+
+Current shape:
+
+- manual `workflow_dispatch`
+- resolves the current `serving_service` Terraform output
+- mints an ID token for the direct Cloud Run staging URL
+- runs the existing authenticated smoke test as a preflight
+- runs a small advisory k6 baseline against `POST /predict?mode=prod`
+- uploads machine-readable and markdown artifacts
+
+The baseline is intentionally small in `UP-19`:
+
+- one warmed realistic request scenario
+- one light sustained-load scenario
+- direct Cloud Run URL only, before `UP-20` adds an edge
 
 ## Deploy workflow troubleshooting
 

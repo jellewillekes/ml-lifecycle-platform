@@ -140,5 +140,13 @@ def test_all_committed_runtime_profiles_load() -> None:
         assert profile.event_log_path.name
 
 
+def test_staging_runtime_profile_is_committed() -> None:
+    profile = load_runtime_profile(profile_path=Path("configs/env/staging.yaml"))
+
+    assert profile.environment == "staging"
+    assert profile.model_name == "breast_cancer_clf"
+    assert profile.compose_file.exists()
+
+
 def teardown_function() -> None:
     reset_runtime_profile_cache()

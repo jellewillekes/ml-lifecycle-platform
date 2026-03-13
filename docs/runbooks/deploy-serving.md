@@ -51,6 +51,8 @@ Before the first staging smoke test can pass, hosted MLflow must already contain
 
 Do not hide that inside serving deploy.
 
+Use the manual workflow `.github/workflows/seed-staging-model.yml` to create that hosted staging model state from the committed demo pipeline when needed.
+
 If staging MLflow does not have a `prod` alias yet, `/predict` fails and the deploy workflow should fail.
 
 Serving also depends on hosted MLflow already being live.
@@ -136,6 +138,8 @@ curl -fsS -H "Authorization: Bearer ${TOKEN}" "${SERVICE_URL}/metadata/schema"
 ```
 
 If you need to verify `/predict`, use the workflow smoke path instead of ad hoc requests.
+
+If you need a staged performance reference, run the `Serving Staging Baseline` workflow described in [`serving-staging-baseline.md`](./serving-staging-baseline.md).
 
 ## Failure modes
 

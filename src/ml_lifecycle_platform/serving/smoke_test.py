@@ -26,14 +26,14 @@ def _request_headers() -> dict[str, str]:
 
 
 def _wait_for_service() -> None:
-    """Wait for the service to become healthy."""
+    """Wait for the service to become ready."""
     last_status: int | None = None
     last_body: str | None = None
 
     for _ in range(30):
         try:
             r = requests.get(
-                f"{SERVE_URL}/health", timeout=2, headers=_request_headers()
+                f"{SERVE_URL}/readyz", timeout=2, headers=_request_headers()
             )
             last_status = r.status_code
             last_body = r.text

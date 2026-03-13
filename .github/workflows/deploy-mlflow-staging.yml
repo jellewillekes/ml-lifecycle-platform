@@ -171,7 +171,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          make terraform-gcp-init
+          bash scripts/retry_terraform_gcp_init.sh
 
       - name: Terraform apply hosted MLflow staging
         env:

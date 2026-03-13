@@ -66,7 +66,6 @@ def _configure_logging(settings: Settings) -> None:
 async def lifespan(_app: FastAPI) -> AsyncGenerator[None, None]:
     settings = get_settings()
     _configure_logging(settings)
-    configure_mlflow()
     logger.info("serving started")
     yield
     logger.info("serving stopped")
@@ -355,10 +354,13 @@ def health() -> dict[str, Any]:
     _configure_logging(settings)
 
     reg_ok, reg_detail = _registry_resolves_prod_alias(settings)
-    _refresh_models_if_needed(settings, load_candidate=False)
+    model_ok = False
+    model_detail: str | None = None
+    if reg_ok:
+        model_ok, model_detail = _prod_model_loadable(settings)
 
-    model_loaded = model_prod is not None
-    ready = bool(reg_ok and model_loaded)
+    model_loaded = bool(model_prod is not None and model_ok)
+    ready = bool(reg_ok and model_ok)
 
     return {
         "status": "ok",
@@ -370,6 +372,8 @@ def health() -> dict[str, Any]:
         "candidate_version": candidate_version,
         "registry_ok": reg_ok,
         "registry_detail": reg_detail,
+        "prod_model_ok": model_ok,
+        "prod_model_detail": model_detail,
         "prod_model_loaded": model_loaded,
         "cache_ttl_sec": settings.model_cache_ttl_sec,
     }
