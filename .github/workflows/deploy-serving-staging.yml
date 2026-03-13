@@ -142,7 +142,15 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          terraform -chdir=deployments/gcp/terraform untaint 'google_cloud_run_v2_service.serving["staging"]' || true
+          err_file="${RUNNER_TEMP}/terraform-untaint-serving.err"
+          if terraform -chdir=deployments/gcp/terraform untaint 'google_cloud_run_v2_service.serving["staging"]' 2>"${err_file}"; then
+            echo "Cleared stale taint from serving service."
+          elif grep -q "Resource instance is not tainted" "${err_file}"; then
+            echo "Serving service is not tainted. Continuing."
+          else
+            cat "${err_file}" >&2
+            exit 1
+          fi
 
       - id: mlflow
         name: Resolve current hosted MLflow service contract
