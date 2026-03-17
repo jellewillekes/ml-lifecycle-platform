@@ -117,3 +117,27 @@ This keeps the first hosted proofs read-mostly or policy-only before running mut
 - if alias resolution succeeds, maintenance is considered healthy enough for hosted operations
 
 This keeps the maintenance check focused on real model/control-plane state instead of a flaky UI-root probe.
+
+## Current state limitations
+
+The hosted jobs path is operational, but there is one state-management detail operators should expect today:
+
+- after a successful `promote`, the promoted version is tagged with `release_status=prod`
+- after a later `rollback`, the system can restore the previous `prod` version correctly
+- however, the previously promoted version may still remain behind the `candidate` alias while still carrying `release_status=prod`
+
+What this means in practice:
+
+- `promote` with `execution_mode=dry_run` may return exit code `2` even when a `candidate` alias exists
+- the JSON payload may show:
+  - `candidate_version != current_prod_version`
+  - but `candidate_tags_subset.release_status = "prod"`
+- this is currently expected and should be read as a **policy-blocked state**, not a broken Cloud Run Job
+
+Operator guidance:
+
+- if you want a promotion path that can succeed again, run `pipeline` to register a fresh candidate version
+- treat post-rollback `promote --dry-run` failures as a model-state hygiene issue, not an execution-path failure
+- do not manually force promotion around this check; let the pipeline create a new candidate first
+
+This is a known limitation in the current alias/state cleanup semantics after rollback. The execution path is working correctly; the remaining gap is making the post-rollback candidate state less confusing.
