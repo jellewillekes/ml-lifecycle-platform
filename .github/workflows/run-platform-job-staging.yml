@@ -133,7 +133,7 @@ jobs:
             --format=json
           )
           if [[ -n "${JOB_ARGS_CSV}" ]]; then
-            execute_args+=(--args "${JOB_ARGS_CSV}")
+            execute_args+=("--args=${JOB_ARGS_CSV}")
           fi
           gcloud "${execute_args[@]}" | tee "${RUNNER_TEMP}/job-execution.json"
 
