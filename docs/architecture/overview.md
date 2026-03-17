@@ -1,6 +1,6 @@
 # Overview
 
-This repo currently has one real platform path and one hosted path under construction:
+This repo currently has one real local path and one real hosted staging path:
 
 ```text
 local path:
@@ -9,14 +9,18 @@ local path:
 hosted path today:
   GitHub Actions -> Artifact Registry
   Terraform -> GCP foundation + staging infra
+  Cloud Run -> MLflow + serving + platform jobs
+  Cloud Scheduler -> conservative maintenance cadence
 ```
 
-The local path is fully operational. The hosted path is partially operational:
+The local path is fully operational. The hosted staging path is operational for M2 staging work:
 
 - CI can authenticate to GCP with WIF.
 - CI can publish immutable runtime images to Artifact Registry.
 - Terraform has created the shared staging network, Cloud SQL, and MLflow staging secrets.
-- Hosted MLflow and serving deploy paths are committed, but still operator-driven and staging-only.
+- Hosted MLflow and serving are live on Cloud Run.
+- Hosted platform jobs are deployed on Cloud Run.
+- Cloud Scheduler drives the conservative maintenance cadence.
 
 ## Current topology
 
@@ -40,6 +44,10 @@ GCP staging infra
   -> Secret Manager
   -> Cloud SQL Postgres
   -> staging VPC + subnet + private service access
+  -> Cloud Run MLflow
+  -> Cloud Run serving
+  -> Cloud Run platform jobs
+  -> Cloud Scheduler
 ```
 
 ## Boundaries that matter
@@ -60,7 +68,7 @@ GCP staging infra
 4. Registration creates a candidate model version and copies minimum lineage tags from the source run.
 5. Promotion evaluates policy from the model spec, mutates MLflow aliases, and writes release evidence.
 6. Serving resolves `models:/<model_name>@prod` or `@candidate` from MLflow and validates requests against the active feature contract from the model spec.
-7. Hosted rollout, once `M2` is finished, will deploy the `serving` and `platform` images by digest while still using MLflow aliases for model selection.
+7. Hosted rollout deploys the `serving` and `platform` images by digest while still using MLflow aliases for model selection.
 
 ## Serving contract
 
@@ -99,6 +107,5 @@ The release manifest is the operator-facing release record. It captures source r
 ## What is intentionally not true yet
 
 - no public hosted MLflow or serving edge
-- no Cloud Run jobs
 - no ALB or custom domain
-- no scheduler-driven orchestration
+- no scheduled promotion or rollback
