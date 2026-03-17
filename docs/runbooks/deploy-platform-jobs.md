@@ -75,18 +75,24 @@ Run the GitHub Actions workflow:
 Inputs:
 
 - `job_name`
-- optional `args_csv`
+- `execution_mode`
 
-`args_csv` is a comma-separated argument override passed to `gcloud run jobs execute --args`.
+`execution_mode` keeps the hosted job invocation safe and predictable:
+
+- `default`
+  - runs the deployed job defaults
+  - valid for all jobs
+- `dry_run`
+  - only valid for `promote` and `rollback`
+  - expands to the full module invocation needed by Cloud Run Jobs
+  - avoids the earlier operator error where a partial `--args` override replaced the job's `-m ...` entrypoint
 
 Recommended validation order:
 
 1. `maintenance`
 2. `reproduce`
-3. `promote` with:
-   - `--model-name,breast_cancer_clf,--dry-run,--format,json`
-4. `rollback` with:
-   - `--model-name,breast_cancer_clf,--dry-run,--format,json`
+3. `promote` with `execution_mode=dry_run`
+4. `rollback` with `execution_mode=dry_run`
 5. `pipeline`
 
 This keeps the first hosted proofs read-mostly or policy-only before running mutating paths.
@@ -99,5 +105,15 @@ This keeps the first hosted proofs read-mostly or policy-only before running mut
 | jobs disappear after MLflow or serving deploy | shared Terraform root applied without preserving `platform_image` | keep preserving the current platform image in deploy workflows |
 | `maintenance` fails on prod alias | hosted MLflow no longer has `breast_cancer_clf@prod` | reseed or repair hosted model state first |
 | `reproduce` fails on artifact download | hosted MLflow artifacts or credentials are incomplete | inspect hosted MLflow artifact root and runtime permissions |
-| `promote --dry-run` returns exit code `2` | policy blocked promotion | inspect the JSON policy decision before mutating |
-| `rollback --dry-run` returns `blocked` | current `prod` has no recorded previous prod | rollback target was never recorded; inspect release evidence |
+| `promote` with `execution_mode=dry_run` returns exit code `2` | policy blocked promotion | inspect the JSON policy decision before mutating |
+| `rollback` with `execution_mode=dry_run` returns `blocked` | current `prod` has no recorded previous prod | rollback target was never recorded; inspect release evidence |
+
+## Maintenance semantics
+
+`maintenance` is intentionally conservative:
+
+- the hard requirement is that hosted MLflow resolves `breast_cancer_clf@prod`
+- the job no longer fails on a slow MLflow UI root `/` response
+- if alias resolution succeeds, maintenance is considered healthy enough for hosted operations
+
+This keeps the maintenance check focused on real model/control-plane state instead of a flaky UI-root probe.
