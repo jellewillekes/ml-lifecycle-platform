@@ -19,12 +19,6 @@ locals {
   }
 }
 
-resource "google_project_iam_member" "ci_cloud_scheduler_admin" {
-  project = data.google_project.current.project_id
-  role    = "roles/cloudscheduler.admin"
-  member  = "serviceAccount:${google_service_account.ci.email}"
-}
-
 resource "google_cloud_scheduler_job" "platform" {
   for_each = local.platform_jobs_enabled ? local.platform_schedules : {}
 
@@ -65,7 +59,6 @@ resource "google_cloud_scheduler_job" "platform" {
   depends_on = [
     google_project_service.required["cloudscheduler.googleapis.com"],
     google_cloud_run_v2_job.platform,
-    google_project_iam_member.ci_cloud_scheduler_admin,
   ]
 }
 

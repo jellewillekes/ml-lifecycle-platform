@@ -90,7 +90,6 @@ Current important bindings:
 Current deploy-specific CI bindings:
 
 - `roles/run.admin`
-- `roles/cloudscheduler.admin`
 - `roles/serviceusage.serviceUsageAdmin`
 - `roles/iam.serviceAccountUser` on `mlp-runtime`
 
@@ -100,11 +99,13 @@ Manual bootstrap IAM outside this Terraform root:
 - `roles/storage.admin` on:
   - `gs://fpl-project-jelle-mlp-artifacts`
   - `gs://fpl-project-jelle-mlp-data`
+- `roles/cloudscheduler.admin` on project `fpl-project-jelle`
 
 These bindings are required so `mlp-ci` can:
 
 - create the Terraform remote-state lock object
 - read and edit bucket IAM for the already-managed app buckets
+- create and update Cloud Scheduler jobs from the deploy workflow
 
 Current service-specific binding once deployed:
 

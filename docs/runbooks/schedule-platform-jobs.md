@@ -68,6 +68,11 @@ So the same apply now owns:
 - scheduler invoker IAM
 - Cloud Scheduler resources
 
+One-time bootstrap requirement:
+
+- `mlp-ci@fpl-project-jelle.iam.gserviceaccount.com` needs project role `roles/cloudscheduler.admin`
+- that project-level IAM grant is intentionally still manual, like the existing Terraform-state and bucket-IAM bootstrap grants
+
 ## Operator flow
 
 Recommended rollout:
