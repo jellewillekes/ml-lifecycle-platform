@@ -55,11 +55,10 @@ output "foundation_secret_ids" {
 }
 
 output "foundation_service_accounts" {
-  description = "Service account emails for CI, runtime, and scheduler identities."
+  description = "Service account emails for CI and hosted runtime identities."
   value = {
-    ci        = google_service_account.ci.email
-    runtime   = google_service_account.runtime.email
-    scheduler = google_service_account.scheduler.email
+    ci      = google_service_account.ci.email
+    runtime = google_service_account.runtime.email
   }
 }
 
@@ -71,11 +70,6 @@ output "ci_service_account_email" {
 output "runtime_service_account_email" {
   description = "Runtime service account email for hosted workloads."
   value       = google_service_account.runtime.email
-}
-
-output "scheduler_service_account_email" {
-  description = "Scheduler service account email for invoking approved staged jobs."
-  value       = google_service_account.scheduler.email
 }
 
 output "github_repository_binding" {

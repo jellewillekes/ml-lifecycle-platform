@@ -21,9 +21,9 @@ Out of scope here:
 
 ## Resource contract
 
-Scheduler identity:
+Scheduler caller identity:
 
-- `mlp-scheduler@fpl-project-jelle.iam.gserviceaccount.com`
+- `mlp-runtime@fpl-project-jelle.iam.gserviceaccount.com`
 
 Managed scheduler jobs:
 
@@ -143,6 +143,7 @@ Examples:
 Likely causes:
 
 - scheduler service account missing
+- runtime service account missing required job invoker binding
 - scheduler invoker IAM missing
 - wrong execute URI
 - Cloud Scheduler API not enabled

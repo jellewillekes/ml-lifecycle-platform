@@ -25,12 +25,6 @@ resource "google_project_iam_member" "ci_cloud_scheduler_admin" {
   member  = "serviceAccount:${google_service_account.ci.email}"
 }
 
-resource "google_service_account_iam_member" "ci_scheduler_service_account_user" {
-  service_account_id = google_service_account.scheduler.name
-  role               = "roles/iam.serviceAccountUser"
-  member             = "serviceAccount:${google_service_account.ci.email}"
-}
-
 resource "google_cloud_scheduler_job" "platform" {
   for_each = local.platform_jobs_enabled ? local.platform_schedules : {}
 
@@ -63,7 +57,7 @@ resource "google_cloud_scheduler_job" "platform" {
     body = base64encode(jsonencode({}))
 
     oauth_token {
-      service_account_email = google_service_account.scheduler.email
+      service_account_email = google_service_account.runtime.email
       scope                 = "https://www.googleapis.com/auth/cloud-platform"
     }
   }
@@ -72,7 +66,6 @@ resource "google_cloud_scheduler_job" "platform" {
     google_project_service.required["cloudscheduler.googleapis.com"],
     google_cloud_run_v2_job.platform,
     google_project_iam_member.ci_cloud_scheduler_admin,
-    google_service_account_iam_member.ci_scheduler_service_account_user,
   ]
 }
 
@@ -83,5 +76,5 @@ resource "google_cloud_run_v2_job_iam_member" "platform_scheduler_invoker" {
   location = google_cloud_run_v2_job.platform[each.key].location
   name     = google_cloud_run_v2_job.platform[each.key].name
   role     = "roles/run.invoker"
-  member   = "serviceAccount:${google_service_account.scheduler.email}"
+  member   = "serviceAccount:${google_service_account.runtime.email}"
 }

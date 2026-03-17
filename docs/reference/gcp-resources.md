@@ -48,7 +48,6 @@ Not managed yet:
 | data bucket | `fpl-project-jelle-mlp-data` | hosted data files |
 | CI service account | `mlp-ci@fpl-project-jelle.iam.gserviceaccount.com` | GitHub Actions impersonation |
 | runtime service account | `mlp-runtime@fpl-project-jelle.iam.gserviceaccount.com` | hosted workload identity |
-| scheduler service account | `mlp-scheduler@fpl-project-jelle.iam.gserviceaccount.com` | Cloud Scheduler identity for approved staged jobs |
 | WIF pool | `github-actions` | GitHub OIDC trust root |
 | WIF provider | `github-oidc` | GitHub repository trust binding |
 
@@ -94,7 +93,6 @@ Current deploy-specific CI bindings:
 - `roles/cloudscheduler.admin`
 - `roles/serviceusage.serviceUsageAdmin`
 - `roles/iam.serviceAccountUser` on `mlp-runtime`
-- `roles/iam.serviceAccountUser` on `mlp-scheduler`
 
 Manual bootstrap IAM outside this Terraform root:
 
@@ -113,8 +111,8 @@ Current service-specific binding once deployed:
 - `roles/run.invoker` on `mlp-mlflow-staging`
 - `roles/run.invoker` on `mlp-serving-staging`
 - `roles/run.invoker` on `mlp-mlflow-staging` for `mlp-runtime`
-- `roles/run.invoker` on `mlp-maintenance-staging` for `mlp-scheduler`
-- `roles/run.invoker` on `mlp-pipeline-staging` for `mlp-scheduler`
+- `roles/run.invoker` on `mlp-maintenance-staging` for `mlp-runtime`
+- `roles/run.invoker` on `mlp-pipeline-staging` for `mlp-runtime`
 
 ## Current staging runtime inventory
 
@@ -133,7 +131,6 @@ Current service-specific binding once deployed:
 | artifact bucket prefix | `gs://fpl-project-jelle-mlp-artifacts/mlflow/` | MLflow artifact root |
 | runtime service account | `mlp-runtime@fpl-project-jelle.iam.gserviceaccount.com` | used by hosted MLflow and serving |
 | CI service account | `mlp-ci@fpl-project-jelle.iam.gserviceaccount.com` | used by GitHub Actions via WIF |
-| scheduler service account | `mlp-scheduler@fpl-project-jelle.iam.gserviceaccount.com` | used by Cloud Scheduler to invoke approved staged jobs |
 
 Bootstrap note:
 

@@ -89,15 +89,6 @@ resource "google_service_account" "runtime" {
   depends_on = [google_project_service.required["iam.googleapis.com"]]
 }
 
-resource "google_service_account" "scheduler" {
-  project      = data.google_project.current.project_id
-  account_id   = "${local.foundation_name_prefix}-scheduler"
-  display_name = "ML lifecycle platform scheduler"
-  description  = "Cloud Scheduler identity for invoking approved staged platform jobs."
-
-  depends_on = [google_project_service.required["iam.googleapis.com"]]
-}
-
 resource "google_artifact_registry_repository_iam_member" "ci_writer" {
   project    = google_artifact_registry_repository.images.project
   location   = google_artifact_registry_repository.images.location

@@ -54,7 +54,6 @@ models:/<model_name>@prod
   - placeholder secrets
   - runtime and CI service accounts
   - GitHub OIDC federation
-- Terraform-managed scheduler identity for conservative staged job cadence
 - Terraform-managed staging infra for:
   - staging VPC and subnet
   - private service access
