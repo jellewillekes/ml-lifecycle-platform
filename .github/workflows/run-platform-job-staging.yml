@@ -13,11 +13,14 @@ on:
           - promote
           - rollback
           - pipeline
-      args_csv:
-        description: Optional comma-separated argument override. Leave empty to use the deployed job defaults.
-        required: false
-        default: ""
-        type: string
+      execution_mode:
+        description: Safe execution mode for the selected job.
+        required: true
+        default: default
+        type: choice
+        options:
+          - default
+          - dry_run
 
 permissions:
   contents: read
@@ -80,13 +83,40 @@ jobs:
         name: Resolve job execution target
         env:
           JOB_NAME_INPUT: ${{ inputs.job_name }}
-          JOB_ARGS_CSV: ${{ inputs.args_csv }}
+          EXECUTION_MODE_INPUT: ${{ inputs.execution_mode }}
         shell: bash
         run: |
           set -euo pipefail
           job_resource="mlp-${JOB_NAME_INPUT}-staging"
+          job_args_csv=""
+
+          case "${JOB_NAME_INPUT}:${EXECUTION_MODE_INPUT}" in
+            maintenance:default|reproduce:default|pipeline:default)
+              ;;
+            promote:default)
+              job_args_csv="-m,ml_lifecycle_platform.registry.promote,--model-name,breast_cancer_clf,--format,json"
+              ;;
+            promote:dry_run)
+              job_args_csv="-m,ml_lifecycle_platform.registry.promote,--model-name,breast_cancer_clf,--dry-run,--format,json"
+              ;;
+            rollback:default)
+              job_args_csv="-m,ml_lifecycle_platform.registry.rollback,--model-name,breast_cancer_clf,--format,json"
+              ;;
+            rollback:dry_run)
+              job_args_csv="-m,ml_lifecycle_platform.registry.rollback,--model-name,breast_cancer_clf,--dry-run,--format,json"
+              ;;
+            maintenance:dry_run|reproduce:dry_run|pipeline:dry_run)
+              echo "execution_mode=dry_run is not supported for job ${JOB_NAME_INPUT}."
+              exit 1
+              ;;
+            *)
+              echo "Unsupported job execution mode: ${JOB_NAME_INPUT}:${EXECUTION_MODE_INPUT}"
+              exit 1
+              ;;
+          esac
+
           echo "job_resource=${job_resource}" >> "${GITHUB_OUTPUT}"
-          echo "job_args_csv=${JOB_ARGS_CSV}" >> "${GITHUB_OUTPUT}"
+          echo "job_args_csv=${job_args_csv}" >> "${GITHUB_OUTPUT}"
 
       - name: Execute Cloud Run job
         env:
@@ -103,14 +133,15 @@ jobs:
             --format=json
           )
           if [[ -n "${JOB_ARGS_CSV}" ]]; then
-            execute_args+=(--args "${JOB_ARGS_CSV}")
+            execute_args+=("--args=${JOB_ARGS_CSV}")
           fi
           gcloud "${execute_args[@]}" | tee "${RUNNER_TEMP}/job-execution.json"
 
       - name: Write workflow summary
         env:
           JOB_NAME_INPUT: ${{ inputs.job_name }}
-          JOB_ARGS_CSV: ${{ inputs.args_csv }}
+          EXECUTION_MODE_INPUT: ${{ inputs.execution_mode }}
+          JOB_ARGS_CSV: ${{ steps.context.outputs.job_args_csv }}
         shell: bash
         run: |
           set -euo pipefail
@@ -118,9 +149,10 @@ jobs:
             echo "## Hosted platform job execution"
             echo
             echo "- Job: \`mlp-${JOB_NAME_INPUT}-staging\`"
+            echo "- Mode: \`${EXECUTION_MODE_INPUT}\`"
             if [[ -n "${JOB_ARGS_CSV}" ]]; then
-              echo "- Arg override: \`${JOB_ARGS_CSV}\`"
+              echo "- Effective args: \`${JOB_ARGS_CSV}\`"
             else
-              echo "- Arg override: none"
+              echo "- Effective args: deployed defaults"
             fi
           } >> "${GITHUB_STEP_SUMMARY}"

@@ -3,17 +3,12 @@ from __future__ import annotations
 import argparse
 import json
 import logging
-import os
 import sys
 from dataclasses import asdict, dataclass
 
 from ml_lifecycle_platform.ci.hosted_model_alias_verifier import (
     HostedModelAliasVerificationConfig,
     verify_model_alias,
-)
-from ml_lifecycle_platform.ci.mlflow_staging_verifier import (
-    MlflowStagingVerificationConfig,
-    verify_http_reachable,
 )
 from ml_lifecycle_platform.common.config import (
     get_log_level,
@@ -25,6 +20,8 @@ from ml_lifecycle_platform.runtime.bootstrap import (
     get_runtime_context,
 )
 
+logger = logging.getLogger(__name__)
+
 
 @dataclass(frozen=True)
 class MaintenanceReport:
@@ -32,7 +29,7 @@ class MaintenanceReport:
     model_name: str
     alias: str
     resolved_version: str
-    http_reachable: bool
+    alias_reachable: bool
 
 
 def parse_args(argv: list[str]) -> argparse.Namespace:
@@ -50,23 +47,11 @@ def run_maintenance_check(*, alias: str = "prod") -> MaintenanceReport:
 
     tracking_uri = get_tracking_uri()
     model_name = get_model_name()
-    tracking_token = os.getenv("MLFLOW_TRACKING_TOKEN", "").strip()
-    http_reachable = False
-
-    if tracking_token:
-        verify_http_reachable(
-            MlflowStagingVerificationConfig(
-                tracking_uri=tracking_uri,
-                tracking_token=tracking_token,
-                experiment_name="maintenance-unused",
-            )
-        )
-        http_reachable = True
 
     resolved_version = verify_model_alias(
         HostedModelAliasVerificationConfig(
             tracking_uri=tracking_uri,
-            tracking_token=tracking_token,
+            tracking_token="",
             model_name=model_name,
             alias=alias,
         )
@@ -77,7 +62,7 @@ def run_maintenance_check(*, alias: str = "prod") -> MaintenanceReport:
         model_name=model_name,
         alias=alias,
         resolved_version=resolved_version,
-        http_reachable=http_reachable,
+        alias_reachable=True,
     )
 
 
