@@ -153,3 +153,18 @@ output "platform_jobs" {
     }
   } : null
 }
+
+output "platform_schedules" {
+  description = "Hosted staging Cloud Scheduler contracts. Null until the first platform image deploy is applied."
+  value = local.platform_jobs_enabled ? {
+    for key, job in google_cloud_scheduler_job.platform :
+    key => {
+      name       = job.name
+      region     = job.region
+      schedule   = job.schedule
+      time_zone  = job.time_zone
+      paused     = job.paused
+      target_job = google_cloud_run_v2_job.platform[key].name
+    }
+  } : null
+}

@@ -1,6 +1,6 @@
 # Current State
 
-Last verified: 2026-03-11
+Last verified: 2026-03-17
 
 ## Summary
 
@@ -64,11 +64,17 @@ models:/<model_name>@prod
   - hosted image publication with immutable SHA tags and digest capture
   - hosted MLflow staging deploy by digest with authenticated smoke verification
   - hosted serving staging deploy by digest with authenticated smoke verification
+  - hosted platform jobs deploy by digest
+- Cloud Scheduler for:
+  - daily hosted maintenance cadence
+  - paused hosted pipeline cadence placeholder
 
 ## Current hosted staging state
 
 - hosted MLflow staging is live and verified
 - hosted serving staging deploy path exists and is wired to hosted MLflow
+- hosted Cloud Run Jobs for platform actions are live and manually validated
+- Cloud Scheduler now triggers conservative maintenance cadence on top of those jobs
 - bootstrap IAM for `mlp-ci` bucket access is still partially out-of-band and documented in the runbooks
 - current operating target is:
   - local green
@@ -124,4 +130,5 @@ versions that do not yet have a manifest.
 - no warehouse integration
 - no distributed training
 - no multi-model serving platform
-- no hosted ALB, public edge, or scheduler yet
+- no hosted ALB or public edge yet
+- no scheduled promotion or rollback path
