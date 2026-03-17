@@ -1,6 +1,6 @@
 # M2 Staging Platform
 
-Last verified: 2026-03-10
+Last verified: 2026-03-17
 
 This document locks the intended shape for `M2`: the first hosted GCP staging platform.
 
@@ -100,6 +100,12 @@ Do not add public anonymous staging endpoints first and tighten them later unles
 - at least one safe hosted execution path per job family
 - `promote --dry-run` is a good first hosted proof
 
+`UP-22` should add only conservative cadence on top of those already-proven jobs:
+
+- enable `maintenance` first
+- keep `pipeline` paused by default
+- keep `promote` and `rollback` manual
+
 ## New invariant after UP-18
 
 Once hosted serving staging is live:
@@ -117,5 +123,5 @@ Still out of scope here:
 - environment promotion logic
 - multi-region topology
 - alternate release-control system
-- scheduler-driven orchestration before jobs are already healthy
+- scheduler-driven orchestration beyond conservative maintenance cadence
 - ALB before direct hosted serving is already proven

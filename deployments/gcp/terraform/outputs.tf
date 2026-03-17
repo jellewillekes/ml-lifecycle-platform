@@ -55,10 +55,11 @@ output "foundation_secret_ids" {
 }
 
 output "foundation_service_accounts" {
-  description = "Service account emails for CI and hosted runtime identities."
+  description = "Service account emails for CI, runtime, and scheduler identities."
   value = {
-    ci      = google_service_account.ci.email
-    runtime = google_service_account.runtime.email
+    ci        = google_service_account.ci.email
+    runtime   = google_service_account.runtime.email
+    scheduler = google_service_account.scheduler.email
   }
 }
 
@@ -70,6 +71,11 @@ output "ci_service_account_email" {
 output "runtime_service_account_email" {
   description = "Runtime service account email for hosted workloads."
   value       = google_service_account.runtime.email
+}
+
+output "scheduler_service_account_email" {
+  description = "Scheduler service account email for invoking approved staged jobs."
+  value       = google_service_account.scheduler.email
 }
 
 output "github_repository_binding" {
@@ -150,6 +156,21 @@ output "platform_jobs" {
       args                 = local.platform_jobs[key].args
       mutates_model_state  = local.platform_jobs[key].mutates_model_state
       safe_validation_args = local.platform_jobs[key].safe_validation_args
+    }
+  } : null
+}
+
+output "platform_schedules" {
+  description = "Hosted staging Cloud Scheduler contracts. Null until the first platform image deploy is applied."
+  value = local.platform_jobs_enabled ? {
+    for key, job in google_cloud_scheduler_job.platform :
+    key => {
+      name       = job.name
+      region     = job.region
+      schedule   = job.schedule
+      time_zone  = job.time_zone
+      paused     = job.paused
+      target_job = google_cloud_run_v2_job.platform[key].name
     }
   } : null
 }

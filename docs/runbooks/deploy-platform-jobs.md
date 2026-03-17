@@ -1,6 +1,6 @@
 # Deploy Platform Jobs Staging
 
-Last verified: 2026-03-13
+Last verified: 2026-03-17
 
 This runbook covers the hosted Cloud Run Jobs path added in `UP-21`.
 
@@ -15,6 +15,12 @@ Out of scope here:
 - scheduler or cadence wiring
 - automatic promotion to `prod`
 - edge or load balancer concerns
+
+Scheduler note:
+
+- `UP-22` adds scheduler resources in the same Terraform root
+- scheduler-specific operator flow now lives in [`schedule-platform-jobs.md`](./schedule-platform-jobs.md)
+- this runbook stays focused on job deployment and manual execution
 
 ## Job contract
 

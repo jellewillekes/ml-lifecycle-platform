@@ -24,11 +24,11 @@ Managed now:
 - Cloud Run MLflow service and CI deploy IAM bindings
 - Cloud Run serving service and runtime-to-MLflow invoke IAM
 - Cloud Run jobs for hosted platform actions
+- Cloud Scheduler for conservative staged platform cadence
 
 Not managed yet:
 
 - ALB or custom domain
-- Cloud Scheduler
 
 ## Shared identifiers
 
@@ -48,6 +48,7 @@ Not managed yet:
 | data bucket | `fpl-project-jelle-mlp-data` | hosted data files |
 | CI service account | `mlp-ci@fpl-project-jelle.iam.gserviceaccount.com` | GitHub Actions impersonation |
 | runtime service account | `mlp-runtime@fpl-project-jelle.iam.gserviceaccount.com` | hosted workload identity |
+| scheduler service account | `mlp-scheduler@fpl-project-jelle.iam.gserviceaccount.com` | Cloud Scheduler identity for approved staged jobs |
 | WIF pool | `github-actions` | GitHub OIDC trust root |
 | WIF provider | `github-oidc` | GitHub repository trust binding |
 
@@ -90,8 +91,10 @@ Current important bindings:
 Current deploy-specific CI bindings:
 
 - `roles/run.admin`
+- `roles/cloudscheduler.admin`
 - `roles/serviceusage.serviceUsageAdmin`
 - `roles/iam.serviceAccountUser` on `mlp-runtime`
+- `roles/iam.serviceAccountUser` on `mlp-scheduler`
 
 Manual bootstrap IAM outside this Terraform root:
 
@@ -110,6 +113,8 @@ Current service-specific binding once deployed:
 - `roles/run.invoker` on `mlp-mlflow-staging`
 - `roles/run.invoker` on `mlp-serving-staging`
 - `roles/run.invoker` on `mlp-mlflow-staging` for `mlp-runtime`
+- `roles/run.invoker` on `mlp-maintenance-staging` for `mlp-scheduler`
+- `roles/run.invoker` on `mlp-pipeline-staging` for `mlp-scheduler`
 
 ## Current staging runtime inventory
 
@@ -122,10 +127,13 @@ Current service-specific binding once deployed:
 | Cloud Run job | `mlp-promote-staging` | deployed by `UP-21`; release action, first validation should use `--dry-run` |
 | Cloud Run job | `mlp-rollback-staging` | deployed by `UP-21`; release action, first validation should use `--dry-run` |
 | Cloud Run job | `mlp-pipeline-staging` | deployed by `UP-21`; hosted pipeline path, may create candidate state |
+| Cloud Scheduler job | `mlp-maintenance-staging-schedule` | added by `UP-22`; enabled conservative maintenance cadence |
+| Cloud Scheduler job | `mlp-pipeline-staging-schedule` | added by `UP-22`; paused candidate-generation cadence |
 | Cloud SQL instance | `mlp-mlflow-staging` | Postgres metadata backend for MLflow |
 | artifact bucket prefix | `gs://fpl-project-jelle-mlp-artifacts/mlflow/` | MLflow artifact root |
 | runtime service account | `mlp-runtime@fpl-project-jelle.iam.gserviceaccount.com` | used by hosted MLflow and serving |
 | CI service account | `mlp-ci@fpl-project-jelle.iam.gserviceaccount.com` | used by GitHub Actions via WIF |
+| scheduler service account | `mlp-scheduler@fpl-project-jelle.iam.gserviceaccount.com` | used by Cloud Scheduler to invoke approved staged jobs |
 
 Bootstrap note:
 
@@ -135,7 +143,6 @@ Bootstrap note:
 
 Still not granted:
 
-- scheduler invoker permissions
 - public ingress configuration
 
 ## Useful Terraform outputs
@@ -149,6 +156,7 @@ Current outputs operators and later PRs should use:
 - `staging_network`
 - `mlflow_sql`
 - `mlflow_secret_ids`
+- `platform_schedules`
 - `workload_identity_provider_name`
 
 Most important current deploy-facing outputs:
@@ -197,6 +205,17 @@ Per-job contract fields:
 - `mutates_model_state`
 - `safe_validation_args`
 
+### `platform_schedules`
+
+Per-schedule contract fields:
+
+- `name`
+- `region`
+- `schedule`
+- `time_zone`
+- `paused`
+- `target_job`
+
 ## Operator checks
 
 After any Terraform apply, these are the fastest sanity checks:
@@ -213,3 +232,5 @@ Companion runbooks:
 - [`../runbooks/gcp-bootstrap.md`](../runbooks/gcp-bootstrap.md)
 - [`../runbooks/gcp-foundation.md`](../runbooks/gcp-foundation.md)
 - [`../runbooks/gcp-staging-infra.md`](../runbooks/gcp-staging-infra.md)
+- [`../runbooks/deploy-platform-jobs.md`](../runbooks/deploy-platform-jobs.md)
+- [`../runbooks/schedule-platform-jobs.md`](../runbooks/schedule-platform-jobs.md)
