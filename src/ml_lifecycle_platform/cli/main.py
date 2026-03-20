@@ -156,11 +156,7 @@ def _with_local_e2e_host_ports(env: dict[str, str]) -> dict[str, str]:
         applied.append(description)
 
     if applied:
-        print(
-            "Local e2e is using ephemeral host ports for "
-            + ", ".join(applied)
-            + "."
-        )
+        print("Local e2e is using ephemeral host ports for " + ", ".join(applied) + ".")
     return env
 
 
