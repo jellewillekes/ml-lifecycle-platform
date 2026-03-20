@@ -88,9 +88,9 @@ set -a; source .env; set +a
 Fast local checks:
 
 ```bash
-make check && 
+make check &&
 make docs-check &&
-make test-all 
+make test-all
 ```
 
 Golden validation path:

@@ -25,4 +25,3 @@ exec mlflow server \
   --port "${MLFLOW_PORT}" \
   --backend-store-uri "${BACKEND_STORE_URI}" \
   --default-artifact-root "${ARTIFACT_ROOT}"
-
