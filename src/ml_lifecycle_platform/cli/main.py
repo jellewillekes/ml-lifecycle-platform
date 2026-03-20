@@ -165,7 +165,9 @@ def _with_local_e2e_host_ports(env: dict[str, str]) -> dict[str, str]:
 def _handle_infra_up(args: argparse.Namespace, profile: RuntimeProfile) -> int:
     env = _command_env(profile)
     _run(_compose_cmd(profile, "up", "-d", *SVC_INFRA), env)
-    print(f"MLflow UI: http://localhost:{_local_host_port('MLP_HOST_MLFLOW_PORT', '5050')}")
+    print(
+        f"MLflow UI: http://localhost:{_local_host_port('MLP_HOST_MLFLOW_PORT', '5050')}"
+    )
     print(
         "MinIO Console: http://localhost:"
         f"{_local_host_port('MLP_HOST_MINIO_CONSOLE_PORT', '9001')}"
