@@ -113,10 +113,11 @@ Hosted runtime images are published by the `Publish Images` workflow described i
 
 Current published image contracts:
 
+- `mlflow`
 - `platform`
 - `serving`
 
-Deploy workflows should consume image digests from the `image-digests.json` artifact, not mutable tags.
+Deploy workflows should consume Artifact Registry image refs pinned by digest as the normal contract. `image-digests.json` remains the operator/debug artifact.
 
 This is separate from model release state:
 

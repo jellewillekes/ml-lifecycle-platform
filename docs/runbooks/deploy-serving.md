@@ -6,8 +6,8 @@ This runbook covers the hosted serving staging deploy path added in `UP-18`.
 
 Current scope:
 
-- resolve a published `serving` image by immutable Git SHA
 - deploy Cloud Run service `mlp-serving-staging` by digest
+- consume a prebuilt digest-pinned serving image
 - point serving at the hosted MLflow staging service
 - require IAM-authenticated access
 - verify the service with authenticated smoke tests
@@ -66,16 +66,16 @@ Run the GitHub Actions workflow:
 
 Required input:
 
-- `git_sha`: the immutable SHA tag published by `Publish Images`
+- `serving_image`: digest-pinned Artifact Registry ref published by `Publish Images`
 
 What it does:
 
 1. authenticate to GCP with WIF
-2. resolve `serving:<git-sha>` from Artifact Registry
+2. validate the provided digest-pinned `serving_image`
 3. resolve the current hosted MLflow image from Terraform output
 4. apply Terraform with:
    - `TF_VAR_mlflow_image=<current-mlflow-ref@sha256:...>`
-   - `TF_VAR_serving_image=<serving-ref@sha256:...>`
+   - `TF_VAR_serving_image=<provided-serving-ref@sha256:...>`
    - `TF_VAR_platform_image=<current-platform-ref@sha256:...>`
 5. mint an identity token for the serving service URL
 6. run authenticated smoke checks for:
@@ -151,7 +151,7 @@ If you need a staged performance reference, run the `Serving Staging Baseline` w
 | serving apply updates MLflow unexpectedly | shared Terraform root missing current MLflow image input | keep resolving `mlflow_service.image` before apply |
 | `/health` works but `/predict` fails | no `prod` alias in staged MLflow | register the model and assign `prod` before rerunning |
 | metadata endpoints work but model loading fails | serving cannot call hosted MLflow | check `MLFLOW_CLOUD_RUN_AUDIENCE` and `mlp-runtime` `run.invoker` on `mlp-mlflow-staging` |
-| deploy workflow cannot resolve serving digest | image was not published for that SHA | rerun `Publish Images` or use the correct `git_sha` |
+| deploy workflow cannot resolve serving image | wrong image ref or image was not published | rerun `Publish Images` and use the digest-pinned `serving_image` output |
 | response schema or prediction payload fails | model spec drift | check `MODEL_NAME` and `MLP_MODEL_SPEC_PATH` against the registered model |
 
 ## Expected success state

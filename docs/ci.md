@@ -1,6 +1,6 @@
 # CI
 
-The repo has fourteen lanes:
+The repo has fifteen lanes:
 
 | Lane | Trigger | Purpose |
 | --- | --- | --- |
@@ -11,12 +11,13 @@ The repo has fourteen lanes:
 | `Zizmor` | pull requests, push to `master`, weekly, manual dispatch | GitHub Actions security lint and SARIF upload |
 | `GCP Auth Verify` | push to `master`, manual dispatch | GitHub OIDC to GCP WIF verification plus hosted-foundation prerequisite checks |
 | `Publish Images` | called from `CI` on push to `master`, manual dispatch | builds, smoke-checks, and publishes hosted runtime images to Artifact Registry |
-| `Deploy MLflow Staging` | manual dispatch | builds the hosted MLflow image, deploys Cloud Run staging by digest, and runs authenticated smoke checks |
-| `Seed Hosted Staging Model` | manual dispatch | runs the demo pipeline against hosted MLflow staging, registers a candidate, and promotes it to `prod` |
-| `Deploy Serving Staging` | manual dispatch | resolves a published serving image by SHA, deploys Cloud Run staging by digest, and runs authenticated smoke checks |
+| `Deploy MLflow Staging` | manual dispatch and reusable workflow call | deploys hosted MLflow from a digest-pinned image and runs authenticated smoke checks |
+| `Seed Hosted Staging Model` | manual dispatch and reusable workflow call | creates a deterministic hosted release fixture from a digest-pinned platform image: rollback-ready `prod` plus a fresh promotable `candidate` |
+| `Deploy Serving Staging` | manual dispatch and reusable workflow call | deploys hosted serving from a digest-pinned image and runs authenticated smoke checks |
 | `Serving Staging Baseline` | manual dispatch | runs an advisory k6 baseline against the direct hosted serving staging URL and uploads artifacts |
-| `Deploy Platform Jobs Staging` | manual dispatch | resolves a published platform image by SHA, deploys Cloud Run Jobs by digest, and preserves the current MLflow/serving images |
-| `Run Platform Job Staging` | manual dispatch | executes one deployed Cloud Run Job in staging with an optional args override |
+| `Deploy Platform Jobs Staging` | manual dispatch and reusable workflow call | deploys hosted Cloud Run Jobs from a digest-pinned platform image and preserves the current MLflow/serving images |
+| `Run Platform Job Staging` | manual dispatch and reusable workflow call | executes one deployed Cloud Run Job in staging with an optional args override |
+| `Hosted Golden Path Staging` | manual dispatch | runs the canonical hosted publish-deploy-validate path end to end, including explicit staging fixture preparation |
 | `E2E` | nightly and manual dispatch | dockerized golden path |
 
 ## Local mapping
@@ -85,6 +86,7 @@ Trigger model:
 
 Published image refs:
 
+- `europe-west1-docker.pkg.dev/fpl-project-jelle/mlp-images/mlflow:<git-sha>`
 - `europe-west1-docker.pkg.dev/fpl-project-jelle/mlp-images/platform:<git-sha>`
 - `europe-west1-docker.pkg.dev/fpl-project-jelle/mlp-images/serving:<git-sha>`
 
@@ -93,8 +95,9 @@ Contract:
 - only immutable Git SHA tags are published
 - each image is built once, smoke-tested locally in CI, then that same image is pushed
 - digests are captured after push and recorded in both the workflow summary and `image-digests.json`
+- reusable workflow outputs expose digest-pinned image refs for downstream deploy workflows
 
-Downstream deploy workflows should consume digests, not tags. Treat tags as discovery aids and digests as the deploy contract.
+Downstream deploy workflows should consume digest-pinned image refs, not tags. Treat tags as discovery aids, Artifact Registry digests as the source of truth, and `image-digests.json` as the operator/debug artifact.
 
 Expected artifact shape:
 
@@ -104,6 +107,11 @@ Expected artifact shape:
   "repository": "europe-west1-docker.pkg.dev/fpl-project-jelle/mlp-images",
   "git_sha": "<sha>",
   "images": {
+    "mlflow": {
+      "tag": "<sha>",
+      "ref": ".../mlflow:<sha>",
+      "digest": "sha256:..."
+    },
     "platform": {
       "tag": "<sha>",
       "ref": ".../platform:<sha>",
@@ -127,9 +135,8 @@ Hosted MLflow staging deploy lives in:
 Current shape:
 
 - manual `workflow_dispatch`
-- builds the hosted MLflow image from `deployments/gcp/mlflow/`
-- pushes `mlflow:<git-sha>` to Artifact Registry
-- applies Terraform with the resolved image digest
+- consumes a digest-pinned `mlflow_image` from `Publish Images`
+- applies Terraform with that image and preserves the current serving/platform images
 - verifies the deployed service with an authenticated MLflow smoke script
 - mints the Cloud Run verification token with `google-github-actions/auth`
 
@@ -155,10 +162,9 @@ Hosted serving staging deploy lives in:
 Current shape:
 
 - manual `workflow_dispatch`
-- takes a required `git_sha` input
-- resolves the published `serving:<git-sha>` image from Artifact Registry
+- takes a required digest-pinned `serving_image` input
 - preserves the current hosted MLflow image input when applying the shared Terraform root
-- applies Terraform with the resolved serving image digest
+- applies Terraform with the provided serving image
 - verifies the deployed service with authenticated smoke checks
 - mints the Cloud Run verification token with `google-github-actions/auth`
 
@@ -209,7 +215,7 @@ Hosted platform jobs live in:
 Current shape:
 
 - deploy workflow is manual `workflow_dispatch`
-- deploy resolves `platform:<git-sha>` from Artifact Registry by digest
+- deploy takes a required digest-pinned `platform_image` input
 - deploy preserves the current hosted MLflow and serving image inputs when applying the shared Terraform root
 - run executes one named Cloud Run Job in staging
 
@@ -229,6 +235,8 @@ Recommended first hosted proofs:
 - `rollback --dry-run`
 
 Only after those are boring should operators move on to the mutating paths such as `pipeline` or an actual rollback.
+
+For a deterministic full hosted check, use `Hosted Golden Path Staging`. That workflow seeds a rollback-ready `prod` plus a distinct promotable `candidate` before it runs the dry-run checks.
 
 ## Deploy workflow troubleshooting
 

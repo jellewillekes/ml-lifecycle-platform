@@ -158,6 +158,18 @@ Safe hosted proof order:
 4. `rollback` with `dry_run`
 5. `pipeline`
 
+### 5a. Run the canonical hosted golden path
+
+Use:
+
+- [`../runbooks/hosted-golden-path.md`](../runbooks/hosted-golden-path.md)
+
+This is the one-button hosted path that:
+
+- publishes images once
+- deploys MLflow, serving, and platform jobs by digest
+- validates the staged hosted flow end to end
+
 ### 6. Inspect or operate scheduler
 
 Use:

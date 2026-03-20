@@ -1,10 +1,23 @@
 name: Deploy Serving Staging
 
 on:
+  workflow_call:
+    inputs:
+      serving_image:
+        description: Digest-pinned Artifact Registry ref for the hosted serving image to deploy.
+        required: true
+        type: string
+    outputs:
+      serving_image:
+        description: Deployed serving image pinned by digest.
+        value: ${{ jobs.deploy.outputs.serving_image }}
+      service_url:
+        description: Hosted serving service URL after deploy.
+        value: ${{ jobs.deploy.outputs.service_url }}
   workflow_dispatch:
     inputs:
-      git_sha:
-        description: Git SHA for a serving image previously published by Publish Images.
+      serving_image:
+        description: Digest-pinned Artifact Registry ref for the hosted serving image to deploy.
         required: true
         type: string
 
@@ -20,7 +33,6 @@ env:
   GCP_WIF_PROVIDER: ${{ vars.GCP_WIF_PROVIDER }}
   GCP_CI_SERVICE_ACCOUNT: ${{ vars.GCP_CI_SERVICE_ACCOUNT }}
   GCP_REGION: europe-west1
-  ARTIFACT_REGISTRY_REPOSITORY: mlp-images
 
 jobs:
   deploy:
@@ -30,6 +42,9 @@ jobs:
     permissions:
       contents: read
       id-token: write
+    outputs:
+      serving_image: ${{ steps.service.outputs.service_image }}
+      service_url: ${{ steps.service.outputs.service_url }}
 
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
@@ -57,6 +72,26 @@ jobs:
             exit 1
           fi
 
+      - id: context
+        name: Validate deploy image input
+        env:
+          INPUT_SERVING_IMAGE: ${{ inputs.serving_image }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          serving_image="${INPUT_SERVING_IMAGE}"
+          if [[ -z "${serving_image}" ]]; then
+            echo "Provide serving_image as a digest-pinned Artifact Registry ref."
+            exit 1
+          fi
+          if [[ "${serving_image}" != *@sha256:* ]]; then
+            echo "serving_image must be pinned by digest, for example .../serving@sha256:..."
+            exit 1
+          fi
+
+          echo "serving_image=${serving_image}" >> "${GITHUB_OUTPUT}"
+
       - id: auth
         name: Authenticate to Google Cloud
         uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3
@@ -71,6 +106,21 @@ jobs:
         with:
           version: ">= 363.0.0"
           project_id: ${{ env.GCP_PROJECT_ID }}
+
+      - name: Verify serving image exists in Artifact Registry
+        env:
+          SERVING_IMAGE: ${{ steps.context.outputs.serving_image }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          digest="$(
+            gcloud artifacts docker images describe "${SERVING_IMAGE}" \
+              --format='value(image_summary.digest)'
+          )"
+          if [[ -z "${digest}" ]]; then
+            echo "Failed to resolve serving image digest from Artifact Registry."
+            exit 1
+          fi
 
       - name: Set up Terraform
         uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd # v3.1.2
@@ -95,42 +145,6 @@ jobs:
         run: |
           set -euo pipefail
           uv sync --frozen --group dev
-
-      - id: context
-        name: Resolve deploy context
-        env:
-          GIT_SHA: ${{ github.event.inputs.git_sha }}
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          repository="${GCP_REGION}-docker.pkg.dev/${GCP_PROJECT_ID}/${ARTIFACT_REGISTRY_REPOSITORY}"
-          serving_ref="${repository}/serving:${GIT_SHA}"
-
-          echo "git_sha=${GIT_SHA}" >> "${GITHUB_OUTPUT}"
-          echo "repository=${repository}" >> "${GITHUB_OUTPUT}"
-          echo "serving_ref=${serving_ref}" >> "${GITHUB_OUTPUT}"
-
-      - id: capture
-        name: Resolve serving image digest
-        env:
-          SERVING_REF: ${{ steps.context.outputs.serving_ref }}
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          serving_digest="$(
-            gcloud artifacts docker images describe "${SERVING_REF}" \
-              --format='value(image_summary.digest)'
-          )"
-
-          if [[ -z "${serving_digest}" ]]; then
-            echo "Failed to resolve serving image digest from Artifact Registry."
-            exit 1
-          fi
-
-          echo "serving_digest=${serving_digest}" >> "${GITHUB_OUTPUT}"
-          echo "serving_image=${SERVING_REF%@*}@${serving_digest}" >> "${GITHUB_OUTPUT}"
 
       - name: Terraform init
         shell: bash
@@ -206,7 +220,7 @@ jobs:
         continue-on-error: true
         env:
           TF_VAR_mlflow_image: ${{ steps.mlflow.outputs.mlflow_image }}
-          TF_VAR_serving_image: ${{ steps.capture.outputs.serving_image }}
+          TF_VAR_serving_image: ${{ steps.context.outputs.serving_image }}
           TF_VAR_platform_image: ${{ steps.platform.outputs.platform_image }}
         shell: bash
         run: |
@@ -280,5 +294,5 @@ jobs:
             echo
             echo "- Image: \`${SERVING_IMAGE}\`"
             echo "- Service URL: \`${SERVICE_URL}\`"
-            echo "- Verification: authenticated smoke test passed"
+            echo "- Verification: authenticated smoke passed"
           } >> "${GITHUB_STEP_SUMMARY}"
