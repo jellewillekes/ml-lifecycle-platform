@@ -56,19 +56,18 @@ Run the GitHub Actions workflow:
 
 Input:
 
-- optional `git_sha`
-  - when empty, the workflow uses the selected workflow commit SHA
-  - that SHA must already be published by `Publish Images` as `platform:<sha>`
+- required `platform_image`
+  - digest-pinned Artifact Registry ref published by `Publish Images`
 
 What it does:
 
 1. authenticate to GCP with WIF
-2. resolve the published `platform` image by digest
+2. validate the provided digest-pinned `platform_image`
 3. resolve the current hosted MLflow and serving images
 4. apply Terraform with:
    - `TF_VAR_mlflow_image=<current-mlflow-ref@sha256:...>`
    - `TF_VAR_serving_image=<current-serving-ref@sha256:...>`
-   - `TF_VAR_platform_image=<platform-ref@sha256:...>`
+   - `TF_VAR_platform_image=<provided-platform-ref@sha256:...>`
 
 The workflow preserves MLflow and serving because all three runtime paths still share one Terraform root.
 

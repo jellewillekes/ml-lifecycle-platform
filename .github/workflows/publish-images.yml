@@ -6,12 +6,27 @@ on:
       git_sha:
         description: Published Git SHA.
         value: ${{ jobs.build-and-push.outputs.git_sha }}
+      mlflow_image:
+        description: Published Artifact Registry ref for the MLflow image pinned by digest.
+        value: ${{ jobs.build-and-push.outputs.mlflow_image }}
+      mlflow_ref:
+        description: Published Artifact Registry ref for the MLflow image tag.
+        value: ${{ jobs.build-and-push.outputs.mlflow_ref }}
+      mlflow_digest:
+        description: Published digest for the MLflow image.
+        value: ${{ jobs.build-and-push.outputs.mlflow_digest }}
+      platform_image:
+        description: Published Artifact Registry ref for the platform image pinned by digest.
+        value: ${{ jobs.build-and-push.outputs.platform_image }}
       platform_ref:
         description: Published Artifact Registry ref for the platform image.
         value: ${{ jobs.build-and-push.outputs.platform_ref }}
       platform_digest:
         description: Published digest for the platform image.
         value: ${{ jobs.build-and-push.outputs.platform_digest }}
+      serving_image:
+        description: Published Artifact Registry ref for the serving image pinned by digest.
+        value: ${{ jobs.build-and-push.outputs.serving_image }}
       serving_ref:
         description: Published Artifact Registry ref for the serving image.
         value: ${{ jobs.build-and-push.outputs.serving_ref }}
@@ -44,8 +59,13 @@ jobs:
       id-token: write
     outputs:
       git_sha: ${{ steps.context.outputs.git_sha }}
+      mlflow_image: ${{ steps.capture.outputs.mlflow_image }}
+      mlflow_ref: ${{ steps.context.outputs.mlflow_ref }}
+      mlflow_digest: ${{ steps.capture.outputs.mlflow_digest }}
+      platform_image: ${{ steps.capture.outputs.platform_image }}
       platform_ref: ${{ steps.context.outputs.platform_ref }}
       platform_digest: ${{ steps.capture.outputs.platform_digest }}
+      serving_image: ${{ steps.capture.outputs.serving_image }}
       serving_ref: ${{ steps.context.outputs.serving_ref }}
       serving_digest: ${{ steps.capture.outputs.serving_digest }}
 
@@ -63,6 +83,7 @@ jobs:
 
           echo "git_sha=${git_sha}" >> "${GITHUB_OUTPUT}"
           echo "repository=${repository}" >> "${GITHUB_OUTPUT}"
+          echo "mlflow_ref=${repository}/mlflow:${git_sha}" >> "${GITHUB_OUTPUT}"
           echo "platform_ref=${repository}/platform:${git_sha}" >> "${GITHUB_OUTPUT}"
           echo "serving_ref=${repository}/serving:${git_sha}" >> "${GITHUB_OUTPUT}"
 
@@ -108,6 +129,17 @@ jobs:
           version: ">= 363.0.0"
           project_id: ${{ env.GCP_PROJECT_ID }}
 
+      - name: Build MLflow image
+        env:
+          GIT_SHA: ${{ steps.context.outputs.git_sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker build \
+            --file deployments/gcp/mlflow/Dockerfile \
+            --tag "mlp-mlflow:${GIT_SHA}" \
+            deployments/gcp/mlflow
+
       - name: Build platform image
         env:
           GIT_SHA: ${{ steps.context.outputs.git_sha }}
@@ -123,6 +155,14 @@ jobs:
         run: |
           set -euo pipefail
           docker build --target serving --tag "mlp-serving:${GIT_SHA}" .
+
+      - name: Smoke test MLflow image
+        env:
+          GIT_SHA: ${{ steps.context.outputs.git_sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker run --rm --entrypoint mlflow "mlp-mlflow:${GIT_SHA}" --version
 
       - name: Smoke test platform image
         env:
@@ -153,6 +193,16 @@ jobs:
             --password-stdin \
             "https://${REGISTRY_HOST}"
 
+      - name: Push MLflow image
+        env:
+          GIT_SHA: ${{ steps.context.outputs.git_sha }}
+          MLFLOW_REF: ${{ steps.context.outputs.mlflow_ref }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker tag "mlp-mlflow:${GIT_SHA}" "${MLFLOW_REF}"
+          docker push "${MLFLOW_REF}"
+
       - name: Push platform image
         env:
           GIT_SHA: ${{ steps.context.outputs.git_sha }}
@@ -178,12 +228,17 @@ jobs:
         env:
           GIT_SHA: ${{ steps.context.outputs.git_sha }}
           IMAGE_REPOSITORY: ${{ steps.context.outputs.repository }}
+          MLFLOW_REF: ${{ steps.context.outputs.mlflow_ref }}
           PLATFORM_REF: ${{ steps.context.outputs.platform_ref }}
           SERVING_REF: ${{ steps.context.outputs.serving_ref }}
         shell: bash
         run: |
           set -euo pipefail
 
+          mlflow_digest="$(
+            gcloud artifacts docker images describe "${MLFLOW_REF}" \
+              --format='value(image_summary.digest)'
+          )"
           platform_digest="$(
             gcloud artifacts docker images describe "${PLATFORM_REF}" \
               --format='value(image_summary.digest)'
@@ -193,15 +248,20 @@ jobs:
               --format='value(image_summary.digest)'
           )"
 
-          if [[ -z "${platform_digest}" || -z "${serving_digest}" ]]; then
+          if [[ -z "${mlflow_digest}" || -z "${platform_digest}" || -z "${serving_digest}" ]]; then
             echo "Failed to resolve one or more image digests from Artifact Registry."
             exit 1
           fi
 
+          echo "mlflow_digest=${mlflow_digest}" >> "${GITHUB_OUTPUT}"
           echo "platform_digest=${platform_digest}" >> "${GITHUB_OUTPUT}"
           echo "serving_digest=${serving_digest}" >> "${GITHUB_OUTPUT}"
+          echo "mlflow_image=${MLFLOW_REF%@*}@${mlflow_digest}" >> "${GITHUB_OUTPUT}"
+          echo "platform_image=${PLATFORM_REF%@*}@${platform_digest}" >> "${GITHUB_OUTPUT}"
+          echo "serving_image=${SERVING_REF%@*}@${serving_digest}" >> "${GITHUB_OUTPUT}"
 
           export IMAGE_DIGESTS_JSON="${RUNNER_TEMP}/image-digests.json"
+          export MLFLOW_DIGEST="${mlflow_digest}"
           export PLATFORM_DIGEST="${platform_digest}"
           export SERVING_DIGEST="${serving_digest}"
           export IMAGE_GIT_SHA="${GIT_SHA}"
@@ -216,6 +276,11 @@ jobs:
               "repository": os.environ["IMAGE_REPOSITORY"],
               "git_sha": os.environ["IMAGE_GIT_SHA"],
               "images": {
+                  "mlflow": {
+                      "tag": os.environ["IMAGE_GIT_SHA"],
+                      "ref": os.environ["MLFLOW_REF"],
+                      "digest": os.environ["MLFLOW_DIGEST"],
+                  },
                   "platform": {
                       "tag": os.environ["IMAGE_GIT_SHA"],
                       "ref": os.environ["PLATFORM_REF"],
@@ -238,6 +303,8 @@ jobs:
 
       - name: Write workflow summary
         env:
+          MLFLOW_REF: ${{ steps.context.outputs.mlflow_ref }}
+          MLFLOW_DIGEST: ${{ steps.capture.outputs.mlflow_digest }}
           PLATFORM_REF: ${{ steps.context.outputs.platform_ref }}
           PLATFORM_DIGEST: ${{ steps.capture.outputs.platform_digest }}
           SERVING_REF: ${{ steps.context.outputs.serving_ref }}
@@ -250,6 +317,7 @@ jobs:
             echo
             echo "| Image | Ref | Digest |"
             echo "| --- | --- | --- |"
+            echo "| mlflow | \`${MLFLOW_REF}\` | \`${MLFLOW_DIGEST}\` |"
             echo "| platform | \`${PLATFORM_REF}\` | \`${PLATFORM_DIGEST}\` |"
             echo "| serving | \`${SERVING_REF}\` | \`${SERVING_DIGEST}\` |"
             echo

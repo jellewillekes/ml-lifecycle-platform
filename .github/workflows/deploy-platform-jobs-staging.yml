@@ -1,12 +1,24 @@
 name: Deploy Platform Jobs Staging
 
 on:
+  workflow_call:
+    inputs:
+      platform_image:
+        description: Digest-pinned Artifact Registry ref for the hosted platform image to deploy.
+        required: true
+        type: string
+    outputs:
+      platform_image:
+        description: Deployed platform image pinned by digest.
+        value: ${{ jobs.deploy.outputs.platform_image }}
+      job_names:
+        description: Comma-separated deployed Cloud Run Job names.
+        value: ${{ jobs.deploy.outputs.job_names }}
   workflow_dispatch:
     inputs:
-      git_sha:
-        description: Optional Git SHA for a platform image previously published by Publish Images. Uses the selected workflow commit SHA when empty.
-        required: false
-        default: ""
+      platform_image:
+        description: Digest-pinned Artifact Registry ref for the hosted platform image to deploy.
+        required: true
         type: string
 
 permissions:
@@ -21,7 +33,6 @@ env:
   GCP_WIF_PROVIDER: ${{ vars.GCP_WIF_PROVIDER }}
   GCP_CI_SERVICE_ACCOUNT: ${{ vars.GCP_CI_SERVICE_ACCOUNT }}
   GCP_REGION: europe-west1
-  ARTIFACT_REGISTRY_REPOSITORY: mlp-images
 
 jobs:
   deploy:
@@ -31,6 +42,9 @@ jobs:
     permissions:
       contents: read
       id-token: write
+    outputs:
+      platform_image: ${{ steps.context.outputs.platform_image }}
+      job_names: ${{ steps.jobs.outputs.job_names }}
 
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
@@ -52,6 +66,26 @@ jobs:
             exit 1
           fi
 
+      - id: context
+        name: Validate deploy image input
+        env:
+          INPUT_PLATFORM_IMAGE: ${{ inputs.platform_image }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          platform_image="${INPUT_PLATFORM_IMAGE}"
+          if [[ -z "${platform_image}" ]]; then
+            echo "Provide platform_image as a digest-pinned Artifact Registry ref."
+            exit 1
+          fi
+          if [[ "${platform_image}" != *@sha256:* ]]; then
+            echo "platform_image must be pinned by digest, for example .../platform@sha256:..."
+            exit 1
+          fi
+
+          echo "platform_image=${platform_image}" >> "${GITHUB_OUTPUT}"
+
       - id: auth
         name: Authenticate to Google Cloud
         uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3
@@ -67,42 +101,25 @@ jobs:
           version: ">= 363.0.0"
           project_id: ${{ env.GCP_PROJECT_ID }}
 
-      - name: Set up Terraform
-        uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd # v3.1.2
-        with:
-          terraform_version: 1.5.7
-
-      - id: platform_context
-        name: Resolve published platform image
+      - name: Verify platform image exists in Artifact Registry
         env:
-          INPUT_GIT_SHA: ${{ inputs.git_sha }}
-          WORKFLOW_GIT_SHA: ${{ github.sha }}
+          PLATFORM_IMAGE: ${{ steps.context.outputs.platform_image }}
         shell: bash
         run: |
           set -euo pipefail
-
-          repository="${GCP_REGION}-docker.pkg.dev/${GCP_PROJECT_ID}/${ARTIFACT_REGISTRY_REPOSITORY}"
-          git_sha="${INPUT_GIT_SHA:-}"
-          if [[ -z "${git_sha}" ]]; then
-            git_sha="${WORKFLOW_GIT_SHA}"
-          fi
-
-          platform_ref="${repository}/platform:${git_sha}"
-          if ! platform_digest="$(
-            gcloud artifacts docker images describe "${platform_ref}" \
+          digest="$(
+            gcloud artifacts docker images describe "${PLATFORM_IMAGE}" \
               --format='value(image_summary.digest)'
-          )"; then
-            echo "Publish Images has not published platform:${git_sha} yet. Run Publish Images first or provide an explicit git_sha."
-            exit 1
-          fi
-
-          if [[ -z "${platform_digest}" ]]; then
+          )"
+          if [[ -z "${digest}" ]]; then
             echo "Failed to resolve platform image digest from Artifact Registry."
             exit 1
           fi
 
-          echo "git_sha=${git_sha}" >> "${GITHUB_OUTPUT}"
-          echo "platform_image=${platform_ref%@*}@${platform_digest}" >> "${GITHUB_OUTPUT}"
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd # v3.1.2
+        with:
+          terraform_version: 1.5.7
 
       - name: Terraform init
         shell: bash
@@ -156,7 +173,7 @@ jobs:
         env:
           TF_VAR_mlflow_image: ${{ steps.mlflow.outputs.mlflow_image }}
           TF_VAR_serving_image: ${{ steps.serving.outputs.serving_image }}
-          TF_VAR_platform_image: ${{ steps.platform_context.outputs.platform_image }}
+          TF_VAR_platform_image: ${{ steps.context.outputs.platform_image }}
         shell: bash
         run: |
           set -euo pipefail
@@ -183,8 +200,7 @@ jobs:
 
       - name: Write workflow summary
         env:
-          PLATFORM_IMAGE: ${{ steps.platform_context.outputs.platform_image }}
-          GIT_SHA: ${{ steps.platform_context.outputs.git_sha }}
+          PLATFORM_IMAGE: ${{ steps.context.outputs.platform_image }}
           JOB_NAMES: ${{ steps.jobs.outputs.job_names }}
         shell: bash
         run: |
@@ -193,6 +209,5 @@ jobs:
             echo "## Hosted platform jobs staging"
             echo
             echo "- Platform image: \`${PLATFORM_IMAGE}\`"
-            echo "- Git SHA: \`${GIT_SHA}\`"
             echo "- Jobs: \`${JOB_NAMES}\`"
           } >> "${GITHUB_STEP_SUMMARY}"

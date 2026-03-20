@@ -1,12 +1,17 @@
 name: Seed Hosted Staging Model
 
 on:
+  workflow_call:
+    inputs:
+      platform_image:
+        description: Digest-pinned Artifact Registry ref for the platform image to use for seeding.
+        required: true
+        type: string
   workflow_dispatch:
     inputs:
-      git_sha:
-        description: Optional Git SHA for a published platform image. Uses the latest published platform image when empty.
-        required: false
-        default: ""
+      platform_image:
+        description: Digest-pinned Artifact Registry ref for the platform image to use for seeding.
+        required: true
         type: string
 
 permissions:
@@ -21,7 +26,6 @@ env:
   GCP_WIF_PROVIDER: ${{ vars.GCP_WIF_PROVIDER }}
   GCP_CI_SERVICE_ACCOUNT: ${{ vars.GCP_CI_SERVICE_ACCOUNT }}
   GCP_REGION: europe-west1
-  ARTIFACT_REGISTRY_REPOSITORY: mlp-images
 
 jobs:
   seed:
@@ -89,44 +93,24 @@ jobs:
           uv sync --frozen --group dev
 
       - id: platform_context
-        name: Resolve published platform image
+        name: Validate platform image input
         env:
-          INPUT_GIT_SHA: ${{ inputs.git_sha }}
+          INPUT_PLATFORM_IMAGE: ${{ inputs.platform_image }}
         shell: bash
         run: |
           set -euo pipefail
 
-          repository="${GCP_REGION}-docker.pkg.dev/${GCP_PROJECT_ID}/${ARTIFACT_REGISTRY_REPOSITORY}"
-          git_sha="${INPUT_GIT_SHA}"
-
-          if [[ -z "${git_sha}" ]]; then
-            git_sha="$(
-              gcloud artifacts docker images list "${repository}/platform" \
-                --include-tags \
-                --sort-by='~updateTime' \
-                --limit=1 \
-                --format='get(tags)'
-            )"
+          platform_image="${INPUT_PLATFORM_IMAGE}"
+          if [[ -z "${platform_image}" ]]; then
+            echo "Provide platform_image as a digest-pinned Artifact Registry ref."
+            exit 1
           fi
-
-          if [[ -z "${git_sha}" ]]; then
-            echo "Could not resolve a published platform image tag."
+          if [[ "${platform_image}" != *@sha256:* ]]; then
+            echo "platform_image must be pinned by digest, for example .../platform@sha256:..."
             exit 1
           fi
 
-          platform_ref="${repository}/platform:${git_sha}"
-          platform_digest="$(
-            gcloud artifacts docker images describe "${platform_ref}" \
-              --format='value(image_summary.digest)'
-          )"
-
-          if [[ -z "${platform_digest}" ]]; then
-            echo "Failed to resolve platform image digest from Artifact Registry."
-            exit 1
-          fi
-
-          echo "git_sha=${git_sha}" >> "${GITHUB_OUTPUT}"
-          echo "platform_image=${platform_ref%@*}@${platform_digest}" >> "${GITHUB_OUTPUT}"
+          echo "platform_image=${platform_image}" >> "${GITHUB_OUTPUT}"
 
       - id: mlflow
         name: Resolve hosted MLflow service contract
@@ -214,7 +198,6 @@ jobs:
         env:
           PLATFORM_IMAGE: ${{ steps.platform_context.outputs.platform_image }}
           MLFLOW_URL: ${{ steps.mlflow.outputs.service_url }}
-          GIT_SHA: ${{ steps.platform_context.outputs.git_sha }}
         shell: bash
         run: |
           set -euo pipefail
@@ -222,7 +205,6 @@ jobs:
             echo "## Hosted staging model seeded"
             echo
             echo "- Platform image: \`${PLATFORM_IMAGE}\`"
-            echo "- Git SHA: \`${GIT_SHA}\`"
             echo "- Hosted MLflow: \`${MLFLOW_URL}\`"
             echo "- Model alias: \`breast_cancer_clf@prod\`"
           } >> "${GITHUB_STEP_SUMMARY}"

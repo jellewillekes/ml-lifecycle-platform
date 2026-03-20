@@ -1,0 +1,325 @@
+name: Hosted Golden Path Staging
+
+on:
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: hosted-golden-path-staging-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  GCP_PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
+  GCP_WIF_PROVIDER: ${{ vars.GCP_WIF_PROVIDER }}
+  GCP_CI_SERVICE_ACCOUNT: ${{ vars.GCP_CI_SERVICE_ACCOUNT }}
+  GCP_REGION: europe-west1
+
+jobs:
+  publish-images:
+    name: Publish Images
+    permissions:
+      contents: read
+      id-token: write
+    uses: ./.github/workflows/publish-images.yml
+
+  deploy-mlflow:
+    name: Deploy MLflow
+    needs: publish-images
+    permissions:
+      contents: read
+      id-token: write
+    uses: ./.github/workflows/deploy-mlflow-staging.yml
+    with:
+      mlflow_image: ${{ needs.publish-images.outputs.mlflow_image }}
+
+  deploy-serving:
+    name: Deploy Serving
+    needs: [publish-images, deploy-mlflow]
+    permissions:
+      contents: read
+      id-token: write
+    uses: ./.github/workflows/deploy-serving-staging.yml
+    with:
+      serving_image: ${{ needs.publish-images.outputs.serving_image }}
+
+  deploy-platform-jobs:
+    name: Deploy Platform Jobs
+    needs: [publish-images, deploy-mlflow, deploy-serving]
+    permissions:
+      contents: read
+      id-token: write
+    uses: ./.github/workflows/deploy-platform-jobs-staging.yml
+    with:
+      platform_image: ${{ needs.publish-images.outputs.platform_image }}
+
+  validate-preconditions:
+    name: Validate Preconditions
+    needs: [deploy-mlflow, deploy-serving, deploy-platform-jobs]
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          persist-credentials: false
+
+      - name: Validate required GitHub Actions variables
+        shell: bash
+        run: |
+          set -euo pipefail
+          missing=()
+          for var_name in GCP_PROJECT_ID GCP_WIF_PROVIDER GCP_CI_SERVICE_ACCOUNT; do
+            if [[ -z "${!var_name:-}" ]]; then
+              missing+=("${var_name}")
+            fi
+          done
+          if (( ${#missing[@]} > 0 )); then
+            printf 'Missing required GitHub Actions variable(s): %s\n' "${missing[*]}"
+            exit 1
+          fi
+
+      - id: auth
+        name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3
+        with:
+          create_credentials_file: true
+          project_id: ${{ env.GCP_PROJECT_ID }}
+          workload_identity_provider: ${{ env.GCP_WIF_PROVIDER }}
+          service_account: ${{ env.GCP_CI_SERVICE_ACCOUNT }}
+
+      - name: Set up Python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6
+        with:
+          python-version: "3.11.7"
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@3259c6206f993105e3a61b142c2d97bf4b9ef83d # v7.1.0
+        with:
+          enable-cache: true
+          cache-dependency-glob: |
+            uv.lock
+            pyproject.toml
+
+      - name: Sync (locked)
+        shell: bash
+        run: |
+          set -euo pipefail
+          uv sync --frozen --group dev
+
+      - name: Mint identity token for hosted MLflow
+        id: token
+        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3
+        with:
+          project_id: ${{ env.GCP_PROJECT_ID }}
+          workload_identity_provider: ${{ env.GCP_WIF_PROVIDER }}
+          service_account: ${{ env.GCP_CI_SERVICE_ACCOUNT }}
+          token_format: id_token
+          id_token_audience: ${{ needs.deploy-mlflow.outputs.service_url }}
+          id_token_include_email: true
+
+      - id: alias
+        name: Verify staged prod alias exists
+        continue-on-error: true
+        env:
+          MLFLOW_TRACKING_TOKEN: ${{ steps.token.outputs.id_token }}
+          MLFLOW_TRACKING_URI: ${{ needs.deploy-mlflow.outputs.service_url }}
+          MLFLOW_REGISTRY_URI: ${{ needs.deploy-mlflow.outputs.service_url }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          uv run python scripts/verify_hosted_model_alias.py \
+            --tracking-uri "${MLFLOW_TRACKING_URI}" \
+            --model-name "breast_cancer_clf" \
+            --alias "prod"
+
+      - name: Fail with explicit staging-model guidance
+        if: steps.alias.outcome == 'failure'
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "Hosted golden path precondition failed: staged MLflow does not currently resolve breast_cancer_clf@prod."
+          echo "Run the 'Seed Hosted Staging Model' workflow with the published platform_image digest first, then rerun the hosted golden path."
+          exit 1
+
+  maintenance:
+    name: Run Maintenance
+    needs: validate-preconditions
+    permissions:
+      contents: read
+      id-token: write
+    uses: ./.github/workflows/run-platform-job-staging.yml
+    with:
+      job_name: maintenance
+      execution_mode: default
+
+  reproduce:
+    name: Run Reproduce
+    needs: maintenance
+    permissions:
+      contents: read
+      id-token: write
+    uses: ./.github/workflows/run-platform-job-staging.yml
+    with:
+      job_name: reproduce
+      execution_mode: default
+
+  promote-dry-run:
+    name: Run Promote Dry Run
+    needs: reproduce
+    permissions:
+      contents: read
+      id-token: write
+    uses: ./.github/workflows/run-platform-job-staging.yml
+    with:
+      job_name: promote
+      execution_mode: dry_run
+
+  rollback-dry-run:
+    name: Run Rollback Dry Run
+    needs: promote-dry-run
+    permissions:
+      contents: read
+      id-token: write
+    uses: ./.github/workflows/run-platform-job-staging.yml
+    with:
+      job_name: rollback
+      execution_mode: dry_run
+
+  pipeline:
+    name: Run Pipeline
+    needs: rollback-dry-run
+    permissions:
+      contents: read
+      id-token: write
+    uses: ./.github/workflows/run-platform-job-staging.yml
+    with:
+      job_name: pipeline
+      execution_mode: default
+
+  serving-smoke:
+    name: Serving Smoke
+    needs: [deploy-serving, pipeline]
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          persist-credentials: false
+
+      - name: Validate required GitHub Actions variables
+        shell: bash
+        run: |
+          set -euo pipefail
+          missing=()
+          for var_name in GCP_PROJECT_ID GCP_WIF_PROVIDER GCP_CI_SERVICE_ACCOUNT; do
+            if [[ -z "${!var_name:-}" ]]; then
+              missing+=("${var_name}")
+            fi
+          done
+          if (( ${#missing[@]} > 0 )); then
+            printf 'Missing required GitHub Actions variable(s): %s\n' "${missing[*]}"
+            exit 1
+          fi
+
+      - id: auth
+        name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3
+        with:
+          create_credentials_file: true
+          project_id: ${{ env.GCP_PROJECT_ID }}
+          workload_identity_provider: ${{ env.GCP_WIF_PROVIDER }}
+          service_account: ${{ env.GCP_CI_SERVICE_ACCOUNT }}
+
+      - name: Set up Python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6
+        with:
+          python-version: "3.11.7"
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@3259c6206f993105e3a61b142c2d97bf4b9ef83d # v7.1.0
+        with:
+          enable-cache: true
+          cache-dependency-glob: |
+            uv.lock
+            pyproject.toml
+
+      - name: Sync (locked)
+        shell: bash
+        run: |
+          set -euo pipefail
+          uv sync --frozen --group dev
+
+      - name: Mint identity token for Cloud Run
+        id: token
+        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3
+        with:
+          project_id: ${{ env.GCP_PROJECT_ID }}
+          workload_identity_provider: ${{ env.GCP_WIF_PROVIDER }}
+          service_account: ${{ env.GCP_CI_SERVICE_ACCOUNT }}
+          token_format: id_token
+          id_token_audience: ${{ needs.deploy-serving.outputs.service_url }}
+          id_token_include_email: true
+
+      - name: Verify hosted serving staging
+        env:
+          SERVE_URL: ${{ needs.deploy-serving.outputs.service_url }}
+          SERVE_BEARER_TOKEN: ${{ steps.token.outputs.id_token }}
+          MODEL_NAME: ""
+        shell: bash
+        run: |
+          set -euo pipefail
+          uv run python -m ml_lifecycle_platform.serving.smoke_test
+
+  summary:
+    name: Summary
+    if: always()
+    needs:
+      - publish-images
+      - deploy-mlflow
+      - deploy-serving
+      - deploy-platform-jobs
+      - validate-preconditions
+      - maintenance
+      - reproduce
+      - promote-dry-run
+      - rollback-dry-run
+      - pipeline
+      - serving-smoke
+    runs-on: ubuntu-latest
+    steps:
+      - name: Write workflow summary
+        shell: bash
+        run: |
+          set -euo pipefail
+          {
+            echo "## Hosted golden path staging"
+            echo
+            echo "- Git SHA: \`${{ needs.publish-images.outputs.git_sha }}\`"
+            echo "- MLflow image: \`${{ needs.publish-images.outputs.mlflow_image }}\`"
+            echo "- Serving image: \`${{ needs.publish-images.outputs.serving_image }}\`"
+            echo "- Platform image: \`${{ needs.publish-images.outputs.platform_image }}\`"
+            echo "- MLflow URL: \`${{ needs.deploy-mlflow.outputs.service_url }}\`"
+            echo "- Serving URL: \`${{ needs.deploy-serving.outputs.service_url }}\`"
+            echo "- Platform jobs: \`${{ needs.deploy-platform-jobs.outputs.job_names }}\`"
+            echo
+            echo "| Stage | Result |"
+            echo "| --- | --- |"
+            echo "| publish-images | \`${{ needs.publish-images.result }}\` |"
+            echo "| deploy-mlflow | \`${{ needs.deploy-mlflow.result }}\` |"
+            echo "| deploy-serving | \`${{ needs.deploy-serving.result }}\` |"
+            echo "| deploy-platform-jobs | \`${{ needs.deploy-platform-jobs.result }}\` |"
+            echo "| validate-preconditions | \`${{ needs.validate-preconditions.result }}\` |"
+            echo "| maintenance | \`${{ needs.maintenance.result }}\` |"
+            echo "| reproduce | \`${{ needs.reproduce.result }}\` |"
+            echo "| promote-dry-run | \`${{ needs.promote-dry-run.result }}\` |"
+            echo "| rollback-dry-run | \`${{ needs.rollback-dry-run.result }}\` |"
+            echo "| pipeline | \`${{ needs.pipeline.result }}\` |"
+            echo "| serving-smoke | \`${{ needs.serving-smoke.result }}\` |"
+          } >> "${GITHUB_STEP_SUMMARY}"

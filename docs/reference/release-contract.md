@@ -53,8 +53,7 @@ Artifact path:
 
 Source of truth:
 
-- `Publish Images` workflow
-- `image-digests.json` artifact
+- Artifact Registry digests produced by `Publish Images`
 
 Purpose:
 
@@ -62,6 +61,7 @@ Purpose:
 
 Current published image names:
 
+- `mlflow`
 - `platform`
 - `serving`
 
@@ -73,7 +73,9 @@ Current publish rule:
 
 - publish immutable Git SHA tags only
 - capture remote digests after push
-- downstream deploys should use digests, not tags
+- downstream deploys should use digest-pinned image refs, not tags
+- reusable workflow outputs are the normal transport path
+- `image-digests.json` is the human/debug artifact, not the primary deploy contract
 
 ## Current contract
 
@@ -140,7 +142,9 @@ It is not the same as:
 
 Today and going forward:
 
-- consume `image-digests.json` for container identity
+- consume Artifact Registry image refs pinned by digest for container identity
+- use reusable workflow outputs as the normal transport path between publish and deploy workflows
+- keep `image-digests.json` as the operator/debug artifact
 - consume MLflow aliases and model versions for model identity
 - do not deploy from mutable tags
 - do not infer model rollout from package release versions

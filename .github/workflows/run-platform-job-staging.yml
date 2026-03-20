@@ -1,6 +1,16 @@
 name: Run Platform Job Staging
 
 on:
+  workflow_call:
+    inputs:
+      job_name:
+        description: Deployed Cloud Run job to execute in staging.
+        required: true
+        type: string
+      execution_mode:
+        description: Safe execution mode for the selected job.
+        required: true
+        type: string
   workflow_dispatch:
     inputs:
       job_name:

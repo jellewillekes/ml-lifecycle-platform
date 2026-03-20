@@ -6,9 +6,8 @@ This runbook covers the hosted MLflow staging deploy path added in `UP-17`.
 
 Current scope:
 
-- build the hosted MLflow image from committed source
-- push the image to Artifact Registry
 - deploy Cloud Run service `mlp-mlflow-staging`
+- consume a prebuilt digest-pinned MLflow image
 - use Cloud SQL as the backend store
 - use GCS through MLflow artifact proxying
 - verify the service with an authenticated smoke test
@@ -78,15 +77,17 @@ Run the GitHub Actions workflow:
 What it does:
 
 1. authenticate to GCP with WIF
-2. build the hosted MLflow image from `deployments/gcp/mlflow/`
-3. push `mlflow:<git-sha>` to Artifact Registry
-4. resolve the pushed digest
-5. apply Terraform with `TF_VAR_mlflow_image=<ref@sha256:...>`
+2. validate the provided `mlflow_image` Artifact Registry ref pinned by digest
+3. apply Terraform with `TF_VAR_mlflow_image=<ref@sha256:...>`
    and preserve:
    - `TF_VAR_serving_image=<current-serving-ref@sha256:...>`
    - `TF_VAR_platform_image=<current-platform-ref@sha256:...>`
-6. mint an identity token for the Cloud Run URL
-7. verify authenticated MLflow metadata and artifact writes
+4. mint an identity token for the Cloud Run URL
+5. verify authenticated MLflow metadata and artifact writes
+
+Operator input:
+
+- `mlflow_image`: digest-pinned Artifact Registry ref from `Publish Images`
 
 Important auth note:
 
