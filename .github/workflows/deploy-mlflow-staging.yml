@@ -89,6 +89,10 @@ jobs:
             echo "mlflow_image must be pinned by digest, for example .../mlflow@sha256:..."
             exit 1
           fi
+          if [[ "${mlflow_image%@*}" == *:* ]]; then
+            echo "mlflow_image must be a pure digest ref without a tag, for example .../mlflow@sha256:..."
+            exit 1
+          fi
 
           echo "mlflow_image=${mlflow_image}" >> "${GITHUB_OUTPUT}"
 
