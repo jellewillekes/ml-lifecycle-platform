@@ -46,7 +46,6 @@ def _profile_env(profile: RuntimeProfile) -> dict[str, str]:
         "CANARY_PCT": str(profile.canary_pct),
         "MLFLOW_S3_ENDPOINT_URL": profile.s3_endpoint_url,
         "AWS_ACCESS_KEY_ID": profile.aws_access_key_id,
-        "AWS_SECRET_ACCESS_KEY": profile.aws_secret_access_key,
         "MLP_COMPOSE_FILE": str(profile.compose_file),
         "MLP_COMPOSE_TRACKING_URI": profile.compose_tracking_uri,
         "MLP_COMPOSE_REGISTRY_URI": profile.compose_registry_uri,
@@ -127,8 +126,11 @@ def _with_local_serving_host_port(
     )
 
 
-def _serving_api_message(env: dict[str, str]) -> str:
-    host_port = env.get("MLP_HOST_SERVE_PORT", "8000").strip() or "8000"
+def _local_host_port(env_var: str, default: str) -> str:
+    return os.getenv(env_var, "").strip() or default
+
+
+def _serving_api_message(host_port: str) -> str:
     if host_port == "0":
         return (
             "Serving API started on an ephemeral host port. "
@@ -163,12 +165,10 @@ def _with_local_e2e_host_ports(env: dict[str, str]) -> dict[str, str]:
 def _handle_infra_up(args: argparse.Namespace, profile: RuntimeProfile) -> int:
     env = _command_env(profile)
     _run(_compose_cmd(profile, "up", "-d", *SVC_INFRA), env)
-    print(
-        f"MLflow UI: http://localhost:{env.get('MLP_HOST_MLFLOW_PORT', '5050').strip() or '5050'}"
-    )
+    print(f"MLflow UI: http://localhost:{_local_host_port('MLP_HOST_MLFLOW_PORT', '5050')}")
     print(
         "MinIO Console: http://localhost:"
-        f"{env.get('MLP_HOST_MINIO_CONSOLE_PORT', '9001').strip() or '9001'}"
+        f"{_local_host_port('MLP_HOST_MINIO_CONSOLE_PORT', '9001')}"
     )
     return 0
 
@@ -271,7 +271,7 @@ def _handle_serve_api(args: argparse.Namespace, profile: RuntimeProfile) -> int:
     )
     _run(_compose_cmd(profile, "build", *SVC_IMAGES), env)
     _run(_compose_cmd(profile, "up", "-d", "--build", "serving"), env)
-    print(_serving_api_message(env))
+    print(_serving_api_message(_local_host_port("MLP_HOST_SERVE_PORT", "8000")))
     return 0
 
 
