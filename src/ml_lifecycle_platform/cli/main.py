@@ -96,7 +96,7 @@ def _port_is_available(port: int) -> bool:
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
         sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         try:
-            sock.bind(("0.0.0.0", port))
+            sock.bind(("127.0.0.1", port))
         except OSError:
             return False
     return True
@@ -172,8 +172,7 @@ def _handle_infra_up(args: argparse.Namespace, profile: RuntimeProfile) -> int:
     )
     print(
         "MinIO Console: http://localhost:"
-        f"{env.get('MLP_HOST_MINIO_CONSOLE_PORT', '9001').strip() or '9001'} "
-        "(user: minioadmin / pass: minioadmin)"
+        f"{env.get('MLP_HOST_MINIO_CONSOLE_PORT', '9001').strip() or '9001'}"
     )
     return 0
 
