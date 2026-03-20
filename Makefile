@@ -75,6 +75,7 @@ help:
 	@echo "  make smoke-test        smoke tests against serving"
 	@echo "  make test-e2e          run the golden path without automatic teardown"
 	@echo "  make e2e               pipeline -> gate -> promote -> serve -> smoke"
+	@echo "  make e2e-clean         down first, then run the golden path"
 	@echo "  make e2e-keep          like e2e, but keep stack up"
 	@echo ""
 	@echo "GCP Terraform:"
@@ -133,7 +134,7 @@ precommit:
 install-hooks:
 	@$(PRECOMMIT) install
 
-.PHONY: up down logs build reset run-pipeline reproduce policy-check promote promote-dry-run rollback-prod serve smoke-test test-e2e e2e e2e-keep
+.PHONY: up down logs build reset run-pipeline reproduce policy-check promote promote-dry-run rollback-prod serve smoke-test test-e2e e2e e2e-clean e2e-keep
 up:
 	@$(MLP) infra up
 
@@ -220,6 +221,10 @@ test-e2e:
 	@$(MLP) e2e --keep-stack
 
 e2e:
+	@$(MLP) e2e
+
+e2e-clean:
+	@$(MAKE) down
 	@$(MLP) e2e
 
 e2e-keep:

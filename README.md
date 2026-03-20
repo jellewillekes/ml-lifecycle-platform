@@ -88,15 +88,21 @@ set -a; source .env; set +a
 Fast local checks:
 
 ```bash
-make check && 
+make check &&
 make docs-check &&
-make test-all 
+make test-all
 ```
 
 Golden validation path:
 
 ```bash
 make e2e
+```
+
+If you want a clean reset first:
+
+```bash
+make e2e-clean
 ```
 
 Manual local operator flow:
@@ -120,6 +126,12 @@ uv run mlp --env local registry promote --model-name local_csv_binary_clf
 MODEL_NAME=local_csv_binary_clf MLP_MODEL_SPEC_PATH=configs/models/local_csv_binary_classifier.yaml make serve
 MODEL_NAME=local_csv_binary_clf MLP_MODEL_SPEC_PATH=configs/models/local_csv_binary_classifier.yaml make smoke-test
 make reproduce ALIAS=prod MODEL_NAME=local_csv_binary_clf REPORT=reproduce_csv.json
+```
+
+If local host ports are already occupied, override them explicitly:
+
+```bash
+MLP_HOST_MLFLOW_PORT=5051 MLP_HOST_MINIO_PORT=9002 MLP_HOST_MINIO_CONSOLE_PORT=9003 MLP_HOST_SERVE_PORT=8001 make up
 ```
 
 Tear down:

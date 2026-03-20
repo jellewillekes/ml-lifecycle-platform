@@ -93,9 +93,20 @@ These env vars override the selected runtime profile today.
 - `MLP_COMPOSE_REGISTRY_URI`
 - `MLP_COMPOSE_S3_ENDPOINT_URL`
 - `MLP_COMPOSE_SERVE_URL`
+- `MLP_HOST_MLFLOW_PORT`
+- `MLP_HOST_MINIO_PORT`
+- `MLP_HOST_MINIO_CONSOLE_PORT`
+- `MLP_HOST_SERVE_PORT`
 - `SERVE_URL`
 - `MLFLOW_HOST`
 - `MLFLOW_PORT`
+
+Non-obvious local-only override:
+
+- `MLP_HOST_MLFLOW_PORT` changes the host-side port for the local MLflow UI.
+- `MLP_HOST_MINIO_PORT` changes the host-side port for the MinIO API.
+- `MLP_HOST_MINIO_CONSOLE_PORT` changes the host-side port for the MinIO console.
+- `MLP_HOST_SERVE_PORT` changes the host-side published port for the local `serving` container without changing the in-network smoke-test URL. Use it when `localhost:8000` is already occupied.
 
 ## Serving settings
 

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import subprocess
 from pathlib import Path
 from typing import cast
 
@@ -77,6 +78,24 @@ def test_cli_infra_up_routes_to_compose(
     assert (
         captured_env["MLP_MODEL_SPEC_PATH"] == "configs/models/breast_cancer_demo.yaml"
     )
+
+
+def test_cli_infra_up_prints_overridden_local_ports(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    monkeypatch.setattr(
+        cli_main, "load_runtime_profile", lambda env_name=None: _profile(tmp_path)
+    )
+    monkeypatch.setenv("MLP_HOST_MLFLOW_PORT", "5051")
+    monkeypatch.setenv("MLP_HOST_MINIO_CONSOLE_PORT", "9002")
+    monkeypatch.setattr(cli_main, "_run", lambda command, env: 0)
+
+    assert cli_main.main(["--env", "local", "infra", "up"]) == 0
+    stdout = capsys.readouterr().out
+    assert "http://localhost:5051" in stdout
+    assert "http://localhost:9002" in stdout
 
 
 def test_cli_pipeline_run_builds_then_runs(
@@ -178,6 +197,7 @@ def test_cli_serve_api_builds_and_starts_service(
     monkeypatch.setattr(
         cli_main, "load_runtime_profile", lambda env_name=None: _profile(tmp_path)
     )
+    monkeypatch.setattr(cli_main, "_port_is_available", lambda port: True)
 
     def fake_run(command: list[str], env: dict[str, str]) -> int:
         commands.append(command)
@@ -226,6 +246,7 @@ def test_cli_serve_api_passes_model_spec_override(
     monkeypatch.setattr(
         cli_main, "load_runtime_profile", lambda env_name=None: _profile(tmp_path)
     )
+    monkeypatch.setattr(cli_main, "_port_is_available", lambda port: True)
 
     def fake_run(command: list[str], env: dict[str, str]) -> int:
         envs.append(dict(env))
@@ -252,6 +273,46 @@ def test_cli_serve_api_passes_model_spec_override(
     )
 
 
+def test_cli_serve_api_respects_host_port_override(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    envs: list[dict[str, str]] = []
+    monkeypatch.setattr(
+        cli_main, "load_runtime_profile", lambda env_name=None: _profile(tmp_path)
+    )
+    monkeypatch.setenv("MLP_HOST_SERVE_PORT", "8011")
+
+    def fake_run(command: list[str], env: dict[str, str]) -> int:
+        envs.append(dict(env))
+        return 0
+
+    monkeypatch.setattr(cli_main, "_run", fake_run)
+
+    assert cli_main.main(["--env", "local", "serve", "api"]) == 0
+    assert envs[-1]["MLP_HOST_SERVE_PORT"] == "8011"
+    assert "http://localhost:8011" in capsys.readouterr().out
+
+
+def test_cli_serve_api_fails_fast_when_default_port_is_busy(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        cli_main, "load_runtime_profile", lambda env_name=None: _profile(tmp_path)
+    )
+    monkeypatch.setattr(cli_main, "_port_is_available", lambda port: False)
+
+    with pytest.raises(SystemExit) as error:
+        cli_main.main(["--env", "local", "serve", "api"])
+
+    assert error.value.code == (
+        "Local serving needs host port 8000, but it is already in use. "
+        "Re-run with MLP_HOST_SERVE_PORT=<free-port> make serve."
+    )
+
+
 def test_cli_e2e_delegates_to_runner(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -272,3 +333,45 @@ def test_cli_e2e_delegates_to_runner(
     captured_profile = cast(RuntimeProfile, captured["profile"])
     assert captured_profile.environment == "local"
     assert captured["keep_stack"] is True
+
+
+def test_run_e2e_uses_ephemeral_host_ports_for_local_services(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    commands: list[list[str]] = []
+    envs: list[dict[str, str]] = []
+    teardown_envs: list[dict[str, str]] = []
+    profile = _profile(tmp_path)
+
+    def fake_run(command: list[str], env: dict[str, str]) -> int:
+        commands.append(command)
+        envs.append(dict(env))
+        return 0
+
+    def fake_subprocess_run(
+        command: list[str],
+        *,
+        check: bool,
+        cwd: Path,
+        env: dict[str, str],
+    ) -> subprocess.CompletedProcess[bytes]:
+        del check, cwd
+        teardown_envs.append(dict(env))
+        return subprocess.CompletedProcess(command, 0)
+
+    monkeypatch.setattr(cli_main, "_run", fake_run)
+    monkeypatch.setattr(cli_main.subprocess, "run", fake_subprocess_run)
+
+    assert cli_main._run_e2e(profile, keep_stack=False) == 0
+    assert commands
+    for env in envs:
+        assert env["MLP_HOST_MLFLOW_PORT"] == "0"
+        assert env["MLP_HOST_MINIO_PORT"] == "0"
+        assert env["MLP_HOST_MINIO_CONSOLE_PORT"] == "0"
+        assert env["MLP_HOST_SERVE_PORT"] == "0"
+    assert teardown_envs[-1]["MLP_HOST_SERVE_PORT"] == "0"
+    assert "ephemeral host ports for MLflow, MinIO API, MinIO console, serving" in (
+        capsys.readouterr().out
+    )

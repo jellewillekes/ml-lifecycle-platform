@@ -20,8 +20,8 @@ services:
       MINIO_ROOT_USER: minioadmin
       MINIO_ROOT_PASSWORD: minioadmin
     ports:
-      - "9000:9000"
-      - "9001:9001"
+      - "${MLP_HOST_MINIO_PORT:-9000}:9000"
+      - "${MLP_HOST_MINIO_CONSOLE_PORT:-9001}:9001"
     volumes:
       - miniodata:/data
     healthcheck:
@@ -62,7 +62,7 @@ services:
       AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-minioadmin}
       MLFLOW_S3_ENDPOINT_URL: ${MLP_COMPOSE_S3_ENDPOINT_URL:-http://minio:9000}
     ports:
-      - "5050:5000"
+      - "${MLP_HOST_MLFLOW_PORT:-5050}:5000"
 
     # Use a health endpoint that always exists.
     # MLflow responds on "/" once it is up.
@@ -157,7 +157,7 @@ services:
       CANARY_PCT: ${CANARY_PCT:-10}
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
     ports:
-      - "8000:8000"
+      - "${MLP_HOST_SERVE_PORT:-8000}:8000"
     healthcheck:
       test:
         [
