@@ -109,6 +109,10 @@ jobs:
             echo "platform_image must be pinned by digest, for example .../platform@sha256:..."
             exit 1
           fi
+          if [[ "${platform_image%@*}" == *:* ]]; then
+            echo "platform_image must be a pure digest ref without a tag, for example .../platform@sha256:..."
+            exit 1
+          fi
 
           echo "platform_image=${platform_image}" >> "${GITHUB_OUTPUT}"
 

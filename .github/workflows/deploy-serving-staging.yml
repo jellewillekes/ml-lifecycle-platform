@@ -89,6 +89,10 @@ jobs:
             echo "serving_image must be pinned by digest, for example .../serving@sha256:..."
             exit 1
           fi
+          if [[ "${serving_image%@*}" == *:* ]]; then
+            echo "serving_image must be a pure digest ref without a tag, for example .../serving@sha256:..."
+            exit 1
+          fi
 
           echo "serving_image=${serving_image}" >> "${GITHUB_OUTPUT}"
 

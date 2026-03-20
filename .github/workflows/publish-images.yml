@@ -256,9 +256,9 @@ jobs:
           echo "mlflow_digest=${mlflow_digest}" >> "${GITHUB_OUTPUT}"
           echo "platform_digest=${platform_digest}" >> "${GITHUB_OUTPUT}"
           echo "serving_digest=${serving_digest}" >> "${GITHUB_OUTPUT}"
-          echo "mlflow_image=${MLFLOW_REF%@*}@${mlflow_digest}" >> "${GITHUB_OUTPUT}"
-          echo "platform_image=${PLATFORM_REF%@*}@${platform_digest}" >> "${GITHUB_OUTPUT}"
-          echo "serving_image=${SERVING_REF%@*}@${serving_digest}" >> "${GITHUB_OUTPUT}"
+          echo "mlflow_image=${MLFLOW_REF%:*}@${mlflow_digest}" >> "${GITHUB_OUTPUT}"
+          echo "platform_image=${PLATFORM_REF%:*}@${platform_digest}" >> "${GITHUB_OUTPUT}"
+          echo "serving_image=${SERVING_REF%:*}@${serving_digest}" >> "${GITHUB_OUTPUT}"
 
           export IMAGE_DIGESTS_JSON="${RUNNER_TEMP}/image-digests.json"
           export MLFLOW_DIGEST="${mlflow_digest}"
