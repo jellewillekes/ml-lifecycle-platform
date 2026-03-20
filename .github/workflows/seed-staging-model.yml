@@ -181,18 +181,35 @@ jobs:
             "${PLATFORM_IMAGE}" \
             python -m ml_lifecycle_platform.registry.promote --model-name breast_cancer_clf --format json
 
-      - name: Verify hosted MLflow prod alias exists
+      - name: Run hosted pipeline and register a fresh candidate
         env:
+          PLATFORM_IMAGE: ${{ steps.platform_context.outputs.platform_image }}
+          MLFLOW_URL: ${{ steps.mlflow.outputs.service_url }}
           MLFLOW_TRACKING_TOKEN: ${{ steps.mlflow_token.outputs.id_token }}
-          MLFLOW_TRACKING_URI: ${{ steps.mlflow.outputs.service_url }}
-          MLFLOW_REGISTRY_URI: ${{ steps.mlflow.outputs.service_url }}
         shell: bash
         run: |
           set -euo pipefail
-          uv run python scripts/verify_hosted_model_alias.py \
+          docker run --rm \
+            -e MLP_ENV=staging \
+            -e MLFLOW_TRACKING_URI="${MLFLOW_URL}" \
+            -e MLFLOW_REGISTRY_URI="${MLFLOW_URL}" \
+            -e MLFLOW_TRACKING_TOKEN="${MLFLOW_TRACKING_TOKEN}" \
+            -e MODEL_NAME=breast_cancer_clf \
+            -e MLP_MODEL_SPEC_PATH=configs/models/breast_cancer_demo.yaml \
+            "${PLATFORM_IMAGE}" \
+            python -m ml_lifecycle_platform.pipeline.orchestrate
+
+      - name: Verify hosted release fixture
+        env:
+          MLFLOW_TRACKING_TOKEN: ${{ steps.mlflow_token.outputs.id_token }}
+          MLFLOW_TRACKING_URI: ${{ steps.mlflow.outputs.service_url }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          uv run python scripts/verify_hosted_release_fixture.py \
             --tracking-uri "${MLFLOW_TRACKING_URI}" \
             --model-name "breast_cancer_clf" \
-            --alias "prod"
+            --model-spec-path "configs/models/breast_cancer_demo.yaml"
 
       - name: Write workflow summary
         env:
@@ -206,5 +223,5 @@ jobs:
             echo
             echo "- Platform image: \`${PLATFORM_IMAGE}\`"
             echo "- Hosted MLflow: \`${MLFLOW_URL}\`"
-            echo "- Model alias: \`breast_cancer_clf@prod\`"
+            echo "- Fixture: rollback-ready \`breast_cancer_clf@prod\` plus fresh \`breast_cancer_clf@candidate\`"
           } >> "${GITHUB_STEP_SUMMARY}"

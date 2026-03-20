@@ -12,12 +12,12 @@ The repo has fifteen lanes:
 | `GCP Auth Verify` | push to `master`, manual dispatch | GitHub OIDC to GCP WIF verification plus hosted-foundation prerequisite checks |
 | `Publish Images` | called from `CI` on push to `master`, manual dispatch | builds, smoke-checks, and publishes hosted runtime images to Artifact Registry |
 | `Deploy MLflow Staging` | manual dispatch and reusable workflow call | deploys hosted MLflow from a digest-pinned image and runs authenticated smoke checks |
-| `Seed Hosted Staging Model` | manual dispatch and reusable workflow call | runs the demo pipeline against hosted MLflow staging from a digest-pinned platform image, registers a candidate, and promotes it to `prod` |
+| `Seed Hosted Staging Model` | manual dispatch and reusable workflow call | creates a deterministic hosted release fixture from a digest-pinned platform image: rollback-ready `prod` plus a fresh promotable `candidate` |
 | `Deploy Serving Staging` | manual dispatch and reusable workflow call | deploys hosted serving from a digest-pinned image and runs authenticated smoke checks |
 | `Serving Staging Baseline` | manual dispatch | runs an advisory k6 baseline against the direct hosted serving staging URL and uploads artifacts |
 | `Deploy Platform Jobs Staging` | manual dispatch and reusable workflow call | deploys hosted Cloud Run Jobs from a digest-pinned platform image and preserves the current MLflow/serving images |
 | `Run Platform Job Staging` | manual dispatch and reusable workflow call | executes one deployed Cloud Run Job in staging with an optional args override |
-| `Hosted Golden Path Staging` | manual dispatch | runs the canonical hosted publish-deploy-validate path end to end |
+| `Hosted Golden Path Staging` | manual dispatch | runs the canonical hosted publish-deploy-validate path end to end, including explicit staging fixture preparation |
 | `E2E` | nightly and manual dispatch | dockerized golden path |
 
 ## Local mapping
@@ -235,6 +235,8 @@ Recommended first hosted proofs:
 - `rollback --dry-run`
 
 Only after those are boring should operators move on to the mutating paths such as `pipeline` or an actual rollback.
+
+For a deterministic full hosted check, use `Hosted Golden Path Staging`. That workflow seeds a rollback-ready `prod` plus a distinct promotable `candidate` before it runs the dry-run checks.
 
 ## Deploy workflow troubleshooting
 

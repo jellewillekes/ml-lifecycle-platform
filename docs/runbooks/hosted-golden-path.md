@@ -46,7 +46,7 @@ What it does:
 2. deploys hosted MLflow staging
 3. deploys hosted serving staging
 4. deploys hosted platform jobs staging
-5. checks the staged `prod` alias precondition
+5. runs `Seed Hosted Staging Model` to create a deterministic hosted release fixture
 6. runs hosted `maintenance`
 7. runs hosted `reproduce`
 8. runs hosted `promote` in `dry_run`
@@ -54,20 +54,24 @@ What it does:
 10. runs hosted `pipeline`
 11. runs hosted serving smoke validation
 
-## Important precondition
+## Deterministic Fixture
 
-The hosted golden path does not silently seed staged MLflow model state.
+The hosted golden path now prepares staged model state explicitly.
 
-If hosted MLflow does not currently resolve:
+`Seed Hosted Staging Model` is an explicit workflow stage. It is not hidden inside MLflow deploy, serving deploy, or Terraform apply.
 
-- `breast_cancer_clf@prod`
+That stage leaves staging with:
 
-the golden path fails with an explicit message and points the operator to:
+- `breast_cancer_clf@prod` pointing to a promoted version with rollback metadata
+- `breast_cancer_clf@candidate` pointing to a newer distinct version
+- a candidate that already satisfies the configured promotion policy
 
-- `Seed Hosted Staging Model`
+This is the state required for both:
 
-That is intentional.
-Model-state bootstrapping should stay explicit instead of being hidden inside serving deploy or the hosted golden path.
+- `promote --dry-run`
+- `rollback --dry-run`
+
+to be stable golden-path checks instead of depending on whatever staging history was already there.
 
 ## Expected success state
 
@@ -80,6 +84,8 @@ After a good hosted golden-path run you should have:
 - hosted MLflow reachable
 - hosted serving reachable
 - hosted platform jobs runnable
+- `@prod` rollback-ready
+- `@candidate` distinct from `@prod` and promotable
 - one workflow summary showing the end-to-end pass/fail state
 
 ## Failure interpretation
@@ -88,7 +94,7 @@ Treat these as different failures:
 
 - deploy failure: runtime did not roll out correctly
 - runtime regression: deployed service or job behavior is broken
-- model-state-precondition failure: staged alias state was not ready
+- fixture-preparation failure: the hosted release fixture was not created correctly
 - expected policy-blocked dry-run: promotion or rollback dry-run returned a safe policy block
 
 Do not treat those as the same incident.

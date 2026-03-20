@@ -94,6 +94,17 @@ Inputs:
 
 Recommended validation order:
 
+If you want a deterministic hosted validation fixture first, run:
+
+- `Seed Hosted Staging Model`
+
+That workflow leaves staging with:
+
+- a rollback-ready `prod`
+- a fresh distinct `candidate`
+
+Then run:
+
 1. `maintenance`
 2. `reproduce`
 3. `promote` with `execution_mode=dry_run`
