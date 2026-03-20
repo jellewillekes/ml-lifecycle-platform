@@ -102,6 +102,23 @@ curl -fsS http://localhost:8000/health
 curl -fsS http://localhost:8000/metadata/model
 ```
 
+If `localhost:8000` is already in use on your machine:
+
+```bash
+MLP_HOST_SERVE_PORT=8001 make serve
+curl -fsS http://localhost:8001/health
+```
+
+`make e2e` falls back to an ephemeral host port automatically when `8000` is busy because the smoke test talks to `http://serving:8000` inside Compose.
+
+If you want a deterministic clean slate before the golden path:
+
+```bash
+make e2e-clean
+```
+
+That is better than making `make e2e` destructive by default.
+
 ## Run the CSV-backed spec
 
 ```bash

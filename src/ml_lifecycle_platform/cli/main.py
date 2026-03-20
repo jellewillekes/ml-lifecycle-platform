@@ -4,6 +4,7 @@ import argparse
 from dataclasses import replace
 import os
 from pathlib import Path
+import socket
 import subprocess
 import sys
 
@@ -91,11 +92,89 @@ def _python_module_cmd(module: str, *args: str) -> list[str]:
     return [sys.executable, "-m", module, *args]
 
 
+def _port_is_available(port: int) -> bool:
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+        sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        try:
+            sock.bind(("0.0.0.0", port))
+        except OSError:
+            return False
+    return True
+
+
+def _with_local_serving_host_port(
+    env: dict[str, str], *, allow_ephemeral: bool
+) -> dict[str, str]:
+    if env.get("MLP_ENV") != "local":
+        return env
+
+    configured_port = env.get("MLP_HOST_SERVE_PORT", "").strip()
+    if configured_port:
+        return env
+
+    if _port_is_available(8000):
+        return env
+
+    env = dict(env)
+    if allow_ephemeral:
+        env["MLP_HOST_SERVE_PORT"] = "0"
+        print("Local port 8000 is busy; using an ephemeral host port for serving.")
+        return env
+
+    raise SystemExit(
+        "Local serving needs host port 8000, but it is already in use. "
+        "Re-run with MLP_HOST_SERVE_PORT=<free-port> make serve."
+    )
+
+
+def _serving_api_message(env: dict[str, str]) -> str:
+    host_port = env.get("MLP_HOST_SERVE_PORT", "8000").strip() or "8000"
+    if host_port == "0":
+        return (
+            "Serving API started on an ephemeral host port. "
+            "Run `docker compose -f deployments/local/docker-compose.yml port serving 8000` "
+            "to inspect it."
+        )
+    return f"Serving API: http://localhost:{host_port} (GET /health, POST /predict)"
+
+
+def _with_local_e2e_host_ports(env: dict[str, str]) -> dict[str, str]:
+    if env.get("MLP_ENV") != "local":
+        return env
+
+    env = dict(env)
+    applied: list[str] = []
+    for env_var, description in (
+        ("MLP_HOST_MLFLOW_PORT", "MLflow"),
+        ("MLP_HOST_MINIO_PORT", "MinIO API"),
+        ("MLP_HOST_MINIO_CONSOLE_PORT", "MinIO console"),
+        ("MLP_HOST_SERVE_PORT", "serving"),
+    ):
+        if env.get(env_var, "").strip():
+            continue
+        env[env_var] = "0"
+        applied.append(description)
+
+    if applied:
+        print(
+            "Local e2e is using ephemeral host ports for "
+            + ", ".join(applied)
+            + "."
+        )
+    return env
+
+
 def _handle_infra_up(args: argparse.Namespace, profile: RuntimeProfile) -> int:
     env = _command_env(profile)
     _run(_compose_cmd(profile, "up", "-d", *SVC_INFRA), env)
-    print("MLflow UI: http://localhost:5050")
-    print("MinIO Console: http://localhost:9001 (user: minioadmin / pass: minioadmin)")
+    print(
+        f"MLflow UI: http://localhost:{env.get('MLP_HOST_MLFLOW_PORT', '5050').strip() or '5050'}"
+    )
+    print(
+        "MinIO Console: http://localhost:"
+        f"{env.get('MLP_HOST_MINIO_CONSOLE_PORT', '9001').strip() or '9001'} "
+        "(user: minioadmin / pass: minioadmin)"
+    )
     return 0
 
 
@@ -191,10 +270,13 @@ def _handle_serve_api(args: argparse.Namespace, profile: RuntimeProfile) -> int:
         env_overrides["MODEL_NAME"] = args.model_name
     if args.model_spec:
         env_overrides["MLP_MODEL_SPEC_PATH"] = args.model_spec
-    env = _command_env(profile, env_overrides)
+    env = _with_local_serving_host_port(
+        _command_env(profile, env_overrides),
+        allow_ephemeral=False,
+    )
     _run(_compose_cmd(profile, "build", *SVC_IMAGES), env)
     _run(_compose_cmd(profile, "up", "-d", "--build", "serving"), env)
-    print("Serving API: http://localhost:8000 (GET /health, POST /predict)")
+    print(_serving_api_message(env))
     return 0
 
 
@@ -219,7 +301,7 @@ def _handle_serve_smoke(args: argparse.Namespace, profile: RuntimeProfile) -> in
 
 
 def _run_e2e(profile: RuntimeProfile, *, keep_stack: bool) -> int:
-    env = _command_env(profile)
+    env = _with_local_e2e_host_ports(_command_env(profile))
     try:
         _run(_compose_cmd(profile, "build", *SVC_IMAGES), env)
         _run(_compose_cmd(profile, "up", "-d", *SVC_INFRA), env)
