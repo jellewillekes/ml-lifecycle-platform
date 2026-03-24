@@ -1,4 +1,4 @@
-name: Deploy Serving Staging
+name: CD / Deploy Serving / Staging
 
 on:
   workflow_call:
@@ -25,8 +25,8 @@ permissions:
   contents: read
 
 concurrency:
-  group: deploy-serving-staging-${{ github.ref }}
-  cancel-in-progress: true
+  group: staging-serving-deploy
+  cancel-in-progress: false
 
 env:
   GCP_PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
@@ -39,6 +39,7 @@ jobs:
     name: Deploy
     runs-on: ubuntu-latest
     timeout-minutes: 40
+    environment: staging
     permissions:
       contents: read
       id-token: write

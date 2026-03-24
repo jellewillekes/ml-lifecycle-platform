@@ -53,7 +53,7 @@ Artifact path:
 
 Source of truth:
 
-- Artifact Registry digests produced by `Publish Images`
+- Artifact Registry digests produced by `CD / Publish Hosted Images`
 
 Purpose:
 

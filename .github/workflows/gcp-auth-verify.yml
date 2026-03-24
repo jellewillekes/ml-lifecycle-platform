@@ -1,4 +1,4 @@
-name: GCP Auth
+name: Ops / Verify GCP Auth
 
 on:
   workflow_dispatch: {}
@@ -11,6 +11,11 @@ on:
       - "docs/runbooks/gcp-ci-auth.md"
   push:
     branches: [master]
+    paths:
+      - ".github/workflows/gcp-auth-verify.yml"
+      - "deployments/gcp/**"
+      - "scripts/verify_gcp_ci_auth.py"
+      - "src/ml_lifecycle_platform/ci/**"
 
 permissions:
   contents: read

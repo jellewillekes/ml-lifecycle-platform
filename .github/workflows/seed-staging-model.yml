@@ -1,4 +1,4 @@
-name: Seed Hosted Staging Model
+name: Ops / Seed Staging Fixture
 
 on:
   workflow_call:
@@ -18,8 +18,8 @@ permissions:
   contents: read
 
 concurrency:
-  group: seed-staging-model-${{ github.ref }}
-  cancel-in-progress: true
+  group: staging-seed-fixture
+  cancel-in-progress: false
 
 env:
   GCP_PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
@@ -32,6 +32,7 @@ jobs:
     name: Seed
     runs-on: ubuntu-latest
     timeout-minutes: 45
+    environment: staging
     permissions:
       contents: read
       id-token: write

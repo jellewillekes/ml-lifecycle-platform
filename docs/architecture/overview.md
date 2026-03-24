@@ -15,8 +15,8 @@ hosted path today:
 
 The local path is fully operational. The hosted staging path is operational for M2 staging work:
 
-- CI can authenticate to GCP with WIF.
-- CI can publish immutable runtime images to Artifact Registry.
+- GitHub Actions can authenticate to GCP with WIF.
+- GitHub Actions can publish immutable runtime images to Artifact Registry.
 - Terraform has created the shared staging network, Cloud SQL, and MLflow staging secrets.
 - Hosted MLflow and serving are live on Cloud Run.
 - Hosted platform jobs are deployed on Cloud Run.
@@ -58,7 +58,7 @@ GCP staging infra
 | Model behavior | `configs/models/*.yaml` | chooses data source, trainer, evaluation gate, and serving feature contract |
 | Registry and release state | MLflow model versions and aliases | tracks `candidate`, `prod`, `champion` and release metadata |
 | Hosted infra | `deployments/gcp/terraform/` | keeps resource names, IAM, network, SQL, and secret contracts committed |
-| Hosted runtime images | `Publish Images` workflow artifact and digests | gives deploy workflows immutable container identity |
+| Hosted runtime images | `CD / Publish Hosted Images` workflow artifact and digests | gives deploy workflows immutable container identity |
 
 ## End-to-end flow
 

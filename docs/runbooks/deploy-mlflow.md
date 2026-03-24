@@ -66,13 +66,13 @@ Why these are manual:
 - the backend state bucket is not owned by this Terraform root
 - Terraform cannot use `mlp-ci` to grant `mlp-ci` the bucket IAM it already needs to run Terraform
 
-After that bootstrap apply, `Deploy MLflow Staging` is the normal deploy path.
+After that bootstrap apply, `CD / Deploy MLflow / Staging` is the normal deploy path.
 
 ## Normal deploy path
 
 Run the GitHub Actions workflow:
 
-- `Deploy MLflow Staging`
+- `CD / Deploy MLflow / Staging`
 
 What it does:
 
@@ -87,7 +87,7 @@ What it does:
 
 Operator input:
 
-- `mlflow_image`: digest-pinned Artifact Registry ref from `Publish Images`
+- `mlflow_image`: digest-pinned Artifact Registry ref from `CD / Publish Hosted Images`
 
 Important auth note:
 

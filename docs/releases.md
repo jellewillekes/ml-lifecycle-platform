@@ -109,7 +109,7 @@ Local runtime behavior:
 
 ## Hosted runtime images
 
-Hosted runtime images are published by the `Publish Images` workflow described in [`ci.md`](./ci.md).
+Hosted runtime images are published by the `CD / Publish Hosted Images` workflow described in [`ci.md`](./ci.md).
 
 Current published image contracts:
 

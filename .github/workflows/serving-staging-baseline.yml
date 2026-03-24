@@ -1,4 +1,4 @@
-name: Serving Staging Baseline
+name: Ops / Serving Baseline / Staging
 
 on:
   workflow_dispatch:
@@ -32,8 +32,8 @@ permissions:
   contents: read
 
 concurrency:
-  group: serving-staging-baseline-${{ github.ref }}
-  cancel-in-progress: true
+  group: staging-serving-baseline
+  cancel-in-progress: false
 
 env:
   GCP_PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
@@ -46,6 +46,7 @@ jobs:
     name: Baseline
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    environment: staging
     permissions:
       contents: read
       id-token: write

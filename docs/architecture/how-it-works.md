@@ -110,7 +110,7 @@ That separation still matters:
 
 Use:
 
-- `Publish Images`
+- `CD / Publish Hosted Images`
 
 Output:
 
@@ -132,7 +132,7 @@ Use:
 
 Use:
 
-- `Deploy Platform Jobs Staging`
+- `CD / Deploy Platform Jobs / Staging`
 
 This applies the shared Terraform root and preserves:
 
@@ -148,7 +148,7 @@ Main runbook:
 
 Use:
 
-- `Run Platform Job Staging`
+- `Ops / Run Platform Job / Staging`
 
 Safe hosted proof order:
 

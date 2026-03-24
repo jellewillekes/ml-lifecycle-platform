@@ -59,7 +59,7 @@ models:/<model_name>@prod
   - private service access
   - Cloud SQL Postgres for hosted MLflow metadata
   - MLflow staging secrets and outputs for later deploy workflows
-- CI workflows for:
+- GitHub Actions workflows for:
   - GCP auth verification
   - hosted image publication with immutable SHA tags and digest capture
   - hosted MLflow staging deploy by digest with authenticated smoke verification

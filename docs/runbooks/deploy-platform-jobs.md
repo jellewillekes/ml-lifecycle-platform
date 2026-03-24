@@ -52,12 +52,12 @@ Important boundary:
 
 Run the GitHub Actions workflow:
 
-- `Deploy Platform Jobs Staging`
+- `CD / Deploy Platform Jobs / Staging`
 
 Input:
 
 - required `platform_image`
-  - digest-pinned Artifact Registry ref published by `Publish Images`
+  - digest-pinned Artifact Registry ref published by `CD / Publish Hosted Images`
 
 What it does:
 
@@ -75,7 +75,7 @@ The workflow preserves MLflow and serving because all three runtime paths still 
 
 Run the GitHub Actions workflow:
 
-- `Run Platform Job Staging`
+- `Ops / Run Platform Job / Staging`
 
 Inputs:
 
@@ -96,7 +96,7 @@ Recommended validation order:
 
 If you want a deterministic hosted validation fixture first, run:
 
-- `Seed Hosted Staging Model`
+- `Ops / Seed Staging Fixture`
 
 That workflow leaves staging with:
 
@@ -117,7 +117,7 @@ This keeps the first hosted proofs read-mostly or policy-only before running mut
 
 | Symptom | Likely cause | Fix |
 | --- | --- | --- |
-| platform image digest cannot be resolved | `Publish Images` has not published `platform:<sha>` | run `Publish Images` first or use the correct SHA |
+| platform image digest cannot be resolved | `CD / Publish Hosted Images` has not published `platform:<sha>` | run `CD / Publish Hosted Images` first or use the correct SHA |
 | jobs disappear after MLflow or serving deploy | shared Terraform root applied without preserving `platform_image` | keep preserving the current platform image in deploy workflows |
 | `maintenance` fails on prod alias | hosted MLflow no longer has `breast_cancer_clf@prod` | reseed or repair hosted model state first |
 | `reproduce` fails on artifact download | hosted MLflow artifacts or credentials are incomplete | inspect hosted MLflow artifact root and runtime permissions |
