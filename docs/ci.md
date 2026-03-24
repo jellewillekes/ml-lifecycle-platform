@@ -10,7 +10,7 @@ Current lanes:
 
 | Lane | Trigger | Purpose |
 | --- | --- | --- |
-| `CI / Fast Checks` | pull requests, push to `master`, manual dispatch | hygiene, lint, typecheck, unit tests, Docker build safety, and postsubmit integration tests |
+| `CI / Presubmit and Postsubmit` | pull requests, push to `master`, manual dispatch | presubmit hygiene, lint, typecheck, unit tests, Docker build safety, plus postsubmit integration tests on `master` |
 | `CI / Local E2E` | nightly and manual dispatch | dockerized local golden path |
 | `CodeQL` | pull requests, push to `master`, weekly, manual dispatch | native GitHub code scanning for source vulnerabilities and coding errors |
 | `Gitleaks` | pull requests, push to `master`, weekly, manual dispatch | secret scanning for committed credentials, keys, and tokens |
@@ -34,7 +34,7 @@ Current lanes:
 
 ## Default rule set
 
-- pull requests get fast CI and security checks, not hosted staging deploys
+- pull requests get presubmit CI and security checks, not hosted staging deploys
 - `CD / Release Validation / Staging` runs automatically after merges to `master` only when hosted-relevant paths changed
 - `CD / Release Validation / Staging` also runs nightly on `master` for staging drift detection
 - manual dispatch remains the operator path for release readiness checks, post-incident verification, auth debugging, and targeted staged deploys
@@ -55,7 +55,7 @@ Recommended required checks on `master`:
 
 `Zizmor` is useful as an advisory security check, but it does not need to block every pull request on day one while older workflows are still being tightened.
 
-Do not require `Integration Tests (pytest)`, `CI / Local E2E`, or `CD / Release Validation / Staging` on pull requests. They are slower and belong outside the fast review loop.
+Do not require `Postsubmit Integration`, `CI / Local E2E`, or `CD / Release Validation / Staging` on pull requests. They are slower and belong outside the fast review loop.
 
 CodeQL, Gitleaks, and Zizmor also publish findings into GitHub code scanning when the token has permission to upload SARIF.
 
@@ -95,7 +95,7 @@ Trigger model:
 
 - automatic through `CD / Release Validation / Staging`
 - manual via `workflow_dispatch` for targeted branch verification
-- not part of `CI / Fast Checks`
+- not part of `CI / Presubmit and Postsubmit`
 
 Published image refs:
 

@@ -1,4 +1,4 @@
-name: CI / Fast Checks
+name: CI / Presubmit and Postsubmit
 
 on:
   pull_request:
@@ -218,7 +218,7 @@ jobs:
           verbose: true
 
   integration:
-    name: Integration Tests (pytest)
+    name: Postsubmit Integration
     if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 15
