@@ -54,7 +54,7 @@ There is no separate scheduler deploy workflow.
 
 Scheduler resources are applied through the same Terraform root as the hosted jobs:
 
-- `Deploy Platform Jobs Staging`
+- `CD / Deploy Platform Jobs / Staging`
 
 That workflow already preserves:
 
@@ -77,7 +77,7 @@ One-time bootstrap requirement:
 
 Recommended rollout:
 
-1. deploy the Terraform root through `Deploy Platform Jobs Staging`
+1. deploy the Terraform root through `CD / Deploy Platform Jobs / Staging`
 2. verify scheduler resources exist
 3. force-run the maintenance schedule once
 4. verify it creates a successful `mlp-maintenance-staging` execution

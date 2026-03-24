@@ -62,11 +62,11 @@ If `mlflow_service` is still null in Terraform output, fix MLflow first and reru
 
 Run the GitHub Actions workflow:
 
-- `Deploy Serving Staging`
+- `CD / Deploy Serving / Staging`
 
 Required input:
 
-- `serving_image`: digest-pinned Artifact Registry ref published by `Publish Images`
+- `serving_image`: digest-pinned Artifact Registry ref published by `CD / Publish Hosted Images`
 
 What it does:
 
@@ -141,17 +141,17 @@ curl -fsS -H "Authorization: Bearer ${TOKEN}" "${SERVICE_URL}/metadata/schema"
 
 If you need to verify `/predict`, use the workflow smoke path instead of ad hoc requests.
 
-If you need a staged performance reference, run the `Serving Staging Baseline` workflow described in [`serving-staging-baseline.md`](./serving-staging-baseline.md).
+If you need a staged performance reference, run the `Ops / Serving Baseline / Staging` workflow described in [`serving-staging-baseline.md`](./serving-staging-baseline.md).
 
 ## Failure modes
 
 | Symptom | Likely cause | Fix |
 | --- | --- | --- |
-| `mlflow_service output is null` | hosted MLflow not deployed yet | rerun `Deploy MLflow Staging` first |
+| `mlflow_service output is null` | hosted MLflow not deployed yet | rerun `CD / Deploy MLflow / Staging` first |
 | serving apply updates MLflow unexpectedly | shared Terraform root missing current MLflow image input | keep resolving `mlflow_service.image` before apply |
 | `/health` works but `/predict` fails | no `prod` alias in staged MLflow | register the model and assign `prod` before rerunning |
 | metadata endpoints work but model loading fails | serving cannot call hosted MLflow | check `MLFLOW_CLOUD_RUN_AUDIENCE` and `mlp-runtime` `run.invoker` on `mlp-mlflow-staging` |
-| deploy workflow cannot resolve serving image | wrong image ref or image was not published | rerun `Publish Images` and use the digest-pinned `serving_image` output |
+| deploy workflow cannot resolve serving image | wrong image ref or image was not published | rerun `CD / Publish Hosted Images` and use the digest-pinned `serving_image` output |
 | response schema or prediction payload fails | model spec drift | check `MODEL_NAME` and `MLP_MODEL_SPEC_PATH` against the registered model |
 
 ## Expected success state

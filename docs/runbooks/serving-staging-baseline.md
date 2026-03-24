@@ -33,7 +33,7 @@ If smoke is red, fix that first. `UP-19` is a baseline, not a deploy debugger.
 
 Run the GitHub Actions workflow:
 
-- `Serving Staging Baseline`
+- `Ops / Serving Baseline / Staging`
 
 Inputs:
 

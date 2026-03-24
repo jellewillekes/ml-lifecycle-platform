@@ -1,14 +1,40 @@
-name: Hosted Golden Path Staging
+name: CD / Release Validation / Staging
+
+run-name: staging release validation / ${{ github.event_name }} / ${{ github.ref_name }}
 
 on:
+  push:
+    branches: [master]
+    paths:
+      - ".github/workflows/hosted-golden-path-staging.yml"
+      - ".github/workflows/publish-images.yml"
+      - ".github/workflows/deploy-mlflow-staging.yml"
+      - ".github/workflows/deploy-serving-staging.yml"
+      - ".github/workflows/deploy-platform-jobs-staging.yml"
+      - ".github/workflows/seed-staging-model.yml"
+      - ".github/workflows/run-platform-job-staging.yml"
+      - "Dockerfile"
+      - "pyproject.toml"
+      - "uv.lock"
+      - "configs/env/staging.yaml"
+      - "configs/models/**"
+      - "deployments/gcp/**"
+      - "scripts/resolve_cloud_run_service_contract.py"
+      - "scripts/retry_terraform_gcp_init.sh"
+      - "scripts/verify_hosted_model_alias.py"
+      - "scripts/verify_hosted_release_fixture.py"
+      - "scripts/verify_mlflow_staging.py"
+      - "src/ml_lifecycle_platform/**"
+  schedule:
+    - cron: "0 2 * * *"
   workflow_dispatch: {}
 
 permissions:
   contents: read
 
 concurrency:
-  group: hosted-golden-path-staging-${{ github.ref }}
-  cancel-in-progress: true
+  group: staging-release-validation
+  cancel-in-progress: false
 
 env:
   GCP_PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
@@ -18,14 +44,14 @@ env:
 
 jobs:
   publish-images:
-    name: Publish Images
+    name: Publish Hosted Images
     permissions:
       contents: read
       id-token: write
     uses: ./.github/workflows/publish-images.yml
 
   deploy-mlflow:
-    name: Deploy MLflow
+    name: Deploy MLflow / Staging
     needs: publish-images
     permissions:
       contents: read
@@ -35,7 +61,7 @@ jobs:
       mlflow_image: ${{ needs.publish-images.outputs.mlflow_image }}
 
   deploy-serving:
-    name: Deploy Serving
+    name: Deploy Serving / Staging
     needs: [publish-images, deploy-mlflow]
     permissions:
       contents: read
@@ -45,7 +71,7 @@ jobs:
       serving_image: ${{ needs.publish-images.outputs.serving_image }}
 
   deploy-platform-jobs:
-    name: Deploy Platform Jobs
+    name: Deploy Platform Jobs / Staging
     needs: [publish-images, deploy-mlflow, deploy-serving]
     permissions:
       contents: read
@@ -65,7 +91,7 @@ jobs:
       platform_image: ${{ needs.publish-images.outputs.platform_image }}
 
   maintenance:
-    name: Run Maintenance
+    name: Run Maintenance / Staging
     needs: seed-staging-fixture
     permissions:
       contents: read
@@ -76,7 +102,7 @@ jobs:
       execution_mode: default
 
   reproduce:
-    name: Run Reproduce
+    name: Run Reproduce / Staging
     needs: maintenance
     permissions:
       contents: read
@@ -87,7 +113,7 @@ jobs:
       execution_mode: default
 
   promote-dry-run:
-    name: Run Promote Dry Run
+    name: Run Promote Dry Run / Staging
     needs: reproduce
     permissions:
       contents: read
@@ -98,7 +124,7 @@ jobs:
       execution_mode: dry_run
 
   rollback-dry-run:
-    name: Run Rollback Dry Run
+    name: Run Rollback Dry Run / Staging
     needs: promote-dry-run
     permissions:
       contents: read
@@ -109,7 +135,7 @@ jobs:
       execution_mode: dry_run
 
   pipeline:
-    name: Run Pipeline
+    name: Run Pipeline / Staging
     needs: rollback-dry-run
     permissions:
       contents: read
@@ -120,10 +146,11 @@ jobs:
       execution_mode: default
 
   serving-smoke:
-    name: Serving Smoke
+    name: Serving Smoke / Staging
     needs: [deploy-serving, pipeline]
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    environment: staging
     permissions:
       contents: read
       id-token: write
@@ -218,8 +245,10 @@ jobs:
         run: |
           set -euo pipefail
           {
-            echo "## Hosted golden path staging"
+            echo "## Staging release validation"
             echo
+            echo "- Validation path: hosted golden path"
+            echo "- Trigger: \`${{ github.event_name }}\`"
             echo "- Git SHA: \`${{ needs.publish-images.outputs.git_sha }}\`"
             echo "- MLflow image: \`${{ needs.publish-images.outputs.mlflow_image }}\`"
             echo "- Serving image: \`${{ needs.publish-images.outputs.serving_image }}\`"

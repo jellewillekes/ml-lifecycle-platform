@@ -1,4 +1,4 @@
-name: Publish Images
+name: CD / Publish Hosted Images
 
 on:
   workflow_call:
@@ -40,7 +40,7 @@ permissions:
 
 concurrency:
   group: publish-images-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 env:
   GCP_PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
@@ -129,7 +129,54 @@ jobs:
           version: ">= 363.0.0"
           project_id: ${{ env.GCP_PROJECT_ID }}
 
+      - id: existing
+        name: Resolve existing published images for Git SHA
+        env:
+          GIT_SHA: ${{ steps.context.outputs.git_sha }}
+          MLFLOW_REF: ${{ steps.context.outputs.mlflow_ref }}
+          PLATFORM_REF: ${{ steps.context.outputs.platform_ref }}
+          SERVING_REF: ${{ steps.context.outputs.serving_ref }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          resolve_digest() {
+            local image_ref="$1"
+            gcloud artifacts docker images describe "${image_ref}" \
+              --format='value(image_summary.digest)' \
+              2>/dev/null || true
+          }
+
+          mlflow_digest="$(resolve_digest "${MLFLOW_REF}")"
+          platform_digest="$(resolve_digest "${PLATFORM_REF}")"
+          serving_digest="$(resolve_digest "${SERVING_REF}")"
+
+          present_count=0
+          for digest in "${mlflow_digest}" "${platform_digest}" "${serving_digest}"; do
+            if [[ -n "${digest}" ]]; then
+              present_count=$((present_count + 1))
+            fi
+          done
+
+          if (( present_count > 0 && present_count < 3 )); then
+            echo "Found partially published hosted images for git SHA ${GIT_SHA}."
+            echo "Refusing to mix reused and rebuilt images for the same release identity."
+            exit 1
+          fi
+
+          if (( present_count == 3 )); then
+            echo "All hosted images already exist for git SHA ${GIT_SHA}; reusing published digests."
+            echo "all_exist=true" >> "${GITHUB_OUTPUT}"
+            echo "mlflow_digest=${mlflow_digest}" >> "${GITHUB_OUTPUT}"
+            echo "platform_digest=${platform_digest}" >> "${GITHUB_OUTPUT}"
+            echo "serving_digest=${serving_digest}" >> "${GITHUB_OUTPUT}"
+          else
+            echo "No hosted images exist yet for git SHA ${GIT_SHA}; building and publishing."
+            echo "all_exist=false" >> "${GITHUB_OUTPUT}"
+          fi
+
       - name: Build MLflow image
+        if: steps.existing.outputs.all_exist != 'true'
         env:
           GIT_SHA: ${{ steps.context.outputs.git_sha }}
         shell: bash
@@ -141,6 +188,7 @@ jobs:
             deployments/gcp/mlflow
 
       - name: Build platform image
+        if: steps.existing.outputs.all_exist != 'true'
         env:
           GIT_SHA: ${{ steps.context.outputs.git_sha }}
         shell: bash
@@ -149,6 +197,7 @@ jobs:
           docker build --target platform --tag "mlp-platform:${GIT_SHA}" .
 
       - name: Build serving image
+        if: steps.existing.outputs.all_exist != 'true'
         env:
           GIT_SHA: ${{ steps.context.outputs.git_sha }}
         shell: bash
@@ -157,6 +206,7 @@ jobs:
           docker build --target serving --tag "mlp-serving:${GIT_SHA}" .
 
       - name: Smoke test MLflow image
+        if: steps.existing.outputs.all_exist != 'true'
         env:
           GIT_SHA: ${{ steps.context.outputs.git_sha }}
         shell: bash
@@ -165,6 +215,7 @@ jobs:
           docker run --rm --entrypoint mlflow "mlp-mlflow:${GIT_SHA}" --version
 
       - name: Smoke test platform image
+        if: steps.existing.outputs.all_exist != 'true'
         env:
           GIT_SHA: ${{ steps.context.outputs.git_sha }}
         shell: bash
@@ -174,6 +225,7 @@ jobs:
             python -c "import ml_lifecycle_platform.pipeline.orchestrate"
 
       - name: Smoke test serving image
+        if: steps.existing.outputs.all_exist != 'true'
         env:
           GIT_SHA: ${{ steps.context.outputs.git_sha }}
         shell: bash
@@ -183,6 +235,7 @@ jobs:
             python -c "import ml_lifecycle_platform.serving.app"
 
       - name: Log in to Artifact Registry
+        if: steps.existing.outputs.all_exist != 'true'
         env:
           REGISTRY_HOST: ${{ env.GCP_REGION }}-docker.pkg.dev
         shell: bash
@@ -194,6 +247,7 @@ jobs:
             "https://${REGISTRY_HOST}"
 
       - name: Push MLflow image
+        if: steps.existing.outputs.all_exist != 'true'
         env:
           GIT_SHA: ${{ steps.context.outputs.git_sha }}
           MLFLOW_REF: ${{ steps.context.outputs.mlflow_ref }}
@@ -204,6 +258,7 @@ jobs:
           docker push "${MLFLOW_REF}"
 
       - name: Push platform image
+        if: steps.existing.outputs.all_exist != 'true'
         env:
           GIT_SHA: ${{ steps.context.outputs.git_sha }}
           PLATFORM_REF: ${{ steps.context.outputs.platform_ref }}
@@ -214,6 +269,7 @@ jobs:
           docker push "${PLATFORM_REF}"
 
       - name: Push serving image
+        if: steps.existing.outputs.all_exist != 'true'
         env:
           GIT_SHA: ${{ steps.context.outputs.git_sha }}
           SERVING_REF: ${{ steps.context.outputs.serving_ref }}
@@ -226,27 +282,37 @@ jobs:
       - id: capture
         name: Capture remote image digests
         env:
+          EXISTING_IMAGES: ${{ steps.existing.outputs.all_exist }}
           GIT_SHA: ${{ steps.context.outputs.git_sha }}
           IMAGE_REPOSITORY: ${{ steps.context.outputs.repository }}
+          MLFLOW_EXISTING_DIGEST: ${{ steps.existing.outputs.mlflow_digest }}
           MLFLOW_REF: ${{ steps.context.outputs.mlflow_ref }}
+          PLATFORM_EXISTING_DIGEST: ${{ steps.existing.outputs.platform_digest }}
           PLATFORM_REF: ${{ steps.context.outputs.platform_ref }}
+          SERVING_EXISTING_DIGEST: ${{ steps.existing.outputs.serving_digest }}
           SERVING_REF: ${{ steps.context.outputs.serving_ref }}
         shell: bash
         run: |
           set -euo pipefail
 
-          mlflow_digest="$(
-            gcloud artifacts docker images describe "${MLFLOW_REF}" \
-              --format='value(image_summary.digest)'
-          )"
-          platform_digest="$(
-            gcloud artifacts docker images describe "${PLATFORM_REF}" \
-              --format='value(image_summary.digest)'
-          )"
-          serving_digest="$(
-            gcloud artifacts docker images describe "${SERVING_REF}" \
-              --format='value(image_summary.digest)'
-          )"
+          mlflow_digest="${MLFLOW_EXISTING_DIGEST}"
+          platform_digest="${PLATFORM_EXISTING_DIGEST}"
+          serving_digest="${SERVING_EXISTING_DIGEST}"
+
+          if [[ -z "${mlflow_digest}" || -z "${platform_digest}" || -z "${serving_digest}" ]]; then
+            mlflow_digest="$(
+              gcloud artifacts docker images describe "${MLFLOW_REF}" \
+                --format='value(image_summary.digest)'
+            )"
+            platform_digest="$(
+              gcloud artifacts docker images describe "${PLATFORM_REF}" \
+                --format='value(image_summary.digest)'
+            )"
+            serving_digest="$(
+              gcloud artifacts docker images describe "${SERVING_REF}" \
+                --format='value(image_summary.digest)'
+            )"
+          fi
 
           if [[ -z "${mlflow_digest}" || -z "${platform_digest}" || -z "${serving_digest}" ]]; then
             echo "Failed to resolve one or more image digests from Artifact Registry."
@@ -303,6 +369,7 @@ jobs:
 
       - name: Write workflow summary
         env:
+          EXISTING_IMAGES: ${{ steps.existing.outputs.all_exist }}
           MLFLOW_REF: ${{ steps.context.outputs.mlflow_ref }}
           MLFLOW_DIGEST: ${{ steps.capture.outputs.mlflow_digest }}
           PLATFORM_REF: ${{ steps.context.outputs.platform_ref }}
@@ -312,9 +379,15 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          if [[ "${EXISTING_IMAGES}" == "true" ]]; then
+            publication_mode="reused existing digests for this git SHA"
+          else
+            publication_mode="published new images for this git SHA"
+          fi
           {
             echo "## Published images"
             echo
+            echo "- Mode: ${publication_mode}"
             echo "| Image | Ref | Digest |"
             echo "| --- | --- | --- |"
             echo "| mlflow | \`${MLFLOW_REF}\` | \`${MLFLOW_DIGEST}\` |"

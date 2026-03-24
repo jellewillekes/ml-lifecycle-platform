@@ -1,24 +1,29 @@
-# CI
+# CI and CD
 
-The repo has fifteen lanes:
+The repo uses three workflow groups:
+
+- `CI`: fast developer feedback plus the local nightly E2E lane
+- `CD`: hosted image publication, staged deploy, and staged release validation
+- `Ops`: manual staging validation, debugging, and recovery workflows
+
+Current lanes:
 
 | Lane | Trigger | Purpose |
 | --- | --- | --- |
-| `CI` presubmit | pull requests | hygiene, lint, typecheck, unit tests, Docker build safety |
-| `CI` postsubmit | push to `master` | same as presubmit plus integration tests |
+| `CI / Presubmit and Postsubmit` | pull requests, push to `master`, manual dispatch | presubmit hygiene, lint, typecheck, unit tests, Docker build safety, plus postsubmit integration tests on `master` |
+| `CI / Local E2E` | nightly and manual dispatch | dockerized local golden path |
 | `CodeQL` | pull requests, push to `master`, weekly, manual dispatch | native GitHub code scanning for source vulnerabilities and coding errors |
 | `Gitleaks` | pull requests, push to `master`, weekly, manual dispatch | secret scanning for committed credentials, keys, and tokens |
 | `Zizmor` | pull requests, push to `master`, weekly, manual dispatch | GitHub Actions security lint and SARIF upload |
-| `GCP Auth Verify` | push to `master`, manual dispatch | GitHub OIDC to GCP WIF verification plus hosted-foundation prerequisite checks |
-| `Publish Images` | called from `CI` on push to `master`, manual dispatch | builds, smoke-checks, and publishes hosted runtime images to Artifact Registry |
-| `Deploy MLflow Staging` | manual dispatch and reusable workflow call | deploys hosted MLflow from a digest-pinned image and runs authenticated smoke checks |
-| `Seed Hosted Staging Model` | manual dispatch and reusable workflow call | creates a deterministic hosted release fixture from a digest-pinned platform image: rollback-ready `prod` plus a fresh promotable `candidate` |
-| `Deploy Serving Staging` | manual dispatch and reusable workflow call | deploys hosted serving from a digest-pinned image and runs authenticated smoke checks |
-| `Serving Staging Baseline` | manual dispatch | runs an advisory k6 baseline against the direct hosted serving staging URL and uploads artifacts |
-| `Deploy Platform Jobs Staging` | manual dispatch and reusable workflow call | deploys hosted Cloud Run Jobs from a digest-pinned platform image and preserves the current MLflow/serving images |
-| `Run Platform Job Staging` | manual dispatch and reusable workflow call | executes one deployed Cloud Run Job in staging with an optional args override |
-| `Hosted Golden Path Staging` | manual dispatch | runs the canonical hosted publish-deploy-validate path end to end, including explicit staging fixture preparation |
-| `E2E` | nightly and manual dispatch | dockerized golden path |
+| `Ops / Verify GCP Auth` | push to `master` when auth or staging-foundation paths change, manual dispatch, path-filtered pull requests | GitHub OIDC to GCP WIF verification plus hosted-foundation prerequisite checks |
+| `CD / Publish Hosted Images` | reusable workflow call and manual dispatch | builds, smoke-checks, and publishes hosted runtime images to Artifact Registry |
+| `CD / Deploy MLflow / Staging` | manual dispatch and reusable workflow call | deploys hosted MLflow from a digest-pinned image and runs authenticated smoke checks |
+| `CD / Deploy Serving / Staging` | manual dispatch and reusable workflow call | deploys hosted serving from a digest-pinned image and runs authenticated smoke checks |
+| `CD / Deploy Platform Jobs / Staging` | manual dispatch and reusable workflow call | deploys hosted Cloud Run Jobs from a digest-pinned platform image and preserves the current MLflow/serving images |
+| `CD / Release Validation / Staging` | push to `master` when hosted-relevant paths change, nightly, manual dispatch | canonical hosted publish-deploy-validate path with explicit staging fixture preparation |
+| `Ops / Seed Staging Fixture` | manual dispatch and reusable workflow call | creates a deterministic hosted release fixture from a digest-pinned platform image: rollback-ready `prod` plus a fresh promotable `candidate` |
+| `Ops / Run Platform Job / Staging` | manual dispatch and reusable workflow call | executes one deployed Cloud Run Job in staging with an optional args override |
+| `Ops / Serving Baseline / Staging` | manual dispatch | runs an advisory k6 baseline against the direct hosted serving staging URL and uploads artifacts |
 
 ## Local mapping
 
@@ -27,23 +32,30 @@ The repo has fifteen lanes:
 - `make e2e`: full local golden path with teardown
 - `make test-e2e`: same flow, keeps the stack up for debugging
 
+## Default rule set
+
+- pull requests get presubmit CI and security checks, not hosted staging deploys
+- `CD / Release Validation / Staging` runs automatically after merges to `master` only when hosted-relevant paths changed
+- `CD / Release Validation / Staging` also runs nightly on `master` for staging drift detection
+- manual dispatch remains the operator path for release readiness checks, post-incident verification, auth debugging, and targeted staged deploys
+
 ## PR checks
 
 Recommended required checks on `master`:
 
 - `PR Title`
-- `Repo Hygiene`
-- `Docker Python Version Check`
-- `Docker Build (platform + serving)`
-- `Lint (ruff)`
-- `Typecheck (mypy)`
+- `Hygiene`
+- `Python Version`
+- `Docker Build`
+- `Lint`
+- `Typecheck`
 - `Unit Tests (pytest)`
 - `CodeQL Analyze (Python)`
 - `Secret Scan`
 
 `Zizmor` is useful as an advisory security check, but it does not need to block every pull request on day one while older workflows are still being tightened.
 
-Do not require integration or nightly e2e on pull requests. They are slower and belong outside the fast review loop.
+Do not require `Postsubmit Integration`, `CI / Local E2E`, or `CD / Release Validation / Staging` on pull requests. They are slower and belong outside the fast review loop.
 
 CodeQL, Gitleaks, and Zizmor also publish findings into GitHub code scanning when the token has permission to upload SARIF.
 
@@ -59,7 +71,7 @@ Useful outputs:
 
 ## GCP auth verification
 
-The `GCP Auth Verify` workflow exists to prove the GitHub Actions to GCP trust chain before adding image push or deploy logic.
+The `Ops / Verify GCP Auth` workflow exists to prove the GitHub Actions to GCP trust chain before adding image push or deploy logic.
 
 Required repository variables:
 
@@ -81,8 +93,9 @@ Hosted image publication lives in:
 
 Trigger model:
 
-- automatic as the final reusable workflow job in `CI` on push to `master`
-- manual via `workflow_dispatch` for branch verification
+- automatic through `CD / Release Validation / Staging`
+- manual via `workflow_dispatch` for targeted branch verification
+- not part of `CI / Presubmit and Postsubmit`
 
 Published image refs:
 
@@ -93,11 +106,23 @@ Published image refs:
 Contract:
 
 - only immutable Git SHA tags are published
-- each image is built once, smoke-tested locally in CI, then that same image is pushed
+- each image is built once, smoke-tested in the publication workflow, then that same image is pushed
+- if the Git SHA images already exist, the workflow reuses the published digests instead of rebuilding
 - digests are captured after push and recorded in both the workflow summary and `image-digests.json`
 - reusable workflow outputs expose digest-pinned image refs for downstream deploy workflows
 
 Downstream deploy workflows should consume digest-pinned image refs, not tags. Treat tags as discovery aids, Artifact Registry digests as the source of truth, and `image-digests.json` as the operator/debug artifact.
+
+Hosted-relevant auto-trigger paths for `CD / Release Validation / Staging` currently include:
+
+- root runtime build inputs: `Dockerfile`, `pyproject.toml`, `uv.lock`
+- staged config: `configs/env/staging.yaml`, `configs/models/**`
+- hosted infra and deploy wiring: `deployments/gcp/**`
+- hosted workflow definitions
+- hosted verification scripts
+- application package code under `src/ml_lifecycle_platform/**`
+
+This is intentionally broader than only `serving/`, `pipeline/`, or `registry/`. The hosted images are built from the shared root package and Dockerfile, so a wider trigger is the safer default.
 
 Expected artifact shape:
 
@@ -135,7 +160,7 @@ Hosted MLflow staging deploy lives in:
 Current shape:
 
 - manual `workflow_dispatch`
-- consumes a digest-pinned `mlflow_image` from `Publish Images`
+- consumes a digest-pinned `mlflow_image` from `CD / Publish Hosted Images`
 - applies Terraform with that image and preserves the current serving/platform images
 - verifies the deployed service with an authenticated MLflow smoke script
 - mints the Cloud Run verification token with `google-github-actions/auth`
@@ -145,7 +170,7 @@ Bootstrap caveat:
 - the first apply for this capability is still manual
 - that initial apply grants the CI service account the Cloud Run deploy permissions it needs later
 
-After that bootstrap apply, the workflow is the normal staging deploy path for MLflow.
+After that bootstrap apply, the workflow is the normal staging deploy path for MLflow through `CD / Deploy MLflow / Staging`.
 
 Operational notes:
 
@@ -236,7 +261,7 @@ Recommended first hosted proofs:
 
 Only after those are boring should operators move on to the mutating paths such as `pipeline` or an actual rollback.
 
-For a deterministic full hosted check, use `Hosted Golden Path Staging`. That workflow seeds a rollback-ready `prod` plus a distinct promotable `candidate` before it runs the dry-run checks.
+For a deterministic full hosted check, use `CD / Release Validation / Staging`. That workflow seeds a rollback-ready `prod` plus a distinct promotable `candidate` before it runs the dry-run checks.
 
 ## Deploy workflow troubleshooting
 

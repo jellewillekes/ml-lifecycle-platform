@@ -33,12 +33,12 @@ No static service account key is used.
 Run the workflow manually from the branch you want to verify:
 
 1. Open `Actions`
-2. Select `GCP Auth Verify`
+2. Select `Ops / Verify GCP Auth`
 3. Click `Run workflow`
 4. Choose the branch
 5. Run it
 
-The workflow also runs on pushes to `master`.
+The workflow also runs automatically on `master` when auth or staging-foundation paths change.
 
 ## What it checks
 

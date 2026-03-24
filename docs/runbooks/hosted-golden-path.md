@@ -21,7 +21,7 @@ Out of scope here:
 Runtime release identity:
 
 - Artifact Registry image refs pinned by digest
-- `Publish Images` is the only image producer
+- `CD / Publish Hosted Images` is the only image producer
 
 Transport path:
 
@@ -38,15 +38,15 @@ Model-state boundary:
 
 Run the GitHub Actions workflow:
 
-- `Hosted Golden Path Staging`
+- `CD / Release Validation / Staging`
 
 What it does:
 
-1. runs `Publish Images`
+1. runs `CD / Publish Hosted Images`
 2. deploys hosted MLflow staging
 3. deploys hosted serving staging
 4. deploys hosted platform jobs staging
-5. runs `Seed Hosted Staging Model` to create a deterministic hosted release fixture
+5. runs `Ops / Seed Staging Fixture` to create a deterministic hosted release fixture
 6. runs hosted `maintenance`
 7. runs hosted `reproduce`
 8. runs hosted `promote` in `dry_run`
@@ -58,7 +58,7 @@ What it does:
 
 The hosted golden path now prepares staged model state explicitly.
 
-`Seed Hosted Staging Model` is an explicit workflow stage. It is not hidden inside MLflow deploy, serving deploy, or Terraform apply.
+`Ops / Seed Staging Fixture` is an explicit workflow stage. It is not hidden inside MLflow deploy, serving deploy, or Terraform apply.
 
 That stage leaves staging with:
 
