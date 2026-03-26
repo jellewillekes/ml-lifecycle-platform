@@ -7,7 +7,7 @@
 [![Secrets](https://github.com/jellewillekes/ml-lifecycle-platform/actions/workflows/gitleaks.yml/badge.svg?branch=master)](https://github.com/jellewillekes/ml-lifecycle-platform/actions/workflows/gitleaks.yml)
 [![Coverage](https://codecov.io/gh/jellewillekes/ml-lifecycle-platform/branch/master/graph/badge.svg)](https://codecov.io/gh/jellewillekes/ml-lifecycle-platform/branch/master/graph/badge.svg)
 
-An ML platform for training, evaluating, registering, promoting, serving, and reproducing models. MLflow is the control plane. The repo is local-first, with a real hosted staging path on GCP for deploy and release validation.
+An ML platform for training, evaluating, registering, promoting, serving, and reproducing models. MLflow is the control plane. The current implementation is local-first with Terraform-managed GCP foundation and staging infra plus GitHub Actions-produced runtime images ready for hosted rollout.
 
 [Quick Start](#quick-start) · [Architecture](docs/architecture/overview.md) · [CI/CD](docs/ci.md) · [Hosted Staging Runbook](docs/runbooks/hosted-golden-path.md) · [Contributing](CONTRIBUTING.md)
 
