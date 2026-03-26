@@ -1,21 +1,17 @@
-<!-- PR title must follow Conventional Commits, e.g. "fix: correct release manifest sync". -->
+<!-- PR title must follow Conventional Commits, ie. "fix: correct release strategy". -->
 
-## What
-<!-- What changed? -->
+## Summary
+<!-- 1-3 short bullets or a short paragraph. What changed? -->
 
 ## Why
-<!-- Why now? What user or system impact? Link issue(s) if applicable. -->
-
-## How
-<!-- Key decisions and trade-offs. Explain changes and anything non-obvious. -->
+<!-- Why does this change matter? Link the issue if there is one. -->
 
 ## Testing
-- [ ] Unit
-- [ ] Integration / E2E
+- [ ] `make check`
+- [ ] `make docs-check` (if docs changed)
+- [ ] `make test-integration` (if behavior changed)
+- [ ] `make e2e` or hosted validation (if runtime / deploy flow changed)
 - [ ] Manual (describe)
 
-## Risk
-<!-- How can the change result in mal functioning of the platform?. -->
-
-## Rollback
-<!-- Clear rollback option: revert SHA / command / config change. -->
+## Risk and Rollback
+<!-- Optional for small changes. If behavior or infra changed, note the main risk and how to revert. -->
