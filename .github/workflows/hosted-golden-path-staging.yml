@@ -1,4 +1,4 @@
-name: CD / Release Validation / Staging
+name: Staging Verification
 
 run-name: staging release validation / ${{ github.event_name }} / ${{ github.ref_name }}
 
