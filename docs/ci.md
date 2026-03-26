@@ -10,7 +10,8 @@ Current lanes:
 
 | Lane | Trigger | Purpose |
 | --- | --- | --- |
-| `CI / Presubmit and Postsubmit` | pull requests, push to `master`, manual dispatch | presubmit hygiene, lint, typecheck, unit tests, Docker build safety, plus postsubmit integration tests on `master` |
+| `CI / Presubmit and Postsubmit` | pull requests, push to `master`, manual dispatch | presubmit hygiene, lint, docs validation, typecheck, unit tests, Docker build safety, plus postsubmit integration tests on `master` |
+| `CI / Infra Validation` | pull requests and push to `master` when GCP Terraform paths change, manual dispatch | non-mutating Terraform fmt, backend-less init, and validate for the hosted staging foundation |
 | `CI / Local E2E` | nightly and manual dispatch | dockerized local golden path |
 | `CodeQL` | pull requests, push to `master`, weekly, manual dispatch | native GitHub code scanning for source vulnerabilities and coding errors |
 | `Gitleaks` | pull requests, push to `master`, weekly, manual dispatch | secret scanning for committed credentials, keys, and tokens |
@@ -28,9 +29,11 @@ Current lanes:
 ## Local mapping
 
 - `make check`: format, lint, typecheck, fast tests
+- `make docs-check`: handbook link and local doc path validation
 - `make test-integration`: integration lane
 - `make e2e`: full local golden path with teardown
 - `make test-e2e`: same flow, keeps the stack up for debugging
+- `make terraform-gcp-fmt` + `make terraform-gcp-validate`: local mirror of `CI / Infra Validation`
 
 ## Default rule set
 
@@ -47,6 +50,7 @@ Recommended required checks on `master`:
 - `Hygiene`
 - `Python Version`
 - `Docker Build`
+- `Docs Validation`
 - `Lint`
 - `Typecheck`
 - `Unit Tests (pytest)`
@@ -54,6 +58,8 @@ Recommended required checks on `master`:
 - `Secret Scan`
 
 `Zizmor` is useful as an advisory security check, but it does not need to block every pull request on day one while older workflows are still being tightened.
+
+`CI / Infra Validation` should stay path-filtered. Do not make it a globally required check unless branch protection is updated to support conditional required checks for Terraform changes.
 
 Do not require `Postsubmit Integration`, `CI / Local E2E`, or `CD / Release Validation / Staging` on pull requests. They are slower and belong outside the fast review loop.
 
