@@ -1,29 +1,37 @@
 # ML Lifecycle Platform
 
 [![CI](https://github.com/jellewillekes/ml-lifecycle-platform/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/jellewillekes/ml-lifecycle-platform/actions/workflows/ci.yml)
+[![Local E2E](https://github.com/jellewillekes/ml-lifecycle-platform/actions/workflows/e2e.yml/badge.svg?branch=master)](https://github.com/jellewillekes/ml-lifecycle-platform/actions/workflows/e2e.yml)
+[![Staging Verification](https://github.com/jellewillekes/ml-lifecycle-platform/actions/workflows/hosted-golden-path-staging.yml/badge.svg?branch=master)](https://github.com/jellewillekes/ml-lifecycle-platform/actions/workflows/hosted-golden-path-staging.yml)
 [![CodeQL](https://github.com/jellewillekes/ml-lifecycle-platform/actions/workflows/codeql.yml/badge.svg?branch=master)](https://github.com/jellewillekes/ml-lifecycle-platform/actions/workflows/codeql.yml)
-[![Gitleaks](https://github.com/jellewillekes/ml-lifecycle-platform/actions/workflows/gitleaks.yml/badge.svg?branch=master)](https://github.com/jellewillekes/ml-lifecycle-platform/actions/workflows/gitleaks.yml)
-[![E2E](https://github.com/jellewillekes/ml-lifecycle-platform/actions/workflows/e2e.yml/badge.svg)](https://github.com/jellewillekes/ml-lifecycle-platform/actions/workflows/e2e.yml)
+[![Secrets](https://github.com/jellewillekes/ml-lifecycle-platform/actions/workflows/gitleaks.yml/badge.svg?branch=master)](https://github.com/jellewillekes/ml-lifecycle-platform/actions/workflows/gitleaks.yml)
 [![Coverage](https://codecov.io/gh/jellewillekes/ml-lifecycle-platform/branch/master/graph/badge.svg)](https://codecov.io/gh/jellewillekes/ml-lifecycle-platform/branch/master/graph/badge.svg)
 
 An ML platform for training, evaluating, registering, promoting, serving, and reproducing models. MLflow is the control plane. The current implementation is local-first with Terraform-managed GCP foundation and staging infra plus GitHub Actions-produced runtime images ready for hosted rollout.
 
-Operator and architecture docs live in the handbook:
+[Quick Start](#quick-start) · [Architecture](docs/architecture/overview.md) · [CI/CD](docs/ci.md) · [Hosted Staging Runbook](docs/runbooks/hosted-golden-path.md) · [Contributing](CONTRIBUTING.md)
 
-- [`docs/README.md`](docs/README.md)
-- [`docs/architecture/overview.md`](docs/architecture/overview.md)
-- [`docs/runbooks/gcp-bootstrap.md`](docs/runbooks/gcp-bootstrap.md)
-- [`docs/runbooks/gcp-foundation.md`](docs/runbooks/gcp-foundation.md)
-- [`docs/runbooks/gcp-staging-infra.md`](docs/runbooks/gcp-staging-infra.md)
-- [`docs/runbooks/deploy-mlflow.md`](docs/runbooks/deploy-mlflow.md)
-- [`docs/runbooks/deploy-serving.md`](docs/runbooks/deploy-serving.md)
-- [`docs/architecture/m2-staging-platform.md`](docs/architecture/m2-staging-platform.md)
-- [`docs/reference/configuration.md`](docs/reference/configuration.md)
-- [`docs/reference/gcp-resources.md`](docs/reference/gcp-resources.md)
-- [`docs/reference/release-contract.md`](docs/reference/release-contract.md)
-- [`docs/reference/technology-stack.md`](docs/reference/technology-stack.md)
+## Current Status
 
-Starter files for OSS users:
+- local runtime is the default developer and operator path
+- hosted staging exists for image publication, staged deploy, and release validation
+- the supported first validation path is local `make e2e`
+- production rollout and multi-environment promotion remain out of scope
+
+```text
+local path:   train -> register -> promote -> serve
+hosted path:  GitHub Actions -> Artifact Registry -> Cloud Run / Jobs -> staging validation
+```
+
+## Handbook Entry Points
+
+- [`docs/README.md`](docs/README.md): handbook index
+- [`docs/architecture/overview.md`](docs/architecture/overview.md): system boundaries and current topology
+- [`docs/ci.md`](docs/ci.md): presubmit, postsubmit, CD, and staging validation contract
+- [`docs/runbooks/hosted-golden-path.md`](docs/runbooks/hosted-golden-path.md): canonical hosted staging validation path
+- [`docs/runbooks/gcp-bootstrap.md`](docs/runbooks/gcp-bootstrap.md): bootstrap and hosted foundation setup
+
+## Starter Files
 
 - [`.env.example`](.env.example)
 - [`configs/env/local.yaml`](configs/env/local.yaml)
