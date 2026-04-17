@@ -8,7 +8,6 @@ import pandas as pd
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 
-from ml_lifecycle_platform.common.config import get_experiment_name, get_model_spec_path
 from ml_lifecycle_platform.common.constants import (
     ART_PREPROCESSOR,
     RAW_CSV,
@@ -19,6 +18,7 @@ from ml_lifecycle_platform.common.constants import (
     TRAIN_CSV,
 )
 from ml_lifecycle_platform.common.mlflow_utils import ensure_experiment
+from ml_lifecycle_platform.runtime.bootstrap import get_runtime_context
 from ml_lifecycle_platform.core.batch_contracts import validate_labeled_dataset
 from ml_lifecycle_platform.core.model_specs import load_model_spec
 
@@ -27,9 +27,10 @@ ART_DIR = Path("/app/artifacts")
 
 
 def main() -> None:
-    ensure_experiment(get_experiment_name())
-    mlflow.set_experiment(get_experiment_name())
-    spec = load_model_spec(get_model_spec_path())
+    ctx = get_runtime_context()
+    ensure_experiment(ctx.experiment_name)
+    mlflow.set_experiment(ctx.experiment_name)
+    spec = load_model_spec(ctx.model_spec_path)
 
     DATA_DIR.mkdir(parents=True, exist_ok=True)
     ART_DIR.mkdir(parents=True, exist_ok=True)

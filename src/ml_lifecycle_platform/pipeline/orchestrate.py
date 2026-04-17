@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import mlflow
 
-from ml_lifecycle_platform.common.config import get_experiment_name
 from ml_lifecycle_platform.common.constants import (
     ART_TRAIN_RUN_ID,
     STEP_TRAIN,
@@ -60,8 +59,8 @@ def _latest_train_run_id(experiment_id: str) -> str:
 def main() -> None:
     runtime = get_runtime_context()
     configure_mlflow(runtime)
-    ensure_experiment(get_experiment_name())
-    mlflow.set_experiment(get_experiment_name())
+    ensure_experiment(runtime.experiment_name)
+    mlflow.set_experiment(runtime.experiment_name)
     art_dir = runtime.artifacts_dir
     art_dir.mkdir(parents=True, exist_ok=True)
 
@@ -69,7 +68,7 @@ def main() -> None:
     _run_step("featurize")
     _run_step("train")
 
-    exp = mlflow.get_experiment_by_name(get_experiment_name())
+    exp = mlflow.get_experiment_by_name(runtime.experiment_name)
     assert exp is not None
 
     train_run_id = _latest_train_run_id(exp.experiment_id)

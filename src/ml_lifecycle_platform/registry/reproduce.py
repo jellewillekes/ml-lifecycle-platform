@@ -13,7 +13,6 @@ import numpy as np
 import pandas as pd
 from mlflow.tracking import MlflowClient
 
-from ml_lifecycle_platform.common.config import get_log_level, get_model_name
 from ml_lifecycle_platform.common.constants import (
     ART_REPRO_CONTRACT_JSON,
     ART_REPRO_REPORT_JSON,
@@ -24,6 +23,7 @@ from ml_lifecycle_platform.common.constants import (
     TAG_SOURCE_RUN_ID,
 )
 from ml_lifecycle_platform.common.mlflow_utils import client as mlflow_client
+from ml_lifecycle_platform.runtime.bootstrap import get_runtime_context
 from ml_lifecycle_platform.common.repro import (
     get_uv_lock_hash,
     sha256_file,
@@ -66,7 +66,7 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Rebuild a registered model from the source training run."
     )
-    parser.add_argument("--model-name", default=get_model_name())
+    parser.add_argument("--model-name", default=get_runtime_context().model_name)
     group = parser.add_mutually_exclusive_group(required=True)
     group.add_argument("--model-version")
     group.add_argument("--alias")
@@ -518,7 +518,7 @@ def reproduce_model(
 
 
 def main(argv: list[str] | None = None) -> None:
-    logging.basicConfig(level=get_log_level())
+    logging.basicConfig(level=get_runtime_context().log_level)
     args = parse_args(sys.argv[1:] if argv is None else argv)
     report_path = Path(args.report_path)
     client = mlflow_client()

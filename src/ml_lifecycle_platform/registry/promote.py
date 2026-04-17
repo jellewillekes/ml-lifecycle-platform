@@ -8,12 +8,8 @@ from typing import Any
 
 from mlflow.tracking import MlflowClient
 
-from ml_lifecycle_platform.common.config import (
-    get_log_level,
-    get_model_name,
-    get_model_spec_path,
-)
 from ml_lifecycle_platform.common.mlflow_utils import client as mlflow_client
+from ml_lifecycle_platform.runtime.bootstrap import get_runtime_context
 from ml_lifecycle_platform.common.constants import (
     ALIAS_CANDIDATE,
     ALIAS_CHAMPION,
@@ -52,7 +48,7 @@ logger = logging.getLogger(__name__)
 
 
 def _resolve_policy_for_model(model_name: str) -> PolicySpec:
-    spec = load_model_spec(get_model_spec_path())
+    spec = load_model_spec(get_runtime_context().model_spec_path)
     if spec.model_name != model_name:
         logger.warning(
             "Active model spec %s targets model %s; using default promotion policy for %s",
@@ -272,7 +268,7 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     p = argparse.ArgumentParser(
         description="Promote candidate model to prod with policy gating."
     )
-    p.add_argument("--model-name", default=get_model_name())
+    p.add_argument("--model-name", default=get_runtime_context().model_name)
     p.add_argument("--from-alias", default=ALIAS_CANDIDATE)
     p.add_argument("--to-alias", default=ALIAS_PROD)
     p.add_argument(
@@ -285,7 +281,7 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
 
 
 def main(argv: list[str] | None = None) -> None:
-    logging.basicConfig(level=get_log_level())
+    logging.basicConfig(level=get_runtime_context().log_level)
 
     args = parse_args(sys.argv[1:] if argv is None else argv)
 

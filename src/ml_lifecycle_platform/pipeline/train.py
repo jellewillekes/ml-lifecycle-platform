@@ -14,11 +14,6 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import accuracy_score, f1_score, roc_auc_score
 from sklearn.pipeline import Pipeline
 
-from ml_lifecycle_platform.common.config import (
-    get_experiment_name,
-    get_log_level,
-    get_model_spec_path,
-)
 from ml_lifecycle_platform.common.constants import (
     ART_DATASET_FINGERPRINT_JSON,
     ART_PREPROCESSOR,
@@ -56,7 +51,10 @@ from ml_lifecycle_platform.contracts.dataset_fingerprint import (
 )
 from ml_lifecycle_platform.contracts.repro_contract import ReproContract
 from ml_lifecycle_platform.core.model_specs import ModelSpec, load_model_spec
-from ml_lifecycle_platform.runtime.bootstrap import configure_mlflow
+from ml_lifecycle_platform.runtime.bootstrap import (
+    configure_mlflow,
+    get_runtime_context,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -126,7 +124,7 @@ def load_training_inputs(
 ) -> TrainingInputs:
     data_dir = DATA_DIR if data_dir is None else data_dir
     artifacts_dir = ART_DIR if artifacts_dir is None else artifacts_dir
-    spec = load_model_spec(get_model_spec_path())
+    spec = load_model_spec(get_runtime_context().model_spec_path)
     train_df = pd.read_csv(data_dir / TRAIN_CSV)
     test_df = pd.read_csv(data_dir / TEST_CSV)
     train_df = validate_labeled_dataset(
@@ -231,14 +229,14 @@ def _write_json(path: Path, payload: Mapping[str, Any]) -> None:
 
 
 def main() -> None:
-    logging.basicConfig(level=get_log_level())
+    ctx = get_runtime_context()
+    logging.basicConfig(level=ctx.log_level)
     configure_mlflow()
 
-    experiment_name = get_experiment_name()
-    ensure_experiment(experiment_name)
-    mlflow.set_experiment(experiment_name)
+    ensure_experiment(ctx.experiment_name)
+    mlflow.set_experiment(ctx.experiment_name)
 
-    spec = load_model_spec(get_model_spec_path())
+    spec = load_model_spec(ctx.model_spec_path)
     data_source_uri = spec.data_source_uri()
     params = trainer_params_for_spec(spec)
     config_hash = config_hash_for_spec(spec)

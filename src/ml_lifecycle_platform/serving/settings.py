@@ -21,7 +21,11 @@ from .constants import (
 
 
 class Settings(BaseSettings):
-    """Serving configuration."""
+    """Serving app configuration — reads directly from env vars.
+
+    Intentionally separate from RuntimeProfile: the serving container runs
+    standalone without the local bootstrap, so it cannot use get_runtime_context().
+    """
 
     model_config = SettingsConfigDict(extra="ignore")
 

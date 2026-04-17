@@ -8,7 +8,6 @@ import numpy as np
 import pandas as pd
 from sklearn.metrics import RocCurveDisplay
 
-from ml_lifecycle_platform.common.config import get_experiment_name, get_model_spec_path
 from ml_lifecycle_platform.common.constants import (
     ART_EVALUATION_JSON,
     ART_GATE_OK,
@@ -21,6 +20,7 @@ from ml_lifecycle_platform.common.constants import (
     TEST_CSV,
 )
 from ml_lifecycle_platform.common.mlflow_utils import ensure_experiment, write_json
+from ml_lifecycle_platform.runtime.bootstrap import get_runtime_context
 from ml_lifecycle_platform.core.batch_contracts import validate_labeled_dataset
 from ml_lifecycle_platform.core.model_specs import load_model_spec
 from ml_lifecycle_platform.pipeline.train import compute_binary_metrics
@@ -30,9 +30,10 @@ ART_DIR = Path("/app/artifacts")
 
 
 def main() -> None:
-    ensure_experiment(get_experiment_name())
-    mlflow.set_experiment(get_experiment_name())
-    spec = load_model_spec(get_model_spec_path())
+    ctx = get_runtime_context()
+    ensure_experiment(ctx.experiment_name)
+    mlflow.set_experiment(ctx.experiment_name)
+    spec = load_model_spec(ctx.model_spec_path)
 
     test_df = pd.read_csv(DATA_DIR / TEST_CSV)
     test_df = validate_labeled_dataset(

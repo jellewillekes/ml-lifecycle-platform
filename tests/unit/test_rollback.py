@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import types
 
 import pytest
 
@@ -31,14 +32,18 @@ class _Client:
         return self._target
 
 
+def _mock_runtime(log_level: str = "INFO") -> object:
+    return types.SimpleNamespace(log_level=log_level, model_name="breast_cancer_clf")
+
+
 def test_rollback_main_dry_run_prints_ready_plan(
     monkeypatch: pytest.MonkeyPatch, capsys
 ) -> None:
     current = _Version("5", tags={"previous_prod_version": "4"})
     target = _Version("4")
     monkeypatch.setattr(
-        "ml_lifecycle_platform.registry.rollback.get_log_level",
-        lambda: "INFO",
+        "ml_lifecycle_platform.registry.rollback.get_runtime_context",
+        lambda: _mock_runtime(),
     )
     monkeypatch.setattr(
         "ml_lifecycle_platform.registry.rollback.mlflow_client",
@@ -61,8 +66,8 @@ def test_rollback_main_dry_run_blocks_without_previous_prod(
     current = _Version("5", tags={})
     target = _Version("4")
     monkeypatch.setattr(
-        "ml_lifecycle_platform.registry.rollback.get_log_level",
-        lambda: "INFO",
+        "ml_lifecycle_platform.registry.rollback.get_runtime_context",
+        lambda: _mock_runtime(),
     )
     monkeypatch.setattr(
         "ml_lifecycle_platform.registry.rollback.mlflow_client",

@@ -6,7 +6,6 @@ import mlflow
 import pandas as pd
 from sklearn.datasets import load_breast_cancer
 
-from ml_lifecycle_platform.common.config import get_experiment_name, get_model_spec_path
 from ml_lifecycle_platform.common.constants import (
     RAW_CSV,
     STEP_INGEST,
@@ -14,6 +13,7 @@ from ml_lifecycle_platform.common.constants import (
     TAG_STEP,
 )
 from ml_lifecycle_platform.common.mlflow_utils import ensure_experiment
+from ml_lifecycle_platform.runtime.bootstrap import get_runtime_context
 from ml_lifecycle_platform.core.batch_contracts import validate_labeled_dataset
 from ml_lifecycle_platform.core.model_specs import (
     CsvSourceSpec,
@@ -41,9 +41,10 @@ def _load_source_dataframe(spec: ModelSpec) -> pd.DataFrame:
 
 
 def main() -> None:
-    ensure_experiment(get_experiment_name())
-    mlflow.set_experiment(get_experiment_name())
-    spec = load_model_spec(get_model_spec_path())
+    ctx = get_runtime_context()
+    ensure_experiment(ctx.experiment_name)
+    mlflow.set_experiment(ctx.experiment_name)
+    spec = load_model_spec(ctx.model_spec_path)
 
     DATA_DIR.mkdir(parents=True, exist_ok=True)
 
