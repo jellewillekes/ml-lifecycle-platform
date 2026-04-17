@@ -27,18 +27,17 @@ def test_livez_does_not_require_mlflow_configuration_on_startup(
     get_settings.cache_clear()
 
     import ml_lifecycle_platform.serving.app as app_module
+    import ml_lifecycle_platform.serving.model_store as model_store_module
 
-    app_module.model_prod = None
-    app_module.model_candidate = None
-    app_module.prod_version = None
-    app_module.candidate_version = None
-    app_module._last_refresh_ts = 0.0
+    from ml_lifecycle_platform.serving.model_store import get_model_store
+
+    get_model_store().reset()
     app_module._load_feature_contract.cache_clear()
 
     def fail_configure_mlflow() -> None:
         raise AssertionError("configure_mlflow should not run during FastAPI startup")
 
-    monkeypatch.setattr(app_module, "configure_mlflow", fail_configure_mlflow)
+    monkeypatch.setattr(model_store_module, "configure_mlflow", fail_configure_mlflow)
 
     try:
         with TestClient(app_module.app) as test_client:

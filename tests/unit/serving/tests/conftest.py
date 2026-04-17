@@ -6,6 +6,7 @@ import pytest
 from _pytest.monkeypatch import MonkeyPatch
 from fastapi.testclient import TestClient
 
+from ml_lifecycle_platform.serving.model_store import get_model_store
 from ml_lifecycle_platform.serving.settings import get_settings
 
 
@@ -24,12 +25,8 @@ def client(monkeypatch: MonkeyPatch) -> Iterator[TestClient]:
     # Import after env vars are set.
     import ml_lifecycle_platform.serving.app as app_module
 
-    # Clear the global model cache between tests.
-    app_module.model_prod = None
-    app_module.model_candidate = None
-    app_module.prod_version = None
-    app_module.candidate_version = None
-    app_module._last_refresh_ts = 0.0
+    # Reset the model store and feature contract cache between tests.
+    get_model_store().reset()
     app_module._load_feature_contract.cache_clear()
 
     try:
