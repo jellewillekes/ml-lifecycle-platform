@@ -8,11 +8,8 @@ from ml_lifecycle_platform.common.constants import (
     MODEL_SPEC_SCHEMA_VERSION,
     TAG_CONFIG_HASH,
 )
-from ml_lifecycle_platform.core.model_specs import (
-    default_policy_spec,
-    load_model_spec,
-    model_spec_from_dict,
-)
+from ml_lifecycle_platform.core.model_spec_types import default_policy_spec
+from ml_lifecycle_platform.core.model_specs import load_model_spec, model_spec_from_dict
 
 pytestmark = pytest.mark.unit
 

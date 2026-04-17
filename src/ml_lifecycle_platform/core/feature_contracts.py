@@ -4,7 +4,10 @@ import math
 from dataclasses import dataclass
 from typing import Any, Mapping, Sequence
 
-from ml_lifecycle_platform.core.model_specs import FeatureContractSpec, FeatureFieldSpec
+from ml_lifecycle_platform.core.model_spec_types import (
+    FeatureContractSpec,
+    FeatureFieldSpec,
+)
 
 
 @dataclass(frozen=True)

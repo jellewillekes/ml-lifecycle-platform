@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import mlflow
+import pandas as pd
 
 from ml_lifecycle_platform.common.constants import (
     ART_TRAIN_RUN_ID,
@@ -31,16 +32,23 @@ def _run_step(module: str) -> None:
         raise RuntimeError(f"Step {module} failed with exit code {return_code}.")
 
 
-def _latest_train_run_id(experiment_id: str) -> str:
-    runs_df = mlflow.search_runs(
+def _search_train_runs(experiment_id: str) -> pd.DataFrame:
+    result = mlflow.search_runs(
         experiment_ids=[experiment_id],
         filter_string=f"tags.{TAG_STEP} = '{STEP_TRAIN}'",
         order_by=["attributes.start_time DESC"],
         max_results=1,
     )
-    if runs_df.empty:  # type: ignore[union-attr]
+    if not isinstance(result, pd.DataFrame):
+        raise TypeError(f"mlflow.search_runs returned unexpected type: {type(result)}")
+    return result
+
+
+def _latest_train_run_id(experiment_id: str) -> str:
+    runs = _search_train_runs(experiment_id)
+    if runs.empty:
         raise RuntimeError("No train run found after training step.")
-    return str(runs_df.iloc[0]["run_id"])  # type: ignore[union-attr,index]
+    return str(runs.iloc[0]["run_id"])
 
 
 def main() -> None:
