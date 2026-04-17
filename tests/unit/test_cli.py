@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import subprocess
 from pathlib import Path
-from typing import cast
+from typing import Any, cast
 
 import pytest
 
@@ -352,13 +352,11 @@ def test_run_e2e_uses_ephemeral_host_ports_for_local_services(
 
     def fake_subprocess_run(
         command: list[str],
-        *,
-        check: bool,
-        cwd: Path,
-        env: dict[str, str],
+        **kwargs: Any,
     ) -> subprocess.CompletedProcess[bytes]:
-        del check, cwd
-        teardown_envs.append(dict(env))
+        if kwargs.get("stdout") is not None:
+            return subprocess.CompletedProcess(command, 0, stdout=b"deadbeef")
+        teardown_envs.append(dict(kwargs.get("env") or {}))
         return subprocess.CompletedProcess(command, 0)
 
     monkeypatch.setattr(cli_main, "_run", fake_run)
