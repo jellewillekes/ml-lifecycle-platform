@@ -1,5 +1,7 @@
-# Agents
+# Agent tooling (per-developer config, do not commit)
 AGENTS.md
+CLAUDE.md
+.claude/
 
 # Python bytecode
 __pycache__/

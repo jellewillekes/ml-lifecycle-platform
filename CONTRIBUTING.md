@@ -4,12 +4,14 @@ Keep changes small, test-backed, and easy to review.
 
 ## Before opening a PR
 
-Run what applies:
+Match verification to the scope of the change:
 
-- `make check`
-- `make docs-check` if you changed docs
-- `make test-integration`
-- `make e2e` if you changed Docker, serving, promotion flow, or the local operator path
+- logic in `src/` → `make check`
+- touched `docs/` → also `make docs-check`
+- touched pipeline, registry, serving, or infra → `make e2e-clean`
+- interface changes → `make test-integration`
+
+Do not claim a check was run if it was not run.
 
 ## PR expectations
 
@@ -47,6 +49,17 @@ The PR title becomes the squash commit message and feeds Release Please.
 - Prefer deleting code over adding new layers.
 - Preserve current behavior unless there is a clear bug.
 - If you touch the model lifecycle, validate the demo spec path at minimum.
+
+## Guardrails
+
+- Don't modify files under paths blocked by [`scripts/precommit_block_forbidden_tracked_paths.sh`](scripts/precommit_block_forbidden_tracked_paths.sh).
+- Don't bypass precommit with `--no-verify` — fix the underlying issue.
+- Don't `git push --force` to `master`.
+- Generated or ignored paths (`mlruns/`, `mlartifacts/`, `.env`, `coverage.xml`, `reproduce_*.json`) are not committed.
+
+## Agent tooling
+
+Coding-agent config (`CLAUDE.md`, `.claude/`, `AGENTS.md`) is per-developer and gitignored. [`Agents.md`](Agents.md) is the shared, framework-neutral philosophy doc and is tracked.
 
 Start with the handbook in [`docs/README.md`](docs/README.md).
 
