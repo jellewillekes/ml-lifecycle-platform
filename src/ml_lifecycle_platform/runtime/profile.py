@@ -133,8 +133,8 @@ def _apply_env_overrides(payload: dict[str, Any]) -> dict[str, Any]:
         "compose_tracking_uri": os.getenv("MLP_COMPOSE_TRACKING_URI"),
         "compose_registry_uri": os.getenv("MLP_COMPOSE_REGISTRY_URI"),
         "compose_s3_endpoint_url": os.getenv("MLP_COMPOSE_S3_ENDPOINT_URL"),
-        "compose_aws_access_key_id": os.getenv("AWS_ACCESS_KEY_ID"),
-        "compose_aws_secret_access_key": os.getenv("AWS_SECRET_ACCESS_KEY"),
+        "compose_aws_access_key_id": os.getenv("MLP_COMPOSE_AWS_ACCESS_KEY_ID"),
+        "compose_aws_secret_access_key": os.getenv("MLP_COMPOSE_AWS_SECRET_ACCESS_KEY"),
         "compose_serve_url": os.getenv("MLP_COMPOSE_SERVE_URL")
         or os.getenv("SERVE_URL"),
         "mlflow_host": os.getenv("MLFLOW_HOST"),
