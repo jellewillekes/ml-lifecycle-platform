@@ -21,7 +21,7 @@ from ml_lifecycle_platform.common.mlflow_utils import ensure_experiment, write_j
 from ml_lifecycle_platform.runtime.bootstrap import get_runtime_context
 from ml_lifecycle_platform.core.batch_contracts import validate_labeled_dataset
 from ml_lifecycle_platform.core.model_specs import load_model_spec
-from ml_lifecycle_platform.pipeline.train import compute_binary_metrics
+from ml_lifecycle_platform.pipeline.metrics import compute_binary_metrics
 
 
 def main() -> None:

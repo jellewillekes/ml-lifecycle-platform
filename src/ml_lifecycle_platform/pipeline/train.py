@@ -11,7 +11,6 @@ import mlflow
 import pandas as pd
 from mlflow.models.signature import infer_signature
 from sklearn.linear_model import LogisticRegression
-from sklearn.metrics import accuracy_score, f1_score, roc_auc_score
 from sklearn.pipeline import Pipeline
 
 from ml_lifecycle_platform.common.constants import (
@@ -44,6 +43,7 @@ from ml_lifecycle_platform.common.repro import (
     sha256_text,
 )
 from ml_lifecycle_platform.core.batch_contracts import validate_labeled_dataset
+from ml_lifecycle_platform.pipeline.metrics import compute_binary_metrics
 from ml_lifecycle_platform.contracts.dataset_fingerprint import (
     DatasetFingerprint,
     compute_fingerprint,
@@ -93,28 +93,6 @@ def trainer_params_for_spec(spec: ModelSpec) -> dict[str, str | int]:
         "class_weight": spec.trainer.class_weight,
         "random_state": spec.trainer.random_state,
     }
-
-
-def compute_binary_metrics(
-    *,
-    metric_names: tuple[str, ...],
-    y_true: pd.Series,
-    pred: Any,
-    proba: Any,
-    prefix: str,
-) -> dict[str, float]:
-    metrics: dict[str, float] = {}
-    for metric_name in metric_names:
-        if metric_name == "accuracy":
-            value = accuracy_score(y_true, pred)
-        elif metric_name == "f1":
-            value = f1_score(y_true, pred)
-        elif metric_name == "roc_auc":
-            value = roc_auc_score(y_true, proba)
-        else:  # pragma: no cover
-            raise ValueError(f"Unsupported metric: {metric_name}")
-        metrics[f"{prefix}_{metric_name}"] = float(value)
-    return metrics
 
 
 def load_training_inputs(

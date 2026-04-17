@@ -25,7 +25,7 @@ def _git_sha() -> str:
             cwd=_repo_root(),
             stderr=subprocess.DEVNULL,
         )
-    except Exception:
+    except (subprocess.SubprocessError, OSError):
         return "dev"
     return output.decode("utf-8").strip()
 
