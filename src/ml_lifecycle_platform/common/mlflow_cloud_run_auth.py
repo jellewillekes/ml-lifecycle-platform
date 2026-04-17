@@ -80,7 +80,7 @@ def _decode_token_expiry(token: str) -> float | None:
     try:
         decoded = base64.urlsafe_b64decode(padded.encode("ascii"))
         claims = json.loads(decoded.decode("utf-8"))
-    except Exception:
+    except ValueError:
         return None
 
     exp = claims.get("exp")

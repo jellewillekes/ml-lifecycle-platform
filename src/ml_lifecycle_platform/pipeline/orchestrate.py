@@ -32,28 +32,15 @@ def _run_step(module: str) -> None:
 
 
 def _latest_train_run_id(experiment_id: str) -> str:
-    runs = mlflow.search_runs(
+    runs_df = mlflow.search_runs(
         experiment_ids=[experiment_id],
         filter_string=f"tags.{TAG_STEP} = '{STEP_TRAIN}'",
         order_by=["attributes.start_time DESC"],
         max_results=1,
     )
-
-    if hasattr(runs, "empty") and hasattr(runs, "iloc"):
-        if runs.empty:  # type: ignore[attr-defined]
-            raise RuntimeError("No train run found after training step.")
-        return str(runs.iloc[0]["run_id"])  # type: ignore[index]
-
-    if isinstance(runs, list):
-        if not runs:
-            raise RuntimeError("No train run found after training step.")
-        run0 = runs[0]
-        run_id = getattr(getattr(run0, "info", None), "run_id", None)
-        if not run_id:
-            raise RuntimeError("Train run object missing run_id.")
-        return str(run_id)
-
-    raise TypeError(f"Unexpected mlflow.search_runs return type: {type(runs)}")
+    if runs_df.empty:  # type: ignore[union-attr]
+        raise RuntimeError("No train run found after training step.")
+    return str(runs_df.iloc[0]["run_id"])  # type: ignore[union-attr,index]
 
 
 def main() -> None:
