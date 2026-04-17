@@ -7,10 +7,8 @@ It covers what exists today:
 - local runtime profiles
 - env var overrides
 - serving-only env vars
-- hosted staging secrets created by Terraform
-- hosted MLflow and serving runtime env contracts
-
-It does not pretend hosted deploy config already exists. That belongs to later M2 PRs.
+- hosted staging secrets created by Terraform (advanced — maintainer only)
+- hosted MLflow and serving runtime env contracts (advanced — maintainer only)
 
 ## Source of truth order
 
@@ -129,7 +127,7 @@ Non-obvious constraint:
 - `MODEL_NAME` and `MLP_MODEL_SPEC_PATH` must describe the same model.
 - If they drift, serving fails on startup or request validation with an explicit error.
 
-## Hosted staging secrets
+## Hosted staging secrets (advanced — maintainer only)
 
 `UP-16` created the active staged MLflow secret contract:
 
@@ -156,7 +154,7 @@ Legacy foundation placeholders still exist:
 
 Treat those as reserved foundation names, not the active hosted-staging contract.
 
-## Hosted MLflow runtime env
+## Hosted MLflow runtime env (advanced — maintainer only)
 
 The hosted MLflow Cloud Run service uses a narrower env surface than the local Compose server.
 
@@ -181,7 +179,7 @@ Hosted MLflow does not use the local Compose-only settings such as:
 
 Those remain local-runtime concerns.
 
-## Hosted serving runtime env
+## Hosted serving runtime env (advanced — maintainer only)
 
 The hosted serving Cloud Run service uses plain env vars, not new secrets.
 

@@ -1,5 +1,7 @@
 # Overview
 
+The local path is the contributor default. The hosted GCP staging path is an advanced maintainer-only path — you do not need it to contribute. See [`how-it-works.md`](./how-it-works.md) for the contributor-oriented explanation.
+
 This repo currently has one real local path and one real hosted staging path:
 
 ```text
@@ -23,6 +25,8 @@ The local path is fully operational. The hosted staging path is operational for 
 - Cloud Scheduler drives the conservative maintenance cadence.
 
 ## Current topology
+
+The `developer shell` section below is the local contributor path. The `GitHub Actions` and `GCP staging infra` sections are the advanced hosted path.
 
 ```text
 developer shell

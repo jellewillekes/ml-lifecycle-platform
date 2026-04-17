@@ -1,6 +1,6 @@
 # How It Works Now
 
-Last verified: 2026-03-17
+Last verified: 2026-04-17
 
 This page is the shortest current explanation of how the repo works in practice.
 
@@ -8,7 +8,7 @@ Use it when you want the operator path and current boundaries without reading ev
 
 ## Two real paths
 
-The repo now has two real operating paths:
+The repo has two operating paths. The local path is the contributor default. The hosted staging path is an advanced maintainer path — you do not need it to contribute.
 
 ### Local path
 
@@ -33,7 +33,7 @@ Main entrypoint:
 
 - [`../runbooks/local-bootstrap.md`](../runbooks/local-bootstrap.md)
 
-## Hosted staging path
+## Hosted staging path (advanced — maintainer only)
 
 Used for:
 
@@ -235,7 +235,14 @@ Still out of scope:
 
 ## Where to read next
 
+Local contributor path:
+
+- [`../runbooks/local-bootstrap.md`](../runbooks/local-bootstrap.md)
 - [`./current-state.md`](./current-state.md)
+- [`./overview.md`](./overview.md)
+
+Advanced hosted path (maintainer only):
+
 - [`./m2-staging-platform.md`](./m2-staging-platform.md)
 - [`../runbooks/deploy-platform-jobs.md`](../runbooks/deploy-platform-jobs.md)
 - [`../runbooks/schedule-platform-jobs.md`](../runbooks/schedule-platform-jobs.md)

@@ -1,6 +1,6 @@
 # Current State
 
-Last verified: 2026-03-17
+Last verified: 2026-04-17
 
 ## Summary
 
@@ -69,7 +69,7 @@ models:/<model_name>@prod
   - daily hosted maintenance cadence
   - paused hosted pipeline cadence placeholder
 
-## Current hosted staging state
+## Current hosted staging state (advanced — maintainer only)
 
 - hosted MLflow staging is live and verified
 - hosted serving staging deploy path exists and is wired to hosted MLflow
@@ -82,6 +82,8 @@ models:/<model_name>@prod
 
 ## Code layout
 
+Core OSS surface (local golden path):
+
 - `src/ml_lifecycle_platform/pipeline/`: pipeline steps and orchestration
 - `src/ml_lifecycle_platform/registry/`: register, promote, rollback, reproduce
 - `src/ml_lifecycle_platform/policy/`: promotion policy
@@ -90,6 +92,11 @@ models:/<model_name>@prod
 - `src/ml_lifecycle_platform/core/`: model specs and protocol definitions
 - `src/ml_lifecycle_platform/contracts/`: lineage and repro payloads
 - `src/ml_lifecycle_platform/backends/local/`: local adapters
+- `src/ml_lifecycle_platform/common/`: shared config constants and MLflow helpers
+
+Advanced hosted surface (maintainer only):
+
+- `src/ml_lifecycle_platform/ci/`: hosted CI helpers for GitHub Actions workflows
 
 ## Defaults
 

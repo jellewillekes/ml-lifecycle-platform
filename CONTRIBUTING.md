@@ -2,6 +2,8 @@
 
 Keep changes small, test-backed, and easy to review.
 
+You do not need a GCP account to contribute. The normal contribution path is local-only: clone, `uv sync --dev`, `make check`, `make e2e`. The hosted GCP staging path is a maintainer-only advanced path and is not required for any normal PR.
+
 ## Before opening a PR
 
 Match verification to the scope of the change:
