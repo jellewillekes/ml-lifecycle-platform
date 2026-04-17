@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import json
 import logging
-import math
 import time
 import uuid
 from collections.abc import AsyncGenerator, Awaitable, Callable
@@ -10,7 +9,6 @@ from contextlib import asynccontextmanager
 from functools import lru_cache
 from typing import Any, Literal, cast
 
-import pandas as pd
 from fastapi import FastAPI, HTTPException, Query, Request
 from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 from pydantic import BaseModel, ConfigDict, Field
@@ -24,12 +22,9 @@ except Exception:  # pragma: no cover
     MlflowException = Exception  # type: ignore[assignment, misc]
 
 from ml_lifecycle_platform.common.mlflow_utils import client as get_mlflow_client
-from ml_lifecycle_platform.core.feature_contracts import (
-    FeatureContractValidationError,
-    validate_rows_against_contract,
-)
-from ml_lifecycle_platform.core.model_specs import FeatureContractSpec, load_model_spec
-from ml_lifecycle_platform.runtime.bootstrap import configure_mlflow
+from ml_lifecycle_platform.core.feature_contracts import FeatureContractValidationError
+from ml_lifecycle_platform.core.model_spec_types import FeatureContractSpec
+from ml_lifecycle_platform.core.model_specs import load_model_spec
 
 from .constants import (
     ALIAS_CANDIDATE,
@@ -38,7 +33,9 @@ from .constants import (
     HEADER_MODEL_VERSION,
     HEADER_REQUEST_ID,
 )
-from .metrics import PREDICT_LATENCY_SECONDS, REQUESTS_TOTAL, SHADOW_DIFF_MAE
+from .metrics import PREDICT_LATENCY_SECONDS, REQUESTS_TOTAL
+from .model_store import get_model_store
+from .prediction import run_prediction
 from .router import (
     BucketContext,
     Mode,
@@ -49,14 +46,6 @@ from .router import (
 from .settings import Settings, get_settings
 
 logger = logging.getLogger("serving")
-
-
-# Module-level cache. Tests monkeypatch it.
-model_prod: Any | None = None
-model_candidate: Any | None = None
-prod_version: str | None = None
-candidate_version: str | None = None
-_last_refresh_ts: float = 0.0
 
 
 def _configure_logging(settings: Settings) -> None:
@@ -187,19 +176,6 @@ class SchemaMetadataResponse(BaseModel):
     features: list[SchemaFieldResponse]
 
 
-class _UnitTestModel:
-    """Deterministic stub for unit tests."""
-
-    def predict(self, df: pd.DataFrame) -> list[float]:
-        # Return deterministic probabilities in [0, 1].
-        n = len(df)
-        return [1.0] * n
-
-
-def _models_uri(settings: Settings, alias: str) -> str:
-    return f"models:/{settings.model_name}@{alias}"
-
-
 @lru_cache(maxsize=8)
 def _load_feature_contract(
     model_name: str, model_spec_path: str
@@ -231,92 +207,11 @@ def _registry_resolves_prod_alias(settings: Settings) -> tuple[bool, str | None]
         return False, f"registry check failed: {e}"
 
 
-def _get_version(settings: Settings, alias: str) -> str | None:
-    if settings.unit_testing or mlflow is None:
-        return None
-    try:
-        client = get_mlflow_client()
-        mv = client.get_model_version_by_alias(settings.model_name, alias)
-        return str(mv.version)
-    except MlflowException:
-        return None
-
-
-def _load_model(settings: Settings, alias: str) -> Any:
-    # Unit tests always use a deterministic stub.
-    if settings.unit_testing:
-        return _UnitTestModel()
-
-    if mlflow is None:
-        raise RuntimeError("mlflow not available in serving image")
-
-    # Guard against broken or stub MLflow installs.
-    pyfunc = getattr(mlflow, "pyfunc", None)
-    if pyfunc is None:
-        raise RuntimeError("mlflow.pyfunc is missing (mlflow install is broken)")
-
-    configure_mlflow()
-    return pyfunc.load_model(_models_uri(settings, alias))
-
-
-def _refresh_models_if_needed(
-    settings: Settings,
-    *,
-    force: bool = False,
-    load_candidate: bool = False,
-) -> None:
-    """Refresh cached models and versions."""
-    global \
-        model_prod, \
-        model_candidate, \
-        prod_version, \
-        candidate_version, \
-        _last_refresh_ts
-
-    now = time.time()
-    cache_is_warm = (now - _last_refresh_ts) < settings.model_cache_ttl_sec
-    needs_prod_refresh = model_prod is None or prod_version is None
-    needs_candidate_refresh = load_candidate and (
-        model_candidate is None or candidate_version is None
-    )
-
-    if (
-        not force
-        and cache_is_warm
-        and not (needs_prod_refresh or needs_candidate_refresh)
-    ):
-        return
-
-    if needs_prod_refresh and model_prod is None:
-        model_prod = _load_model(settings, settings.prod_alias)
-
-    if needs_candidate_refresh and model_candidate is None:
-        model_candidate = _load_model(settings, settings.candidate_alias)
-
-    if needs_prod_refresh:
-        prod_version = prod_version or _get_version(settings, settings.prod_alias)
-    if needs_candidate_refresh:
-        candidate_version = candidate_version or _get_version(
-            settings, settings.candidate_alias
-        )
-
-    _last_refresh_ts = now
-
-
-def _get_model(
-    settings: Settings, alias: Literal["prod", "candidate"], required: bool
-) -> Any | None:
-    _refresh_models_if_needed(settings, load_candidate=(alias == ALIAS_CANDIDATE))
-    model = model_prod if alias == ALIAS_PROD else model_candidate
-    if required and model is None:
-        raise RuntimeError(f"model for alias={alias} is not available")
-    return model
-
-
 def _prod_model_loadable(settings: Settings) -> tuple[bool, str | None]:
     """Return whether the prod model is loadable."""
+    store = get_model_store()
     try:
-        _ = _get_model(settings, ALIAS_PROD, required=True)
+        _ = store.get_model(settings, ALIAS_PROD, required=True)
         return True, None
     except Exception as e:
         return False, f"prod model not loadable: {e}"
@@ -355,13 +250,13 @@ def health() -> dict[str, Any]:
     settings = get_settings()
     _configure_logging(settings)
 
+    store = get_model_store()
     reg_ok, reg_detail = _registry_resolves_prod_alias(settings)
     model_ok = False
     model_detail: str | None = None
     if reg_ok:
         model_ok, model_detail = _prod_model_loadable(settings)
 
-    model_loaded = bool(model_prod is not None and model_ok)
     ready = bool(reg_ok and model_ok)
 
     return {
@@ -370,13 +265,13 @@ def health() -> dict[str, Any]:
         "model_name": settings.model_name,
         "prod_alias": settings.prod_alias,
         "candidate_alias": settings.candidate_alias,
-        "prod_version": prod_version,
-        "candidate_version": candidate_version,
+        "prod_version": store.get_version(ALIAS_PROD),
+        "candidate_version": store.get_version(ALIAS_CANDIDATE),
         "registry_ok": reg_ok,
         "registry_detail": reg_detail,
         "prod_model_ok": model_ok,
         "prod_model_detail": model_detail,
-        "prod_model_loaded": model_loaded,
+        "prod_model_loaded": store.is_prod_loaded(),
         "cache_ttl_sec": settings.model_cache_ttl_sec,
     }
 
@@ -391,6 +286,7 @@ def metrics() -> Response:
 def metadata_model() -> ModelMetadataResponse:
     settings = get_settings()
     _configure_logging(settings)
+    store = get_model_store()
     try:
         contract = _feature_contract(settings)
     except RuntimeError as e:
@@ -400,8 +296,8 @@ def metadata_model() -> ModelMetadataResponse:
         model_name=settings.model_name,
         prod_alias=settings.prod_alias,
         candidate_alias=settings.candidate_alias,
-        prod_version=_get_version(settings, settings.prod_alias),
-        candidate_version=_get_version(settings, settings.candidate_alias),
+        prod_version=store.get_version(ALIAS_PROD),
+        candidate_version=store.get_version(ALIAS_CANDIDATE),
         contract_version=contract.version,
         allow_unknown_fields=contract.allow_unknown_fields,
     )
@@ -447,10 +343,10 @@ async def predict(
 
     bucket: int | None = None
     bucket_seed_source: SeedSource | None = None
-    shadow_mae: float | None = None
 
     try:
         contract = _feature_contract(settings)
+        store = get_model_store()
 
         # Bucket only matters in canary mode.
         if mode == "canary":
@@ -485,47 +381,26 @@ async def predict(
             ALIAS_CANDIDATE if primary_alias == ALIAS_PROD else ALIAS_PROD,
         )
 
-        # Load candidate only when needed.
-        _refresh_models_if_needed(
+        store.refresh_if_needed(
             settings,
             load_candidate=(primary_alias == ALIAS_CANDIDATE or decision.run_shadow),
         )
 
-        # Primary model must exist.
-        model_primary = _get_model(settings, primary_alias, required=True)
-        if model_primary is None:
-            status_code = 503
-            raise HTTPException(
-                status_code=503, detail=f"model not available: {primary_alias}"
-            )
-
-        validated_rows = validate_rows_against_contract(payload.rows, contract)
-        df = pd.DataFrame(validated_rows)
-        y_primary = model_primary.predict(df)  # type: ignore[union-attr]
-        y_primary_list = [float(x) for x in list(y_primary)]
-
-        # Shadow prediction is best-effort.
-        if decision.run_shadow:
-            model_shadow = _get_model(settings, shadow_alias, required=False)
-            if model_shadow is not None:
-                try:
-                    y_shadow = model_shadow.predict(df)  # type: ignore[union-attr]
-                    y_shadow_list = [float(x) for x in list(y_shadow)]
-                    diffs = [abs(a - b) for a, b in zip(y_primary_list, y_shadow_list)]
-                    shadow_mae = sum(diffs) / max(len(diffs), 1)
-                except Exception as e:
-                    logger.warning("shadow prediction failed: %s", e)
+        result = run_prediction(
+            store,
+            settings,
+            primary_alias=primary_alias,
+            shadow_alias=shadow_alias,
+            run_shadow=decision.run_shadow,
+            contract=contract,
+            rows=payload.rows,
+            mode=mode,
+        )
 
         latency_s = time.perf_counter() - t0
 
-        if shadow_mae is not None and math.isfinite(shadow_mae):
-            SHADOW_DIFF_MAE.labels(mode=str(mode)).observe(shadow_mae)
-
-        selected_model_version = (
-            prod_version if primary_alias == ALIAS_PROD else candidate_version
-        )
-        if selected_model_version:
-            response.headers[HEADER_MODEL_VERSION] = selected_model_version
+        if result.chosen_version:
+            response.headers[HEADER_MODEL_VERSION] = result.chosen_version
         response.headers[HEADER_FEATURE_CONTRACT_VERSION] = contract.version
 
         log: dict[str, Any] = {
@@ -540,22 +415,22 @@ async def predict(
             if bucket_seed_source
             else None,
             "canary_pct": settings.canary_pct if mode == "canary" else None,
-            "shadow_mae": shadow_mae,
-            "prod_version": prod_version,
-            "candidate_version": candidate_version,
+            "shadow_mae": result.shadow_mae,
+            "prod_version": store.get_version(ALIAS_PROD),
+            "candidate_version": store.get_version(ALIAS_CANDIDATE),
         }
         logger.info(json.dumps(log, separators=(",", ":")))
 
         return PredictResponse(
             mode=mode,
             n=len(payload.rows),
-            proba=y_primary_list,
+            proba=result.y_primary,
             chosen=primary_alias,
             bucket=bucket,
             canary_pct=settings.canary_pct if mode == "canary" else None,
             bucket_seed_source=str(bucket_seed_source) if bucket_seed_source else None,
             metadata=PredictionMetadata(
-                model_version=selected_model_version,
+                model_version=result.chosen_version,
                 contract_version=contract.version,
             ),
         )

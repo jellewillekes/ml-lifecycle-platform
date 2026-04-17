@@ -24,11 +24,8 @@ from ml_lifecycle_platform.common.constants import (
     TAG_RELEASE_STATUS,
     TAG_SOURCE_RUN_ID,
 )
-from ml_lifecycle_platform.core.model_specs import (
-    PolicySpec,
-    default_policy_spec,
-    load_model_spec,
-)
+from ml_lifecycle_platform.core.model_spec_types import PolicySpec, default_policy_spec
+from ml_lifecycle_platform.core.model_specs import load_model_spec
 from ml_lifecycle_platform.contracts.release_reports import (
     OperationResult,
     PolicyOutcome,

@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from pathlib import Path
-
 import matplotlib.pyplot as plt
 import mlflow
 import numpy as np
@@ -25,9 +23,6 @@ from ml_lifecycle_platform.core.batch_contracts import validate_labeled_dataset
 from ml_lifecycle_platform.core.model_specs import load_model_spec
 from ml_lifecycle_platform.pipeline.train import compute_binary_metrics
 
-DATA_DIR = Path("/app/data")
-ART_DIR = Path("/app/artifacts")
-
 
 def main() -> None:
     ctx = get_runtime_context()
@@ -35,7 +30,7 @@ def main() -> None:
     mlflow.set_experiment(ctx.experiment_name)
     spec = load_model_spec(ctx.model_spec_path)
 
-    test_df = pd.read_csv(DATA_DIR / TEST_CSV)
+    test_df = pd.read_csv(ctx.data_dir / TEST_CSV)
     test_df = validate_labeled_dataset(
         test_df,
         spec=spec,
@@ -45,7 +40,9 @@ def main() -> None:
     X_test = test_df.drop(columns=[spec.label_column])
     y_test = test_df[spec.label_column].astype(int)
 
-    train_run_id = (ART_DIR / ART_TRAIN_RUN_ID).read_text(encoding="utf-8").strip()
+    train_run_id = (
+        (ctx.artifacts_dir / ART_TRAIN_RUN_ID).read_text(encoding="utf-8").strip()
+    )
 
     model_uri = f"runs:/{train_run_id}/{MLFLOW_ARTIFACT_PATH_MODEL}"
     model = mlflow.pyfunc.load_model(model_uri)
@@ -61,11 +58,11 @@ def main() -> None:
         prefix="eval",
     )
 
-    ART_DIR.mkdir(parents=True, exist_ok=True)
-    report_path = ART_DIR / ART_EVALUATION_JSON
+    ctx.artifacts_dir.mkdir(parents=True, exist_ok=True)
+    report_path = ctx.artifacts_dir / ART_EVALUATION_JSON
     write_json(report_path, metrics)
 
-    fig_path = ART_DIR / ART_ROC_CURVE_PNG
+    fig_path = ctx.artifacts_dir / ART_ROC_CURVE_PNG
     plt.figure()
     RocCurveDisplay.from_predictions(y_test, proba)
     plt.savefig(fig_path, bbox_inches="tight")
@@ -81,7 +78,7 @@ def main() -> None:
 
         gate_metric_key = f"eval_{spec.evaluation.gate.metric}"
         gate_ok = metrics[gate_metric_key] >= spec.evaluation.gate.threshold
-        gate_path = ART_DIR / ART_GATE_OK
+        gate_path = ctx.artifacts_dir / ART_GATE_OK
         gate_path.write_text("true" if gate_ok else "false", encoding="utf-8")
         mlflow.log_artifact(str(gate_path), artifact_path=MLFLOW_ARTIFACT_PATH_REPORTS)
 

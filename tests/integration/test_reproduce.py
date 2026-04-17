@@ -42,17 +42,16 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 
 
 def _latest_train_run_id(experiment_id: str) -> str:
+    import pandas as pd
+
     runs = mlflow.search_runs(
         experiment_ids=[experiment_id],
         filter_string=f"tags.{TAG_STEP} = '{STEP_TRAIN}'",
         order_by=["attributes.start_time DESC"],
         max_results=1,
     )
-    if hasattr(runs, "empty") and hasattr(runs, "iloc"):
-        assert not runs.empty
-        return str(runs.iloc[0]["run_id"])
-    assert isinstance(runs, list)
-    return str(runs[0].info.run_id)
+    assert isinstance(runs, pd.DataFrame) and not runs.empty
+    return str(runs.iloc[0]["run_id"])
 
 
 def _configure_local_pipeline_paths(
@@ -62,13 +61,8 @@ def _configure_local_pipeline_paths(
     data_dir = tmp_path / "data"
     art_dir = tmp_path / "artifacts"
 
-    monkeypatch.setattr(ingest_mod, "DATA_DIR", data_dir)
-    monkeypatch.setattr(featurize_mod, "DATA_DIR", data_dir)
-    monkeypatch.setattr(featurize_mod, "ART_DIR", art_dir)
-    monkeypatch.setattr(train_mod, "DATA_DIR", data_dir)
-    monkeypatch.setattr(train_mod, "ART_DIR", art_dir)
-    monkeypatch.setattr(evaluate_mod, "DATA_DIR", data_dir)
-    monkeypatch.setattr(evaluate_mod, "ART_DIR", art_dir)
+    monkeypatch.setenv("MLP_DATA_DIR", str(data_dir))
+    monkeypatch.setenv("MLP_ARTIFACTS_DIR", str(art_dir))
     monkeypatch.setattr(register_mod, "ART_DIR", art_dir)
 
     return data_dir, art_dir

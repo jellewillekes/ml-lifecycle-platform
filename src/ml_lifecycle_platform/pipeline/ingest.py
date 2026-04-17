@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from pathlib import Path
-
 import mlflow
 import pandas as pd
 from sklearn.datasets import load_breast_cancer
@@ -15,13 +13,8 @@ from ml_lifecycle_platform.common.constants import (
 from ml_lifecycle_platform.common.mlflow_utils import ensure_experiment
 from ml_lifecycle_platform.runtime.bootstrap import get_runtime_context
 from ml_lifecycle_platform.core.batch_contracts import validate_labeled_dataset
-from ml_lifecycle_platform.core.model_specs import (
-    CsvSourceSpec,
-    ModelSpec,
-    load_model_spec,
-)
-
-DATA_DIR = Path("/app/data")
+from ml_lifecycle_platform.core.model_spec_types import CsvSourceSpec, ModelSpec
+from ml_lifecycle_platform.core.model_specs import load_model_spec
 
 
 def _load_source_dataframe(spec: ModelSpec) -> pd.DataFrame:
@@ -46,7 +39,7 @@ def main() -> None:
     mlflow.set_experiment(ctx.experiment_name)
     spec = load_model_spec(ctx.model_spec_path)
 
-    DATA_DIR.mkdir(parents=True, exist_ok=True)
+    ctx.data_dir.mkdir(parents=True, exist_ok=True)
 
     with mlflow.start_run(run_name="ingest") as run:
         mlflow.set_tag(TAG_STEP, STEP_INGEST)
@@ -54,7 +47,7 @@ def main() -> None:
 
         df = _load_source_dataframe(spec)
 
-        raw_path = DATA_DIR / RAW_CSV
+        raw_path = ctx.data_dir / RAW_CSV
         df.to_csv(raw_path, index=False)
 
         mlflow.log_params(

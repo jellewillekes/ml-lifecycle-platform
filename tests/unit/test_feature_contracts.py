@@ -6,7 +6,10 @@ from ml_lifecycle_platform.core.feature_contracts import (
     FeatureContractValidationError,
     validate_rows_against_contract,
 )
-from ml_lifecycle_platform.core.model_specs import FeatureContractSpec, FeatureFieldSpec
+from ml_lifecycle_platform.core.model_spec_types import (
+    FeatureContractSpec,
+    FeatureFieldSpec,
+)
 
 pytestmark = pytest.mark.unit
 

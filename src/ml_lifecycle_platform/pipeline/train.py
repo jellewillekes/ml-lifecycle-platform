@@ -50,7 +50,8 @@ from ml_lifecycle_platform.contracts.dataset_fingerprint import (
     write_fingerprint_json,
 )
 from ml_lifecycle_platform.contracts.repro_contract import ReproContract
-from ml_lifecycle_platform.core.model_specs import ModelSpec, load_model_spec
+from ml_lifecycle_platform.core.model_spec_types import ModelSpec
+from ml_lifecycle_platform.core.model_specs import load_model_spec
 from ml_lifecycle_platform.runtime.bootstrap import (
     configure_mlflow,
     get_runtime_context,
@@ -58,8 +59,6 @@ from ml_lifecycle_platform.runtime.bootstrap import (
 
 logger = logging.getLogger(__name__)
 
-DATA_DIR: Final[Path] = Path("/app/data")
-ART_DIR: Final[Path] = Path("/app/artifacts")
 PROBE_INPUT_LIMIT: Final[int] = 10
 REPRO_INPUTS_ARTIFACT_PATH: Final[str] = f"{MLFLOW_ARTIFACT_PATH_REPRO}/inputs"
 REPRO_OUTPUTS_ARTIFACT_PATH: Final[str] = f"{MLFLOW_ARTIFACT_PATH_REPRO}/outputs"
@@ -122,9 +121,10 @@ def load_training_inputs(
     data_dir: Path | None = None,
     artifacts_dir: Path | None = None,
 ) -> TrainingInputs:
-    data_dir = DATA_DIR if data_dir is None else data_dir
-    artifacts_dir = ART_DIR if artifacts_dir is None else artifacts_dir
-    spec = load_model_spec(get_runtime_context().model_spec_path)
+    ctx = get_runtime_context()
+    data_dir = ctx.data_dir if data_dir is None else data_dir
+    artifacts_dir = ctx.artifacts_dir if artifacts_dir is None else artifacts_dir
+    spec = load_model_spec(ctx.model_spec_path)
     train_df = pd.read_csv(data_dir / TRAIN_CSV)
     test_df = pd.read_csv(data_dir / TEST_CSV)
     train_df = validate_labeled_dataset(
@@ -273,29 +273,32 @@ def main() -> None:
         )
         mlflow.set_tag(TAG_REPRO_SCHEMA_VERSION, repro_contract.schema_version)
 
-        fp_path = ART_DIR / ART_DATASET_FINGERPRINT_JSON
+        art_dir = ctx.artifacts_dir
+        art_dir.mkdir(parents=True, exist_ok=True)
+
+        fp_path = art_dir / ART_DATASET_FINGERPRINT_JSON
         write_fingerprint_json(fp, fp_path)
         mlflow.log_artifact(str(fp_path), artifact_path=MLFLOW_ARTIFACT_PATH_REPORTS)
 
-        summary_path = ART_DIR / ART_TRAIN_SUMMARY_JSON
+        summary_path = art_dir / ART_TRAIN_SUMMARY_JSON
         _write_json(summary_path, result.metrics)
         mlflow.log_artifact(
             str(summary_path), artifact_path=MLFLOW_ARTIFACT_PATH_REPORTS
         )
 
-        contract_path = ART_DIR / ART_REPRO_CONTRACT_JSON
+        contract_path = art_dir / ART_REPRO_CONTRACT_JSON
         contract_path.write_text(repro_contract.to_json(), encoding="utf-8")
         mlflow.log_artifact(
             str(contract_path), artifact_path=MLFLOW_ARTIFACT_PATH_REPRO
         )
 
-        probe_inputs_path = ART_DIR / ART_REPRO_PROBE_INPUTS_CSV
+        probe_inputs_path = art_dir / ART_REPRO_PROBE_INPUTS_CSV
         result.probe_inputs.to_csv(probe_inputs_path, index=False)
         mlflow.log_artifact(
             str(probe_inputs_path), artifact_path=REPRO_INPUTS_ARTIFACT_PATH
         )
 
-        expected_predictions_path = ART_DIR / ART_REPRO_EXPECTED_PREDICTIONS_JSON
+        expected_predictions_path = art_dir / ART_REPRO_EXPECTED_PREDICTIONS_JSON
         _write_json(
             expected_predictions_path,
             {"probabilities": result.expected_probabilities},
@@ -307,13 +310,13 @@ def main() -> None:
         uv_lock_path = get_uv_lock_path()
         mlflow.log_artifact(str(uv_lock_path), artifact_path=REPRO_ENV_ARTIFACT_PATH)
         mlflow.log_artifact(
-            str(DATA_DIR / TRAIN_CSV), artifact_path=REPRO_INPUTS_ARTIFACT_PATH
+            str(ctx.data_dir / TRAIN_CSV), artifact_path=REPRO_INPUTS_ARTIFACT_PATH
         )
         mlflow.log_artifact(
-            str(DATA_DIR / TEST_CSV), artifact_path=REPRO_INPUTS_ARTIFACT_PATH
+            str(ctx.data_dir / TEST_CSV), artifact_path=REPRO_INPUTS_ARTIFACT_PATH
         )
         mlflow.log_artifact(
-            str(ART_DIR / ART_PREPROCESSOR), artifact_path=REPRO_INPUTS_ARTIFACT_PATH
+            str(art_dir / ART_PREPROCESSOR), artifact_path=REPRO_INPUTS_ARTIFACT_PATH
         )
 
         mlflow.log_params(dict(params))

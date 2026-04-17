@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from pathlib import Path
-
 import joblib
 import mlflow
 import pandas as pd
@@ -22,9 +20,6 @@ from ml_lifecycle_platform.runtime.bootstrap import get_runtime_context
 from ml_lifecycle_platform.core.batch_contracts import validate_labeled_dataset
 from ml_lifecycle_platform.core.model_specs import load_model_spec
 
-DATA_DIR = Path("/app/data")
-ART_DIR = Path("/app/artifacts")
-
 
 def main() -> None:
     ctx = get_runtime_context()
@@ -32,10 +27,10 @@ def main() -> None:
     mlflow.set_experiment(ctx.experiment_name)
     spec = load_model_spec(ctx.model_spec_path)
 
-    DATA_DIR.mkdir(parents=True, exist_ok=True)
-    ART_DIR.mkdir(parents=True, exist_ok=True)
+    ctx.data_dir.mkdir(parents=True, exist_ok=True)
+    ctx.artifacts_dir.mkdir(parents=True, exist_ok=True)
 
-    raw_path = DATA_DIR / RAW_CSV
+    raw_path = ctx.data_dir / RAW_CSV
     if not raw_path.exists():
         raise RuntimeError(f"Missing raw dataset: {raw_path}. Run ingest first.")
 
@@ -78,13 +73,13 @@ def main() -> None:
         dataset_name="test",
     )
 
-    train_path = DATA_DIR / TRAIN_CSV
-    test_path = DATA_DIR / TEST_CSV
+    train_path = ctx.data_dir / TRAIN_CSV
+    test_path = ctx.data_dir / TEST_CSV
     train_df.to_csv(train_path, index=False)
     test_df.to_csv(test_path, index=False)
 
     preprocessor = StandardScaler(with_mean=True, with_std=True)
-    preprocessor_path = ART_DIR / ART_PREPROCESSOR
+    preprocessor_path = ctx.artifacts_dir / ART_PREPROCESSOR
     joblib.dump(preprocessor, preprocessor_path)
 
     with mlflow.start_run(run_name="featurize") as run:

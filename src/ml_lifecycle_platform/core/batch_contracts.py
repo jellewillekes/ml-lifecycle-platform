@@ -7,7 +7,7 @@ import pandera.pandas as pa
 from pandera import Check
 from pandera.errors import SchemaError, SchemaErrors
 
-from ml_lifecycle_platform.core.model_specs import FeatureFieldSpec, ModelSpec
+from ml_lifecycle_platform.core.model_spec_types import FeatureFieldSpec, ModelSpec
 
 
 class BatchContractValidationError(ValueError):

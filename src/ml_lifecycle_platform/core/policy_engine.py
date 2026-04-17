@@ -21,7 +21,7 @@ from ml_lifecycle_platform.common.constants import (
     TAG_SOURCE_RUN_ID,
     TAG_TRAINING_RUN_ID,
 )
-from ml_lifecycle_platform.core.model_specs import PolicySpec, default_policy_spec
+from ml_lifecycle_platform.core.model_spec_types import PolicySpec, default_policy_spec
 
 REPRODUCIBILITY_EVIDENCE_TAGS: tuple[str, ...] = (
     TAG_SOURCE_RUN_ID,

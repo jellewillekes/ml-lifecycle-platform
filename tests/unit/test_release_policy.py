@@ -20,7 +20,7 @@ from ml_lifecycle_platform.common.constants import (
     TAG_SOURCE_RUN_ID,
     TAG_TRAINING_RUN_ID,
 )
-from ml_lifecycle_platform.core.model_specs import (
+from ml_lifecycle_platform.core.model_spec_types import (
     MetricThresholdSpec,
     PolicySpec,
     default_policy_spec,
