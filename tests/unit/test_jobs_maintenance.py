@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import types
 
 import pytest
 
@@ -18,26 +19,32 @@ def _record_alias_call(calls: list[str], tracking_uri: str, alias: str) -> str:
     return "7"
 
 
+def _mock_runtime(
+    *,
+    tracking_uri: str = "https://mlflow.example",
+    model_name: str = "breast_cancer_clf",
+    log_level: str = "INFO",
+) -> object:
+    return types.SimpleNamespace(
+        metadata=types.SimpleNamespace(tracking_uri=tracking_uri),
+        model_name=model_name,
+        log_level=log_level,
+    )
+
+
 def test_run_maintenance_check_verifies_prod_alias(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     calls: list[str] = []
+    runtime = _mock_runtime()
 
     monkeypatch.setattr(
         "ml_lifecycle_platform.jobs.maintenance.get_runtime_context",
-        lambda: object(),
+        lambda: runtime,
     )
     monkeypatch.setattr(
         "ml_lifecycle_platform.jobs.maintenance.configure_mlflow",
-        lambda runtime: calls.append(f"configure:{type(runtime).__name__}"),
-    )
-    monkeypatch.setattr(
-        "ml_lifecycle_platform.jobs.maintenance.get_tracking_uri",
-        lambda: "https://mlflow.example",
-    )
-    monkeypatch.setattr(
-        "ml_lifecycle_platform.jobs.maintenance.get_model_name",
-        lambda: "breast_cancer_clf",
+        lambda r: calls.append(f"configure:{type(r).__name__}"),
     )
     monkeypatch.setattr(
         "ml_lifecycle_platform.jobs.maintenance.verify_model_alias",
@@ -52,15 +59,15 @@ def test_run_maintenance_check_verifies_prod_alias(
     assert report.resolved_version == "7"
     assert report.alias_reachable is True
     assert calls == [
-        "configure:object",
+        "configure:SimpleNamespace",
         "alias:https://mlflow.example:prod",
     ]
 
 
 def test_maintenance_main_prints_json(monkeypatch: pytest.MonkeyPatch, capsys) -> None:
     monkeypatch.setattr(
-        "ml_lifecycle_platform.jobs.maintenance.get_log_level",
-        lambda: "INFO",
+        "ml_lifecycle_platform.jobs.maintenance.get_runtime_context",
+        lambda: _mock_runtime(),
     )
     monkeypatch.setattr(
         "ml_lifecycle_platform.jobs.maintenance.run_maintenance_check",

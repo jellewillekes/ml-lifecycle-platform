@@ -6,7 +6,6 @@ from typing import Final
 
 import mlflow
 
-from ml_lifecycle_platform.common.config import get_experiment_name
 from ml_lifecycle_platform.common.constants import (
     ALIAS_CANDIDATE,
     ART_GATE_OK,
@@ -32,7 +31,10 @@ from ml_lifecycle_platform.common.constants import (
 )
 from ml_lifecycle_platform.common.mlflow_utils import client as mlflow_client
 from ml_lifecycle_platform.common.mlflow_utils import ensure_experiment
-from ml_lifecycle_platform.runtime.bootstrap import configure_mlflow
+from ml_lifecycle_platform.runtime.bootstrap import (
+    configure_mlflow,
+    get_runtime_context,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -63,7 +65,7 @@ def main() -> None:
     logging.basicConfig(level="INFO")
     configure_mlflow()
 
-    experiment_name = get_experiment_name()
+    experiment_name = get_runtime_context().experiment_name
     ensure_experiment(experiment_name)
     mlflow.set_experiment(experiment_name)
 

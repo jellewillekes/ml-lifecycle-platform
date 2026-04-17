@@ -10,11 +10,6 @@ from ml_lifecycle_platform.ci.hosted_model_alias_verifier import (
     HostedModelAliasVerificationConfig,
     verify_model_alias,
 )
-from ml_lifecycle_platform.common.config import (
-    get_log_level,
-    get_model_name,
-    get_tracking_uri,
-)
 from ml_lifecycle_platform.runtime.bootstrap import (
     configure_mlflow,
     get_runtime_context,
@@ -45,8 +40,8 @@ def run_maintenance_check(*, alias: str = "prod") -> MaintenanceReport:
     runtime = get_runtime_context()
     configure_mlflow(runtime)
 
-    tracking_uri = get_tracking_uri()
-    model_name = get_model_name()
+    tracking_uri = runtime.metadata.tracking_uri
+    model_name = runtime.model_name
 
     resolved_version = verify_model_alias(
         HostedModelAliasVerificationConfig(
@@ -77,7 +72,7 @@ def _print_report(report: MaintenanceReport, fmt: str) -> None:
 
 
 def main(argv: list[str] | None = None) -> None:
-    logging.basicConfig(level=get_log_level())
+    logging.basicConfig(level=get_runtime_context().log_level)
     args = parse_args(sys.argv[1:] if argv is None else argv)
     report = run_maintenance_check(alias=args.alias)
     _print_report(report, args.format)

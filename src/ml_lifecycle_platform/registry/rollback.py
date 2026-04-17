@@ -10,7 +10,6 @@ from typing import Any
 
 from mlflow.tracking import MlflowClient
 
-from ml_lifecycle_platform.common.config import get_log_level, get_model_name
 from ml_lifecycle_platform.common.constants import (
     ALIAS_PROD,
     TAG_CONFIG_HASH,
@@ -21,6 +20,7 @@ from ml_lifecycle_platform.common.constants import (
     TAG_SOURCE_RUN_ID,
 )
 from ml_lifecycle_platform.common.mlflow_utils import client as mlflow_client
+from ml_lifecycle_platform.runtime.bootstrap import get_runtime_context
 from ml_lifecycle_platform.contracts.release_reports import (
     OperationResult,
     PolicyOutcome,
@@ -43,7 +43,7 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Roll back prod to the previously recorded prod version."
     )
-    parser.add_argument("--model-name", default=get_model_name())
+    parser.add_argument("--model-name", default=get_runtime_context().model_name)
     parser.add_argument(
         "--dry-run",
         action="store_true",
@@ -258,7 +258,7 @@ def rollback_prod(client: MlflowClient, model_name: str) -> None:
 
 
 def main(argv: list[str] | None = None) -> None:
-    logging.basicConfig(level=get_log_level())
+    logging.basicConfig(level=get_runtime_context().log_level)
     args = parse_args(sys.argv[1:] if argv is None else argv)
     client = mlflow_client()
 
