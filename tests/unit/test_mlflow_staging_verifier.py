@@ -3,14 +3,24 @@ from __future__ import annotations
 from types import SimpleNamespace
 
 import pytest
+from requests.exceptions import ReadTimeout
 
 from ml_lifecycle_platform.ci.mlflow_staging_verifier import (
     MlflowStagingVerificationConfig,
     VerificationError,
+    verify_http_reachable,
     verify_staging,
 )
 
 pytestmark = pytest.mark.unit
+
+
+@pytest.fixture(autouse=True)
+def _no_sleep(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(
+        "ml_lifecycle_platform.ci.mlflow_staging_verifier.time.sleep",
+        lambda _seconds: None,
+    )
 
 
 def test_verify_staging_checks_http_and_mlflow_roundtrip(
@@ -82,15 +92,22 @@ def test_verify_staging_checks_http_and_mlflow_roundtrip(
     assert any(name == "log_artifact" for name, _ in calls)
 
 
-def test_verify_staging_fails_on_http_error(
+def test_verify_http_reachable_fails_fast_on_auth_error(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     class _Response:
         status_code = 403
 
+    calls: list[str] = []
+
+    def _fake_get(url: str, *args: object, **kwargs: object) -> _Response:
+        del args, kwargs
+        calls.append(url)
+        return _Response()
+
     monkeypatch.setattr(
         "ml_lifecycle_platform.ci.mlflow_staging_verifier.requests.get",
-        lambda *args, **kwargs: _Response(),
+        _fake_get,
     )
 
     config = MlflowStagingVerificationConfig(
@@ -99,8 +116,67 @@ def test_verify_staging_fails_on_http_error(
         experiment_name="smoke-exp",
     )
 
-    with pytest.raises(VerificationError, match="return 200"):
-        verify_staging(config)
+    with pytest.raises(VerificationError, match="check tracking token"):
+        verify_http_reachable(config)
+
+    assert calls == ["https://mlflow.example.run.app/health"]
+
+
+def test_verify_http_reachable_retries_on_timeout_then_succeeds(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class _Ok:
+        status_code = 200
+
+    responses: list[_Ok | ReadTimeout] = [
+        ReadTimeout("cold start"),
+        ReadTimeout("cold start"),
+        _Ok(),
+    ]
+
+    def _fake_get(*args: object, **kwargs: object) -> _Ok:
+        del args, kwargs
+        item = responses.pop(0)
+        if isinstance(item, ReadTimeout):
+            raise item
+        return item
+
+    monkeypatch.setattr(
+        "ml_lifecycle_platform.ci.mlflow_staging_verifier.requests.get",
+        _fake_get,
+    )
+
+    config = MlflowStagingVerificationConfig(
+        tracking_uri="https://mlflow.example.run.app",
+        tracking_token="token",
+        experiment_name="smoke-exp",
+    )
+
+    verify_http_reachable(config)
+
+    assert responses == []
+
+
+def test_verify_http_reachable_raises_after_retries_exhausted(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def _always_timeout(*args: object, **kwargs: object) -> None:
+        del args, kwargs
+        raise ReadTimeout("cold start")
+
+    monkeypatch.setattr(
+        "ml_lifecycle_platform.ci.mlflow_staging_verifier.requests.get",
+        _always_timeout,
+    )
+
+    config = MlflowStagingVerificationConfig(
+        tracking_uri="https://mlflow.example.run.app",
+        tracking_token="token",
+        experiment_name="smoke-exp",
+    )
+
+    with pytest.raises(VerificationError, match="unreachable after"):
+        verify_http_reachable(config)
 
 
 def test_verify_staging_fails_when_artifact_roundtrip_is_missing(
