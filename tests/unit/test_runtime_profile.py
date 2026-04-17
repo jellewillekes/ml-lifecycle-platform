@@ -87,6 +87,25 @@ def test_load_runtime_profile_env_overrides_take_precedence(
     )
 
 
+def test_compose_aws_credentials_use_mlp_compose_prefix_not_host(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    profile_path = tmp_path / "local.yaml"
+    _write_profile(profile_path)
+    monkeypatch.setenv("AWS_ACCESS_KEY_ID", "host-key")
+    monkeypatch.setenv("AWS_SECRET_ACCESS_KEY", "host-secret")
+    monkeypatch.setenv("MLP_COMPOSE_AWS_ACCESS_KEY_ID", "compose-key")
+    monkeypatch.setenv("MLP_COMPOSE_AWS_SECRET_ACCESS_KEY", "compose-secret")
+
+    profile = load_runtime_profile(profile_path=profile_path)
+
+    assert profile.aws_access_key_id == "host-key"
+    assert profile.aws_secret_access_key == "host-secret"
+    assert profile.compose_aws_access_key_id == "compose-key"
+    assert profile.compose_aws_secret_access_key == "compose-secret"
+
+
 def test_load_runtime_profile_rejects_missing_required_field(tmp_path: Path) -> None:
     profile_path = tmp_path / "invalid.yaml"
     profile_path.write_text(
