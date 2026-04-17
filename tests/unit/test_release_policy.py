@@ -33,7 +33,7 @@ from ml_lifecycle_platform.core.policy_engine import (
     evaluate_reproducibility_rule,
     evaluate_required_metadata_rule,
 )
-from ml_lifecycle_platform.policy.release_policy import evaluate_promotion_policy
+from ml_lifecycle_platform.core.policy_engine import evaluate_promotion_policy
 from ml_lifecycle_platform.registry.promote import main as promote_main
 
 pytestmark = pytest.mark.unit
