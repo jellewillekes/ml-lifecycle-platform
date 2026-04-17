@@ -7,7 +7,7 @@ import mlflow
 from mlflow import MlflowClient
 
 from ml_lifecycle_platform.core.model_specs import load_model_spec
-from ml_lifecycle_platform.policy.release_policy import evaluate_promotion_policy
+from ml_lifecycle_platform.core.policy_engine import evaluate_promotion_policy
 from ml_lifecycle_platform.registry.rollback import _resolve_rollback_target
 
 

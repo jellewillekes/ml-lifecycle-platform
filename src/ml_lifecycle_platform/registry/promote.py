@@ -42,7 +42,7 @@ from ml_lifecycle_platform.contracts.release_reports import (
     render_model_card,
     utc_now_iso,
 )
-from ml_lifecycle_platform.policy.release_policy import (
+from ml_lifecycle_platform.core.policy_engine import (
     PolicyDecision,
     evaluate_promotion_policy,
 )
