@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import time
 from dataclasses import dataclass
 from pathlib import Path
 import tempfile
@@ -7,6 +8,7 @@ import tempfile
 import mlflow
 from mlflow import MlflowClient
 import requests
+from requests.exceptions import RequestException
 
 
 class VerificationError(RuntimeError):
@@ -23,16 +25,47 @@ class MlflowStagingVerificationConfig:
     artifact_body: str = "mlflow staging smoke\n"
 
 
+# Cloud Run scale-to-zero: absorb MLflow cold starts, fail fast on auth errors.
+_RETRY_DELAYS_SECONDS = (0, 5, 15, 45)
+_REQUEST_TIMEOUT_SECONDS = 30
+
+
 def verify_http_reachable(config: MlflowStagingVerificationConfig) -> None:
-    response = requests.get(
-        config.tracking_uri.rstrip("/") + "/",
-        headers={"Authorization": f"Bearer {config.tracking_token}"},
-        timeout=15,
-    )
-    if response.status_code != 200:
+    url = config.tracking_uri.rstrip("/") + "/health"
+    headers = {"Authorization": f"Bearer {config.tracking_token}"}
+
+    last_error: Exception | None = None
+    last_status: int | None = None
+
+    for delay in _RETRY_DELAYS_SECONDS:
+        if delay:
+            time.sleep(delay)
+        try:
+            response = requests.get(
+                url, headers=headers, timeout=_REQUEST_TIMEOUT_SECONDS
+            )
+        except RequestException as error:
+            last_error = error
+            continue
+        if response.status_code == 200:
+            return
+        if response.status_code in (401, 403):
+            raise VerificationError(
+                f"MLflow staging at {url} returned {response.status_code}; "
+                "check tracking token."
+            )
+        last_status = response.status_code
+        last_error = None
+
+    if last_error is not None:
         raise VerificationError(
-            f"expected authenticated GET / to return 200, got {response.status_code}."
-        )
+            f"MLflow staging at {url} unreachable after "
+            f"{len(_RETRY_DELAYS_SECONDS)} attempts: {last_error}"
+        ) from last_error
+    raise VerificationError(
+        f"MLflow staging at {url} returned {last_status} after "
+        f"{len(_RETRY_DELAYS_SECONDS)} attempts."
+    )
 
 
 def verify_mlflow_roundtrip(config: MlflowStagingVerificationConfig) -> str:
