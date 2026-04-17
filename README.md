@@ -2,10 +2,10 @@
 
 [![CI](https://github.com/jellewillekes/ml-lifecycle-platform/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/jellewillekes/ml-lifecycle-platform/actions/workflows/ci.yml)
 [![Local E2E](https://github.com/jellewillekes/ml-lifecycle-platform/actions/workflows/e2e.yml/badge.svg?branch=master)](https://github.com/jellewillekes/ml-lifecycle-platform/actions/workflows/e2e.yml)
-[![Staging Verification](https://github.com/jellewillekes/ml-lifecycle-platform/actions/workflows/hosted-golden-path-staging.yml/badge.svg?branch=master)](https://github.com/jellewillekes/ml-lifecycle-platform/actions/workflows/hosted-golden-path-staging.yml)
 [![CodeQL](https://github.com/jellewillekes/ml-lifecycle-platform/actions/workflows/codeql.yml/badge.svg?branch=master)](https://github.com/jellewillekes/ml-lifecycle-platform/actions/workflows/codeql.yml)
 [![Secrets](https://github.com/jellewillekes/ml-lifecycle-platform/actions/workflows/gitleaks.yml/badge.svg?branch=master)](https://github.com/jellewillekes/ml-lifecycle-platform/actions/workflows/gitleaks.yml)
 [![Coverage](https://codecov.io/gh/jellewillekes/ml-lifecycle-platform/branch/master/graph/badge.svg)](https://codecov.io/gh/jellewillekes/ml-lifecycle-platform/branch/master/graph/badge.svg)
+[![Staging Verification](https://github.com/jellewillekes/ml-lifecycle-platform/actions/workflows/hosted-golden-path-staging.yml/badge.svg?branch=master)](https://github.com/jellewillekes/ml-lifecycle-platform/actions/workflows/hosted-golden-path-staging.yml)
 
 An ML platform for training, evaluating, registering, promoting, serving, and reproducing models. MLflow is the control plane. The current implementation is local-first with Terraform-managed GCP foundation and staging infra plus GitHub Actions-produced runtime images ready for hosted rollout.
 
@@ -26,8 +26,12 @@ hosted path:  GitHub Actions -> Artifact Registry -> Cloud Run / Jobs -> staging
 ## Handbook Entry Points
 
 - [`docs/README.md`](docs/README.md): handbook index
+- [`docs/runbooks/local-bootstrap.md`](docs/runbooks/local-bootstrap.md): fresh-clone local setup and golden path
 - [`docs/architecture/overview.md`](docs/architecture/overview.md): system boundaries and current topology
-- [`docs/ci.md`](docs/ci.md): presubmit, postsubmit, CD, and staging validation contract
+- [`docs/ci.md`](docs/ci.md): contributor checks and CI lane reference
+
+Advanced (hosted — maintainer only):
+
 - [`docs/runbooks/hosted-golden-path.md`](docs/runbooks/hosted-golden-path.md): canonical hosted staging validation path
 - [`docs/runbooks/gcp-bootstrap.md`](docs/runbooks/gcp-bootstrap.md): bootstrap and hosted foundation setup
 
@@ -158,12 +162,15 @@ Quality:
 - `make test-integration`
 - `make test-all`
 
-Infra:
+Local infra:
 
 - `make up`
 - `make down`
 - `make logs`
 - `make build`
+
+Advanced (hosted infra — maintainer only):
+
 - `make terraform-gcp-fmt`
 - `make terraform-gcp-init`
 - `make terraform-gcp-plan`

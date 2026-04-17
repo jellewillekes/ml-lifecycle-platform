@@ -1,10 +1,24 @@
 # CI and CD
 
+## Contributor checks
+
+These are the commands you run locally before opening a PR:
+
+- `make check`: format, lint, typecheck, fast tests
+- `make docs-check`: handbook link and local doc path validation
+- `make test-integration`: integration lane
+- `make e2e`: full local golden path with teardown
+- `make test-e2e`: same flow, keeps the stack up for debugging
+
+You do not need a GCP account or any hosted credentials for these checks.
+
+## Full workflow matrix
+
 The repo uses three workflow groups:
 
 - `CI`: fast developer feedback plus the local nightly E2E lane
-- `CD`: hosted image publication, staged deploy, and staged release validation
-- `Ops`: manual staging validation, debugging, and recovery workflows
+- `CD`: hosted image publication, staged deploy, and staged release validation (maintainer only)
+- `Ops`: manual staging validation, debugging, and recovery workflows (maintainer only)
 
 Current lanes:
 
@@ -26,14 +40,9 @@ Current lanes:
 | `Ops / Run Platform Job / Staging` | manual dispatch and reusable workflow call | executes one deployed Cloud Run Job in staging with an optional args override |
 | `Ops / Serving Baseline / Staging` | manual dispatch | runs an advisory k6 baseline against the direct hosted serving staging URL and uploads artifacts |
 
-## Local mapping
+Local mirror of `CI / Infra Validation`:
 
-- `make check`: format, lint, typecheck, fast tests
-- `make docs-check`: handbook link and local doc path validation
-- `make test-integration`: integration lane
-- `make e2e`: full local golden path with teardown
-- `make test-e2e`: same flow, keeps the stack up for debugging
-- `make terraform-gcp-fmt` + `make terraform-gcp-validate`: local mirror of `CI / Infra Validation`
+- `make terraform-gcp-fmt` + `make terraform-gcp-validate`
 
 ## Default rule set
 

@@ -2,6 +2,10 @@
 
 Start here if you want to run or change the local platform.
 
+**Contributor path in three steps:** clone the repo → `uv sync --dev` → `make e2e`.
+That is the full local golden path. You do not need a GCP account.
+The hosted staging path is a separate advanced path documented under [Advanced hosted runbooks](#advanced-hosted-runbooks) below.
+
 ## Golden path
 
 1. Read [`runbooks/local-bootstrap.md`](./runbooks/local-bootstrap.md).
@@ -12,28 +16,33 @@ Start here if you want to run or change the local platform.
 ## Architecture
 
 - [`simplification-charter.md`](./simplification-charter.md): what "simpler" means in this repo, execution order, refactor guardrails, and core OSS vs hosted surface split
-- [`architecture/how-it-works.md`](./architecture/how-it-works.md): fastest current explanation of the local path, hosted staging path, operator flows, and live boundaries
+- [`architecture/how-it-works.md`](./architecture/how-it-works.md): fastest current explanation of the local path, operator flows, and live boundaries
 - [`architecture/overview.md`](./architecture/overview.md): current local and hosted topology, boundaries, and lifecycle
 - [`architecture/local-runtime.md`](./architecture/local-runtime.md): runtime profiles, model specs, serving contract, local paths
 - [`architecture/current-state.md`](./architecture/current-state.md): current implemented scope and non-goals
-- [`architecture/m2-staging-platform.md`](./architecture/m2-staging-platform.md): fixed decisions and execution order for the first hosted GCP staging platform
+- [`architecture/m2-staging-platform.md`](./architecture/m2-staging-platform.md): fixed decisions for the first hosted GCP staging platform (advanced — maintainer only)
 
-## Runbooks
+## Local runbooks
 
 - [`runbooks/local-bootstrap.md`](./runbooks/local-bootstrap.md): fresh-clone local setup and golden path
+- [`runbooks/promotion.md`](./runbooks/promotion.md): dry-run and real promotion
+- [`runbooks/rollback.md`](./runbooks/rollback.md): rollback current prod
+- [`runbooks/reproduce.md`](./runbooks/reproduce.md): reproduce a registered model
+
+## Advanced hosted runbooks
+
+These runbooks cover the GCP staging path. You do not need them for normal local contribution.
+
+- [`runbooks/hosted-golden-path.md`](./runbooks/hosted-golden-path.md): canonical hosted GCP publish-deploy-validate path
 - [`runbooks/gcp-bootstrap.md`](./runbooks/gcp-bootstrap.md): adopt the existing GCP project and Terraform backend
 - [`runbooks/gcp-foundation.md`](./runbooks/gcp-foundation.md): create the first hosted GCP foundation resources
 - [`runbooks/gcp-staging-infra.md`](./runbooks/gcp-staging-infra.md): provision the stateful staging infra for hosted MLflow
 - [`runbooks/deploy-mlflow.md`](./runbooks/deploy-mlflow.md): build, deploy, and verify hosted MLflow staging
 - [`runbooks/deploy-serving.md`](./runbooks/deploy-serving.md): deploy the serving API to hosted staging and run authenticated smoke checks
 - [`runbooks/deploy-platform-jobs.md`](./runbooks/deploy-platform-jobs.md): deploy hosted Cloud Run jobs and run them manually
-- [`runbooks/hosted-golden-path.md`](./runbooks/hosted-golden-path.md): run the canonical hosted GCP publish-deploy-validate path
 - [`runbooks/schedule-platform-jobs.md`](./runbooks/schedule-platform-jobs.md): inspect, pause, resume, and verify Cloud Scheduler for hosted jobs
-- [`runbooks/serving-staging-baseline.md`](./runbooks/serving-staging-baseline.md): run the first advisory k6 baseline against hosted serving staging
+- [`runbooks/serving-staging-baseline.md`](./runbooks/serving-staging-baseline.md): advisory k6 baseline against hosted serving staging
 - [`runbooks/gcp-ci-auth.md`](./runbooks/gcp-ci-auth.md): verify GitHub Actions OIDC auth into GCP
-- [`runbooks/promotion.md`](./runbooks/promotion.md): dry-run and real promotion
-- [`runbooks/rollback.md`](./runbooks/rollback.md): rollback current prod
-- [`runbooks/reproduce.md`](./runbooks/reproduce.md): reproduce a registered model
 
 ## Delivery docs
 
