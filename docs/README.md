@@ -11,6 +11,7 @@ Start here if you want to run or change the local platform.
 
 ## Architecture
 
+- [`simplification-charter.md`](./simplification-charter.md): what "simpler" means in this repo, execution order, refactor guardrails, and core OSS vs hosted surface split
 - [`architecture/how-it-works.md`](./architecture/how-it-works.md): fastest current explanation of the local path, hosted staging path, operator flows, and live boundaries
 - [`architecture/overview.md`](./architecture/overview.md): current local and hosted topology, boundaries, and lifecycle
 - [`architecture/local-runtime.md`](./architecture/local-runtime.md): runtime profiles, model specs, serving contract, local paths
