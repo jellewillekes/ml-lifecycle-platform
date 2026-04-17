@@ -59,7 +59,7 @@ The PR title becomes the squash commit message and feeds Release Please.
 
 ## Agent tooling
 
-Coding-agent config (`CLAUDE.md`, `.claude/`, `AGENTS.md`) is per-developer and gitignored. [`Agents.md`](Agents.md) is the shared, framework-neutral philosophy doc and is tracked.
+Coding-agent config (`CLAUDE.md`, `Agents.md`, `AGENTS.md`, `.claude/`) is per-developer and gitignored. Do not commit these.
 
 Start with the handbook in [`docs/README.md`](docs/README.md).
 
