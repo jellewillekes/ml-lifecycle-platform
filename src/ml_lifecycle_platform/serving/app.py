@@ -18,8 +18,10 @@ from starlette.responses import Response
 
 try:
     import mlflow  # type: ignore
+    from mlflow.exceptions import MlflowException
 except Exception:  # pragma: no cover
     mlflow = None  # type: ignore[assignment]
+    MlflowException = Exception  # type: ignore[assignment, misc]
 
 from ml_lifecycle_platform.common.mlflow_utils import client as get_mlflow_client
 from ml_lifecycle_platform.core.feature_contracts import (
@@ -225,7 +227,7 @@ def _registry_resolves_prod_alias(settings: Settings) -> tuple[bool, str | None]
         client = get_mlflow_client()
         _ = client.get_model_version_by_alias(settings.model_name, settings.prod_alias)
         return True, None
-    except Exception as e:
+    except MlflowException as e:
         return False, f"registry check failed: {e}"
 
 
@@ -236,7 +238,7 @@ def _get_version(settings: Settings, alias: str) -> str | None:
         client = get_mlflow_client()
         mv = client.get_model_version_by_alias(settings.model_name, alias)
         return str(mv.version)
-    except Exception:
+    except MlflowException:
         return None
 
 

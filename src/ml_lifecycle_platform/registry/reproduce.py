@@ -11,6 +11,7 @@ from typing import Any
 
 import numpy as np
 import pandas as pd
+from mlflow.exceptions import MlflowException
 from mlflow.tracking import MlflowClient
 
 from ml_lifecycle_platform.common.constants import (
@@ -55,6 +56,12 @@ from ml_lifecycle_platform.registry.release_evidence import emit_release_evidenc
 logger = logging.getLogger(__name__)
 
 
+def _classify_download_error(exc: Exception, *, fallback_code: str) -> str:
+    if "Unable to locate credentials" in str(exc):
+        return "artifact_credentials_missing"
+    return fallback_code
+
+
 @dataclass
 class ReproduceFailure(Exception):
     code: str
@@ -96,17 +103,11 @@ def _read_contract(client: MlflowClient, run_id: str, work_dir: Path) -> ReproCo
                 dst_path=str(work_dir),
             )
         )
-    except Exception as exc:
-        error_text = str(exc)
-        code = (
-            "artifact_credentials_missing"
-            if "Unable to locate credentials" in error_text
-            else "missing_repro_contract"
-        )
+    except (MlflowException, OSError) as exc:
         raise ReproduceFailure(
-            code=code,
+            code=_classify_download_error(exc, fallback_code="missing_repro_contract"),
             message="Could not download repro contract from source training run.",
-            details={"run_id": run_id, "error": error_text},
+            details={"run_id": run_id, "error": str(exc)},
         ) from exc
 
     try:
@@ -133,20 +134,14 @@ def _download_required_artifact(
                 dst_path=str(work_dir),
             )
         )
-    except Exception as exc:
-        error_text = str(exc)
-        code = (
-            "artifact_credentials_missing"
-            if "Unable to locate credentials" in error_text
-            else "artifact_missing"
-        )
+    except (MlflowException, OSError) as exc:
         raise ReproduceFailure(
-            code=code,
+            code=_classify_download_error(exc, fallback_code="artifact_missing"),
             message="Required training-run artifact is missing.",
             details={
                 "run_id": run_id,
                 "artifact_path": artifact_path,
-                "error": error_text,
+                "error": str(exc),
             },
         ) from exc
 
@@ -198,7 +193,7 @@ def _print_report(report: dict[str, Any], fmt: str) -> None:
 def _resolve_current_prod_version(client: MlflowClient, model_name: str) -> str | None:
     try:
         prod = client.get_model_version_by_alias(model_name, "prod")
-    except Exception:
+    except MlflowException:
         return None
     return str(prod.version)
 
@@ -218,7 +213,7 @@ def _emit_reproduce_evidence(
             model_version=model_version,
             alias=alias,
         )
-    except Exception:
+    except MlflowException:
         logger.warning(
             "Could not resolve model version for reproduce evidence emission."
         )

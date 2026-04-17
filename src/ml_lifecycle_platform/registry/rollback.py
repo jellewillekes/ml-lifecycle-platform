@@ -8,6 +8,7 @@ from pathlib import Path
 import sys
 from typing import Any
 
+from mlflow.exceptions import MlflowException
 from mlflow.tracking import MlflowClient
 
 from ml_lifecycle_platform.common.constants import (
@@ -60,7 +61,8 @@ def _source_run_id(model_version: Any) -> str:
 def _run_metrics(client: MlflowClient, run_id: str) -> dict[str, float]:
     try:
         run = client.get_run(run_id)
-    except Exception:
+    except MlflowException as exc:
+        logger.debug("Could not fetch run metrics for %s: %s", run_id, exc)
         return {}
     metrics = getattr(getattr(run, "data", None), "metrics", {}) or {}
     return {str(key): float(value) for key, value in metrics.items()}

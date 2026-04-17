@@ -6,6 +6,7 @@ import logging
 import sys
 from typing import Any
 
+from mlflow.exceptions import MlflowException
 from mlflow.tracking import MlflowClient
 
 from ml_lifecycle_platform.common.mlflow_utils import client as mlflow_client
@@ -76,7 +77,7 @@ def _print_decision(decision: PolicyDecision, fmt: str) -> None:
 def _try_get_prod_version(client: MlflowClient, model_name: str) -> str | None:
     try:
         prod = client.get_model_version_by_alias(model_name, ALIAS_PROD)
-    except Exception:
+    except MlflowException:
         return None
     return str(prod.version)
 
@@ -88,7 +89,8 @@ def _model_version_source_run_id(model_version: Any) -> str:
 def _source_run_metrics(client: MlflowClient, run_id: str) -> dict[str, float]:
     try:
         run = client.get_run(run_id)
-    except Exception:
+    except MlflowException as exc:
+        logger.debug("Could not fetch run metrics for %s: %s", run_id, exc)
         return {}
     metrics = getattr(getattr(run, "data", None), "metrics", {}) or {}
     return {str(key): float(value) for key, value in metrics.items()}
@@ -117,7 +119,12 @@ def _build_promotion_bundle(
         try:
             previous_prod = client.get_model_version(model_name, previous_prod_version)
             target_source_run_id = _model_version_source_run_id(previous_prod) or None
-        except Exception:
+        except MlflowException as exc:
+            logger.debug(
+                "Could not resolve previous prod version %s: %s",
+                previous_prod_version,
+                exc,
+            )
             target_source_run_id = None
 
     generated_at = utc_now_iso()
@@ -229,7 +236,7 @@ def apply_promotion(
                 key=TAG_RELEASE_STATUS,
                 value=RELEASE_STATUS_PREVIOUS_PROD,
             )
-        except Exception:
+        except MlflowException:
             logger.info(
                 "Could not mark old prod version %s as %s",
                 prev_prod_version,
