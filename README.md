@@ -286,7 +286,7 @@ The command writes:
 src/ml_lifecycle_platform/
   backends/     local runtime adapters
   cli/          operator CLI
-  common/       config, constants, MLflow helpers
+  common/       shared string constants (MLflow alias names)
   contracts/    reproducibility and lineage payloads
   core/         model specs and protocol definitions
   pipeline/     ingest, featurize, train, evaluate, orchestrate

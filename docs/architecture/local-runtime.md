@@ -1,5 +1,7 @@
 # Local Runtime
 
+Last verified: 2026-04-18
+
 This document covers the concrete local runtime path shipped in `M0`.
 
 ## Runtime profile resolution

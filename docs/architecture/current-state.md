@@ -1,6 +1,6 @@
 # Current State
 
-Last verified: 2026-04-17
+Last verified: 2026-04-18
 
 ## Summary
 
@@ -92,7 +92,7 @@ Core OSS surface (local golden path):
 - `src/ml_lifecycle_platform/core/`: model specs and protocol definitions
 - `src/ml_lifecycle_platform/contracts/`: lineage and repro payloads
 - `src/ml_lifecycle_platform/backends/local/`: local adapters
-- `src/ml_lifecycle_platform/common/`: shared config constants and MLflow helpers
+- `src/ml_lifecycle_platform/common/`: shared string constants (MLflow alias names)
 
 Advanced hosted surface (maintainer only):
 

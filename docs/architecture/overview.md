@@ -1,5 +1,7 @@
 # Overview
 
+Last verified: 2026-04-18
+
 The local path is the contributor default. The hosted GCP staging path is an advanced maintainer-only path — you do not need it to contribute. See [`how-it-works.md`](./how-it-works.md) for the contributor-oriented explanation.
 
 This repo currently has one real local path and one real hosted staging path:
