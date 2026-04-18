@@ -5,7 +5,7 @@ from types import SimpleNamespace
 import pytest
 from requests.exceptions import ReadTimeout
 
-from ml_lifecycle_platform.ci.mlflow_staging_verifier import (
+from ml_lifecycle_platform.hosted_ci.mlflow_staging_verifier import (
     MlflowStagingVerificationConfig,
     VerificationError,
     verify_http_reachable,
@@ -18,7 +18,7 @@ pytestmark = pytest.mark.unit
 @pytest.fixture(autouse=True)
 def _no_sleep(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(
-        "ml_lifecycle_platform.ci.mlflow_staging_verifier.time.sleep",
+        "ml_lifecycle_platform.hosted_ci.mlflow_staging_verifier.time.sleep",
         lambda _seconds: None,
     )
 
@@ -49,31 +49,31 @@ def test_verify_staging_checks_http_and_mlflow_roundtrip(
         status_code = 200
 
     monkeypatch.setattr(
-        "ml_lifecycle_platform.ci.mlflow_staging_verifier.requests.get",
+        "ml_lifecycle_platform.hosted_ci.mlflow_staging_verifier.requests.get",
         lambda *args, **kwargs: _Response(),
     )
     monkeypatch.setattr(
-        "ml_lifecycle_platform.ci.mlflow_staging_verifier.mlflow.set_tracking_uri",
+        "ml_lifecycle_platform.hosted_ci.mlflow_staging_verifier.mlflow.set_tracking_uri",
         lambda uri: calls.append(("set_tracking_uri", (uri,))),
     )
     monkeypatch.setattr(
-        "ml_lifecycle_platform.ci.mlflow_staging_verifier.mlflow.get_experiment_by_name",
+        "ml_lifecycle_platform.hosted_ci.mlflow_staging_verifier.mlflow.get_experiment_by_name",
         lambda name: None,
     )
     monkeypatch.setattr(
-        "ml_lifecycle_platform.ci.mlflow_staging_verifier.MlflowClient",
+        "ml_lifecycle_platform.hosted_ci.mlflow_staging_verifier.MlflowClient",
         lambda: _FakeClient(),
     )
     monkeypatch.setattr(
-        "ml_lifecycle_platform.ci.mlflow_staging_verifier.mlflow.start_run",
+        "ml_lifecycle_platform.hosted_ci.mlflow_staging_verifier.mlflow.start_run",
         lambda experiment_id, run_name: _RunContext(),
     )
     monkeypatch.setattr(
-        "ml_lifecycle_platform.ci.mlflow_staging_verifier.mlflow.log_param",
+        "ml_lifecycle_platform.hosted_ci.mlflow_staging_verifier.mlflow.log_param",
         lambda key, value: calls.append(("log_param", (key, value))),
     )
     monkeypatch.setattr(
-        "ml_lifecycle_platform.ci.mlflow_staging_verifier.mlflow.log_artifact",
+        "ml_lifecycle_platform.hosted_ci.mlflow_staging_verifier.mlflow.log_artifact",
         lambda path: calls.append(("log_artifact", (path,))),
     )
 
@@ -106,7 +106,7 @@ def test_verify_http_reachable_fails_fast_on_auth_error(
         return _Response()
 
     monkeypatch.setattr(
-        "ml_lifecycle_platform.ci.mlflow_staging_verifier.requests.get",
+        "ml_lifecycle_platform.hosted_ci.mlflow_staging_verifier.requests.get",
         _fake_get,
     )
 
@@ -142,7 +142,7 @@ def test_verify_http_reachable_retries_on_timeout_then_succeeds(
         return item
 
     monkeypatch.setattr(
-        "ml_lifecycle_platform.ci.mlflow_staging_verifier.requests.get",
+        "ml_lifecycle_platform.hosted_ci.mlflow_staging_verifier.requests.get",
         _fake_get,
     )
 
@@ -165,7 +165,7 @@ def test_verify_http_reachable_raises_after_retries_exhausted(
         raise ReadTimeout("cold start")
 
     monkeypatch.setattr(
-        "ml_lifecycle_platform.ci.mlflow_staging_verifier.requests.get",
+        "ml_lifecycle_platform.hosted_ci.mlflow_staging_verifier.requests.get",
         _always_timeout,
     )
 
@@ -202,31 +202,31 @@ def test_verify_staging_fails_when_artifact_roundtrip_is_missing(
         status_code = 200
 
     monkeypatch.setattr(
-        "ml_lifecycle_platform.ci.mlflow_staging_verifier.requests.get",
+        "ml_lifecycle_platform.hosted_ci.mlflow_staging_verifier.requests.get",
         lambda *args, **kwargs: _Response(),
     )
     monkeypatch.setattr(
-        "ml_lifecycle_platform.ci.mlflow_staging_verifier.mlflow.set_tracking_uri",
+        "ml_lifecycle_platform.hosted_ci.mlflow_staging_verifier.mlflow.set_tracking_uri",
         lambda uri: None,
     )
     monkeypatch.setattr(
-        "ml_lifecycle_platform.ci.mlflow_staging_verifier.mlflow.get_experiment_by_name",
+        "ml_lifecycle_platform.hosted_ci.mlflow_staging_verifier.mlflow.get_experiment_by_name",
         lambda name: None,
     )
     monkeypatch.setattr(
-        "ml_lifecycle_platform.ci.mlflow_staging_verifier.MlflowClient",
+        "ml_lifecycle_platform.hosted_ci.mlflow_staging_verifier.MlflowClient",
         lambda: _FakeClient(),
     )
     monkeypatch.setattr(
-        "ml_lifecycle_platform.ci.mlflow_staging_verifier.mlflow.start_run",
+        "ml_lifecycle_platform.hosted_ci.mlflow_staging_verifier.mlflow.start_run",
         lambda experiment_id, run_name: _RunContext(),
     )
     monkeypatch.setattr(
-        "ml_lifecycle_platform.ci.mlflow_staging_verifier.mlflow.log_param",
+        "ml_lifecycle_platform.hosted_ci.mlflow_staging_verifier.mlflow.log_param",
         lambda key, value: None,
     )
     monkeypatch.setattr(
-        "ml_lifecycle_platform.ci.mlflow_staging_verifier.mlflow.log_artifact",
+        "ml_lifecycle_platform.hosted_ci.mlflow_staging_verifier.mlflow.log_artifact",
         lambda path: None,
     )
 

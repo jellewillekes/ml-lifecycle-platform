@@ -6,7 +6,7 @@ on:
     paths:
       - ".github/workflows/gcp-auth-verify.yml"
       - "scripts/verify_gcp_ci_auth.py"
-      - "src/ml_lifecycle_platform/ci/**"
+      - "src/ml_lifecycle_platform/hosted_ci/**"
       - "docs/ci.md"
       - "docs/runbooks/gcp-ci-auth.md"
   push:
@@ -15,7 +15,7 @@ on:
       - ".github/workflows/gcp-auth-verify.yml"
       - "deployments/gcp/**"
       - "scripts/verify_gcp_ci_auth.py"
-      - "src/ml_lifecycle_platform/ci/**"
+      - "src/ml_lifecycle_platform/hosted_ci/**"
 
 permissions:
   contents: read

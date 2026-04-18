@@ -2,7 +2,19 @@
 
 ## Contributor checks
 
-These are the commands you run locally before opening a PR:
+Run these locally before opening a PR. You do not need a GCP account or any
+hosted credentials.
+
+Match the check to the scope of your change:
+
+| Change scope | Run |
+| --- | --- |
+| logic in `src/` | `make check` |
+| touched `docs/` | also `make docs-check` |
+| pipeline, registry, serving, or infra | `make e2e-clean` |
+| interface changes | `make test-integration` |
+
+Available local commands:
 
 - `make check`: format, lint, typecheck, fast tests
 - `make docs-check`: handbook link and local doc path validation
@@ -10,9 +22,19 @@ These are the commands you run locally before opening a PR:
 - `make e2e`: full local golden path with teardown
 - `make test-e2e`: same flow, keeps the stack up for debugging
 
-You do not need a GCP account or any hosted credentials for these checks.
+That is the full contributor surface. The rest of this page is maintainer
+reference for the hosted CD and Ops workflows. You can stop here for a normal
+local PR.
 
-## Full workflow matrix
+---
+
+## Maintainer reference (hosted workflows)
+
+The remaining sections describe the hosted GCP workflows, branch-protection
+expectations, and trigger policy. They are not required reading for normal
+contribution.
+
+### Full workflow matrix
 
 The repo uses three workflow groups:
 
@@ -44,14 +66,14 @@ Local mirror of `CI / Infra Validation`:
 
 - `make terraform-gcp-fmt` + `make terraform-gcp-validate`
 
-## Default rule set
+### Default rule set
 
 - pull requests get presubmit CI and security checks, not hosted staging deploys
 - `CD / Release Validation / Staging` runs automatically after merges to `master` only when hosted-relevant paths changed
 - `CD / Release Validation / Staging` also runs nightly on `master` for staging drift detection
 - manual dispatch remains the operator path for release readiness checks, post-incident verification, auth debugging, and targeted staged deploys
 
-## PR checks
+### PR checks
 
 Recommended required checks on `master`:
 

@@ -34,7 +34,7 @@ from ml_lifecycle_platform.common.constants import (
     TAG_SOURCE_RUN_ID,
     TAG_TRAINING_RUN_ID,
 )
-from ml_lifecycle_platform.ci.hosted_model_alias_verifier import (
+from ml_lifecycle_platform.hosted_ci.hosted_model_alias_verifier import (
     HostedModelAliasVerificationConfig,
     verify_model_alias,
 )
