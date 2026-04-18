@@ -1,5 +1,7 @@
 # M0 Portability Charter
 
+Last verified: 2026-04-18
+
 Status: accepted roadmap scope
 
 ## Intent

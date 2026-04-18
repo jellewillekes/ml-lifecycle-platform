@@ -1,6 +1,6 @@
 # How It Works Now
 
-Last verified: 2026-04-17
+Last verified: 2026-04-18
 
 This page is the shortest current explanation of how the repo works in practice.
 

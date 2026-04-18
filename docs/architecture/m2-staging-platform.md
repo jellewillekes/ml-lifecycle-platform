@@ -2,7 +2,7 @@
 
 > **Advanced — maintainer only.** This document covers the hosted GCP staging path. You do not need it to contribute locally.
 
-Last verified: 2026-04-17
+Last verified: 2026-04-18
 
 This document locks the intended shape for `M2`: the first hosted GCP staging platform.
 
