@@ -4,7 +4,6 @@ model aliases loaded from the MLflow registry."""
 
 from __future__ import annotations
 
-import json
 import logging
 import time
 import uuid
@@ -14,6 +13,8 @@ from functools import lru_cache
 from typing import Any, Literal, cast
 
 from fastapi import FastAPI, HTTPException, Query, Request
+from opentelemetry import trace
+from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
 from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 from pydantic import BaseModel, ConfigDict, Field
 from starlette.responses import Response
@@ -25,6 +26,8 @@ except Exception:  # pragma: no cover
     mlflow = None  # type: ignore[assignment]
     MlflowException = Exception  # type: ignore[assignment, misc]
 
+from ml_lifecycle_platform.common.logging import bind_log_context, configure_logging
+from ml_lifecycle_platform.common.telemetry import init_telemetry
 from ml_lifecycle_platform.runtime.mlflow import client as get_mlflow_client
 from ml_lifecycle_platform.core.feature_contracts import FeatureContractValidationError
 from ml_lifecycle_platform.core.model_spec_types import FeatureContractSpec
@@ -37,7 +40,7 @@ from .constants import (
     HEADER_MODEL_VERSION,
     HEADER_REQUEST_ID,
 )
-from .metrics import PREDICT_LATENCY_SECONDS, REQUESTS_TOTAL
+from .metrics import record_predict_latency, record_request
 from .model_store import get_model_store
 from .prediction import run_prediction
 from .router import (
@@ -54,19 +57,21 @@ logger = logging.getLogger("serving")
 
 def _configure_logging(settings: Settings) -> None:
     # Safe to call more than once.
-    logging.basicConfig(level=settings.log_level)
+    configure_logging("serving", level=settings.log_level)
 
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI) -> AsyncGenerator[None, None]:
     settings = get_settings()
     _configure_logging(settings)
+    init_telemetry("serving")
     logger.info("serving started")
     yield
     logger.info("serving stopped")
 
 
 app = FastAPI(lifespan=lifespan)
+FastAPIInstrumentor.instrument_app(app)
 
 
 @app.middleware("http")
@@ -82,6 +87,11 @@ async def request_id_middleware(
     else:
         request.state.request_id = uuid.uuid4().hex
         request.state.client_provided_request_id = False
+
+    bind_log_context(request_id=request.state.request_id)
+    span = trace.get_current_span()
+    if span is not None:
+        span.set_attribute("request_id", request.state.request_id)
 
     response = await call_next(request)
     response.headers[HEADER_REQUEST_ID] = request.state.request_id
@@ -106,17 +116,13 @@ async def coarse_metrics_middleware(
     try:
         response = await call_next(request)
     except HTTPException as e:
-        REQUESTS_TOTAL.labels(
-            endpoint=endpoint, mode=mode_label, status=str(e.status_code)
-        ).inc()
+        record_request(endpoint, mode_label, str(e.status_code))
         raise
     except (ValueError, RuntimeError):
-        REQUESTS_TOTAL.labels(endpoint=endpoint, mode=mode_label, status="500").inc()
+        record_request(endpoint, mode_label, "500")
         raise
 
-    REQUESTS_TOTAL.labels(
-        endpoint=endpoint, mode=mode_label, status=str(response.status_code)
-    ).inc()
+    record_request(endpoint, mode_label, str(response.status_code))
     return response
 
 
@@ -407,23 +413,25 @@ async def predict(
             response.headers[HEADER_MODEL_VERSION] = result.chosen_version
         response.headers[HEADER_FEATURE_CONTRACT_VERSION] = contract.version
 
-        log: dict[str, Any] = {
-            "event": "predict",
-            "request_id": getattr(request.state, "request_id", None),
-            "mode": mode,
-            "chosen": primary_alias,
-            "status": status_code,
-            "latency_ms": int(latency_s * 1000),
-            "bucket": bucket,
-            "bucket_seed_source": str(bucket_seed_source)
-            if bucket_seed_source
-            else None,
-            "canary_pct": settings.canary_pct if mode == "canary" else None,
-            "shadow_mae": result.shadow_mae,
-            "prod_version": store.get_version(ALIAS_PROD),
-            "candidate_version": store.get_version(ALIAS_CANDIDATE),
-        }
-        logger.info(json.dumps(log, separators=(",", ":")))
+        logger.info(
+            "predict",
+            extra={
+                "event": "predict",
+                "request_id": getattr(request.state, "request_id", None),
+                "mode": mode,
+                "chosen": primary_alias,
+                "status": status_code,
+                "latency_ms": int(latency_s * 1000),
+                "bucket": bucket,
+                "bucket_seed_source": str(bucket_seed_source)
+                if bucket_seed_source
+                else None,
+                "canary_pct": settings.canary_pct if mode == "canary" else None,
+                "shadow_mae": result.shadow_mae,
+                "prod_version": store.get_version(ALIAS_PROD),
+                "candidate_version": store.get_version(ALIAS_CANDIDATE),
+            },
+        )
 
         return PredictResponse(
             mode=mode,
@@ -458,8 +466,9 @@ async def predict(
 
     finally:
         latency_s = time.perf_counter() - t0
-        PREDICT_LATENCY_SECONDS.labels(
+        record_predict_latency(
             mode=str(mode),
             status=str(status_code),
             chosen=chosen_label,
-        ).observe(latency_s)
+            latency_s=latency_s,
+        )

@@ -10,6 +10,7 @@ import sys
 from dataclasses import asdict, dataclass
 
 from ml_lifecycle_platform.common.constants import ALIAS_PROD
+from ml_lifecycle_platform.common.jobs import start_job
 from ml_lifecycle_platform.hosted_ci.hosted_model_alias_verifier import (
     HostedModelAliasVerificationConfig,
     verify_model_alias,
@@ -76,10 +77,10 @@ def _print_report(report: MaintenanceReport, fmt: str) -> None:
 
 
 def main(argv: list[str] | None = None) -> None:
-    logging.basicConfig(level=get_runtime_context().log_level)
     args = parse_args(sys.argv[1:] if argv is None else argv)
-    report = run_maintenance_check(alias=args.alias)
-    _print_report(report, args.format)
+    with start_job("maintenance", level=get_runtime_context().log_level):
+        report = run_maintenance_check(alias=args.alias)
+        _print_report(report, args.format)
 
 
 if __name__ == "__main__":

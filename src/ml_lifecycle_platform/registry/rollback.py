@@ -23,6 +23,7 @@ from ml_lifecycle_platform.common.constants import (
     TAG_RELEASE_MANIFEST_PATH,
     TAG_SOURCE_RUN_ID,
 )
+from ml_lifecycle_platform.common.jobs import start_job
 from ml_lifecycle_platform.runtime.mlflow import client as mlflow_client
 from ml_lifecycle_platform.runtime.bootstrap import get_runtime_context
 from ml_lifecycle_platform.contracts.release_reports import (
@@ -263,40 +264,40 @@ def rollback_prod(client: MlflowClient, model_name: str) -> None:
 
 
 def main(argv: list[str] | None = None) -> None:
-    logging.basicConfig(level=get_runtime_context().log_level)
     args = parse_args(sys.argv[1:] if argv is None else argv)
-    client = mlflow_client()
+    with start_job("rollback", level=get_runtime_context().log_level):
+        client = mlflow_client()
 
-    try:
-        current_prod, target_version, _, _, resolution_source = (
-            _resolve_rollback_target(
-                client,
-                model_name=args.model_name,
+        try:
+            current_prod, target_version, _, _, resolution_source = (
+                _resolve_rollback_target(
+                    client,
+                    model_name=args.model_name,
+                )
             )
+        except RuntimeError as error:
+            payload = {
+                "status": "blocked",
+                "model_name": args.model_name,
+                "reason": str(error),
+            }
+            _print_rollback_plan(payload, args.format)
+            raise SystemExit(2) from error
+
+        _print_rollback_plan(
+            _render_rollback_plan(
+                model_name=args.model_name,
+                current_prod_version=str(current_prod.version),
+                target_version=target_version,
+                resolution_source=resolution_source,
+            ),
+            args.format,
         )
-    except RuntimeError as error:
-        payload = {
-            "status": "blocked",
-            "model_name": args.model_name,
-            "reason": str(error),
-        }
-        _print_rollback_plan(payload, args.format)
-        raise SystemExit(2) from error
 
-    _print_rollback_plan(
-        _render_rollback_plan(
-            model_name=args.model_name,
-            current_prod_version=str(current_prod.version),
-            target_version=target_version,
-            resolution_source=resolution_source,
-        ),
-        args.format,
-    )
+        if args.dry_run:
+            raise SystemExit(0)
 
-    if args.dry_run:
-        raise SystemExit(0)
-
-    rollback_prod(client, args.model_name)
+        rollback_prod(client, args.model_name)
 
 
 if __name__ == "__main__":

@@ -16,7 +16,7 @@ from ml_lifecycle_platform.core.feature_contracts import (
 )
 from ml_lifecycle_platform.core.model_spec_types import FeatureContractSpec
 
-from .metrics import SHADOW_DIFF_MAE
+from .metrics import record_shadow_diff
 from .model_store import ModelStore
 from .router import Mode
 from .settings import Settings
@@ -63,7 +63,7 @@ def run_prediction(
                 logger.warning("shadow prediction failed: %s", e)
 
     if shadow_mae is not None and math.isfinite(shadow_mae):
-        SHADOW_DIFF_MAE.labels(mode=str(mode)).observe(shadow_mae)
+        record_shadow_diff(str(mode), shadow_mae)
 
     return PredictionResult(
         y_primary=y_primary,
