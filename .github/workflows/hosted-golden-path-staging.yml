@@ -1,6 +1,6 @@
-name: Staging Verification
+name: CD / Release Validation / Staging
 
-run-name: staging release validation / ${{ github.event_name }} / ${{ github.ref_name }}
+run-name: release validation / ${{ github.event_name }} / ${{ github.ref_name }}
 
 on:
   push:

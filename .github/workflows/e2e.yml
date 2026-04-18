@@ -1,4 +1,4 @@
-name: Local E2E
+name: CI / Local E2E
 
 on:
   workflow_dispatch: {}
