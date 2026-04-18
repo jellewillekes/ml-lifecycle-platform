@@ -21,7 +21,7 @@ except Exception:  # pragma: no cover
     mlflow = None  # type: ignore[assignment]
     MlflowException = Exception  # type: ignore[assignment, misc]
 
-from ml_lifecycle_platform.common.mlflow_utils import client as get_mlflow_client
+from ml_lifecycle_platform.runtime.mlflow import client as get_mlflow_client
 from ml_lifecycle_platform.core.feature_contracts import FeatureContractValidationError
 from ml_lifecycle_platform.core.model_spec_types import FeatureContractSpec
 from ml_lifecycle_platform.core.model_specs import load_model_spec

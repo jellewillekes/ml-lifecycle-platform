@@ -29,8 +29,8 @@ from ml_lifecycle_platform.common.constants import (
     TAG_SOURCE_RUN_ID,
     TAG_TRAINING_RUN_ID,
 )
-from ml_lifecycle_platform.common.mlflow_utils import client as mlflow_client
-from ml_lifecycle_platform.common.mlflow_utils import ensure_experiment
+from ml_lifecycle_platform.runtime.mlflow import client as mlflow_client
+from ml_lifecycle_platform.runtime.mlflow import ensure_experiment
 from ml_lifecycle_platform.runtime.bootstrap import (
     configure_mlflow,
     get_runtime_context,

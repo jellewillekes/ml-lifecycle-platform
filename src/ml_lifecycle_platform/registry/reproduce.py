@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import logging
 import sys
@@ -23,13 +24,8 @@ from ml_lifecycle_platform.common.constants import (
     TAG_PREVIOUS_PROD_VERSION,
     TAG_SOURCE_RUN_ID,
 )
-from ml_lifecycle_platform.common.mlflow_utils import client as mlflow_client
+from ml_lifecycle_platform.runtime.mlflow import client as mlflow_client
 from ml_lifecycle_platform.runtime.bootstrap import get_runtime_context
-from ml_lifecycle_platform.common.repro import (
-    get_uv_lock_hash,
-    sha256_file,
-    sha256_text,
-)
 from ml_lifecycle_platform.contracts.dataset_fingerprint import (
     compute_fingerprint,
     get_git_sha,
@@ -54,6 +50,31 @@ from ml_lifecycle_platform.pipeline.train import (
 from ml_lifecycle_platform.registry.release_evidence import emit_release_evidence
 
 logger = logging.getLogger(__name__)
+
+REPO_ROOT = Path(__file__).resolve().parents[3]
+
+
+def sha256_bytes(payload: bytes) -> str:
+    return hashlib.sha256(payload).hexdigest()
+
+
+def sha256_text(payload: str) -> str:
+    return sha256_bytes(payload.encode("utf-8"))
+
+
+def sha256_file(path: Path) -> str:
+    return sha256_bytes(path.read_bytes())
+
+
+def get_uv_lock_path() -> Path:
+    path = REPO_ROOT / "uv.lock"
+    if not path.exists():
+        raise RuntimeError(f"uv.lock not found at expected repo root path: {path}")
+    return path
+
+
+def get_uv_lock_hash() -> str:
+    return sha256_file(get_uv_lock_path())
 
 
 def _classify_download_error(exc: Exception, *, fallback_code: str) -> str:

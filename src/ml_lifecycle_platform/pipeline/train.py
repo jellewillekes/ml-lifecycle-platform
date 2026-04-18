@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 import logging
 from dataclasses import dataclass
@@ -36,12 +37,7 @@ from ml_lifecycle_platform.common.constants import (
     TEST_CSV,
     TRAIN_CSV,
 )
-from ml_lifecycle_platform.common.mlflow_utils import ensure_experiment
-from ml_lifecycle_platform.common.repro import (
-    get_uv_lock_hash,
-    get_uv_lock_path,
-    sha256_text,
-)
+from ml_lifecycle_platform.runtime.mlflow import ensure_experiment
 from ml_lifecycle_platform.core.batch_contracts import validate_labeled_dataset
 from ml_lifecycle_platform.pipeline.metrics import compute_binary_metrics
 from ml_lifecycle_platform.contracts.dataset_fingerprint import (
@@ -58,6 +54,32 @@ from ml_lifecycle_platform.runtime.bootstrap import (
 )
 
 logger = logging.getLogger(__name__)
+
+REPO_ROOT = Path(__file__).resolve().parents[3]
+
+
+def sha256_bytes(payload: bytes) -> str:
+    return hashlib.sha256(payload).hexdigest()
+
+
+def sha256_text(payload: str) -> str:
+    return sha256_bytes(payload.encode("utf-8"))
+
+
+def sha256_file(path: Path) -> str:
+    return sha256_bytes(path.read_bytes())
+
+
+def get_uv_lock_path() -> Path:
+    path = REPO_ROOT / "uv.lock"
+    if not path.exists():
+        raise RuntimeError(f"uv.lock not found at expected repo root path: {path}")
+    return path
+
+
+def get_uv_lock_hash() -> str:
+    return sha256_file(get_uv_lock_path())
+
 
 PROBE_INPUT_LIMIT: Final[int] = 10
 REPRO_INPUTS_ARTIFACT_PATH: Final[str] = f"{MLFLOW_ARTIFACT_PATH_REPRO}/inputs"

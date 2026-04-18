@@ -8,7 +8,7 @@ from ml_lifecycle_platform.common.constants import (
     STEP_TRAIN,
     TAG_STEP,
 )
-from ml_lifecycle_platform.common.mlflow_utils import ensure_experiment
+from ml_lifecycle_platform.runtime.mlflow import ensure_experiment
 from ml_lifecycle_platform.runtime.bootstrap import (
     configure_mlflow,
     get_runtime_context,
