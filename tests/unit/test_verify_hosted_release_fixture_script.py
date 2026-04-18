@@ -69,7 +69,7 @@ def test_main_returns_0_when_release_fixture_is_ready(
         ],
     )
 
-    from ml_lifecycle_platform.ci import (
+    from ml_lifecycle_platform.hosted_ci import (
         hosted_release_fixture_verifier as verifier,
     )
 

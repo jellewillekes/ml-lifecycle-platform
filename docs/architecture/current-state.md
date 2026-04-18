@@ -96,7 +96,7 @@ Core OSS surface (local golden path):
 
 Advanced hosted surface (maintainer only):
 
-- `src/ml_lifecycle_platform/ci/`: hosted CI helpers for GitHub Actions workflows
+- `src/ml_lifecycle_platform/hosted_ci/`: hosted CI helpers for GitHub Actions workflows; not part of the local contributor surface
 
 ## Defaults
 

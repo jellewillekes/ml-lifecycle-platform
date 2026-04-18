@@ -24,7 +24,7 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def main() -> int:
-    from ml_lifecycle_platform.ci.mlflow_staging_verifier import (
+    from ml_lifecycle_platform.hosted_ci.mlflow_staging_verifier import (
         MlflowStagingVerificationConfig,
         VerificationError,
         verify_staging,

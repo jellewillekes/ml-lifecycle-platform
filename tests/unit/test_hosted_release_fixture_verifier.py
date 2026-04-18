@@ -4,7 +4,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from ml_lifecycle_platform.ci.hosted_release_fixture_verifier import (
+from ml_lifecycle_platform.hosted_ci.hosted_release_fixture_verifier import (
     HostedReleaseFixtureVerificationConfig,
     VerificationError,
     verify_release_fixture,
@@ -20,19 +20,19 @@ def test_verify_release_fixture_returns_versions_when_fixture_is_ready(
     calls: list[tuple[str, tuple[object, ...]]] = []
 
     monkeypatch.setattr(
-        "ml_lifecycle_platform.ci.hosted_release_fixture_verifier.mlflow.set_tracking_uri",
+        "ml_lifecycle_platform.hosted_ci.hosted_release_fixture_verifier.mlflow.set_tracking_uri",
         lambda uri: calls.append(("set_tracking_uri", (uri,))),
     )
     monkeypatch.setattr(
-        "ml_lifecycle_platform.ci.hosted_release_fixture_verifier.MlflowClient",
+        "ml_lifecycle_platform.hosted_ci.hosted_release_fixture_verifier.MlflowClient",
         lambda: object(),
     )
     monkeypatch.setattr(
-        "ml_lifecycle_platform.ci.hosted_release_fixture_verifier.load_model_spec",
+        "ml_lifecycle_platform.hosted_ci.hosted_release_fixture_verifier.load_model_spec",
         lambda path: SimpleNamespace(policy="policy", spec_path=path),
     )
     monkeypatch.setattr(
-        "ml_lifecycle_platform.ci.hosted_release_fixture_verifier.evaluate_promotion_policy",
+        "ml_lifecycle_platform.hosted_ci.hosted_release_fixture_verifier.evaluate_promotion_policy",
         lambda client, model_name, policy: PolicyDecision(
             allowed=True,
             errors=(),
@@ -45,7 +45,7 @@ def test_verify_release_fixture_returns_versions_when_fixture_is_ready(
         ),
     )
     monkeypatch.setattr(
-        "ml_lifecycle_platform.ci.hosted_release_fixture_verifier._resolve_rollback_target",
+        "ml_lifecycle_platform.hosted_ci.hosted_release_fixture_verifier._resolve_rollback_target",
         lambda client, model_name: (
             SimpleNamespace(version="3"),
             "2",
@@ -78,19 +78,19 @@ def test_verify_release_fixture_fails_when_promotion_would_be_blocked(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setattr(
-        "ml_lifecycle_platform.ci.hosted_release_fixture_verifier.mlflow.set_tracking_uri",
+        "ml_lifecycle_platform.hosted_ci.hosted_release_fixture_verifier.mlflow.set_tracking_uri",
         lambda uri: None,
     )
     monkeypatch.setattr(
-        "ml_lifecycle_platform.ci.hosted_release_fixture_verifier.MlflowClient",
+        "ml_lifecycle_platform.hosted_ci.hosted_release_fixture_verifier.MlflowClient",
         lambda: object(),
     )
     monkeypatch.setattr(
-        "ml_lifecycle_platform.ci.hosted_release_fixture_verifier.load_model_spec",
+        "ml_lifecycle_platform.hosted_ci.hosted_release_fixture_verifier.load_model_spec",
         lambda path: SimpleNamespace(policy="policy", spec_path=path),
     )
     monkeypatch.setattr(
-        "ml_lifecycle_platform.ci.hosted_release_fixture_verifier.evaluate_promotion_policy",
+        "ml_lifecycle_platform.hosted_ci.hosted_release_fixture_verifier.evaluate_promotion_policy",
         lambda client, model_name, policy: PolicyDecision(
             allowed=False,
             errors=(
@@ -120,19 +120,19 @@ def test_verify_release_fixture_fails_when_rollback_target_is_missing(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setattr(
-        "ml_lifecycle_platform.ci.hosted_release_fixture_verifier.mlflow.set_tracking_uri",
+        "ml_lifecycle_platform.hosted_ci.hosted_release_fixture_verifier.mlflow.set_tracking_uri",
         lambda uri: None,
     )
     monkeypatch.setattr(
-        "ml_lifecycle_platform.ci.hosted_release_fixture_verifier.MlflowClient",
+        "ml_lifecycle_platform.hosted_ci.hosted_release_fixture_verifier.MlflowClient",
         lambda: object(),
     )
     monkeypatch.setattr(
-        "ml_lifecycle_platform.ci.hosted_release_fixture_verifier.load_model_spec",
+        "ml_lifecycle_platform.hosted_ci.hosted_release_fixture_verifier.load_model_spec",
         lambda path: SimpleNamespace(policy="policy", spec_path=path),
     )
     monkeypatch.setattr(
-        "ml_lifecycle_platform.ci.hosted_release_fixture_verifier.evaluate_promotion_policy",
+        "ml_lifecycle_platform.hosted_ci.hosted_release_fixture_verifier.evaluate_promotion_policy",
         lambda client, model_name, policy: PolicyDecision(
             allowed=True,
             errors=(),
@@ -141,7 +141,7 @@ def test_verify_release_fixture_fails_when_rollback_target_is_missing(
         ),
     )
     monkeypatch.setattr(
-        "ml_lifecycle_platform.ci.hosted_release_fixture_verifier._resolve_rollback_target",
+        "ml_lifecycle_platform.hosted_ci.hosted_release_fixture_verifier._resolve_rollback_target",
         lambda client, model_name: (_ for _ in ()).throw(
             RuntimeError(
                 "Rollback blocked: current prod does not have a previous prod recorded."

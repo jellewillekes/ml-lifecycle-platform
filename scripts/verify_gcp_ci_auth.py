@@ -37,7 +37,7 @@ def build_parser(
 
 
 def main() -> int:
-    from ml_lifecycle_platform.ci.gcp_auth_verifier import (
+    from ml_lifecycle_platform.hosted_ci.gcp_auth_verifier import (
         DEFAULT_ARTIFACT_REPOSITORY,
         DEFAULT_REGION,
         DEFAULT_SECRET_IDS,

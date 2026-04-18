@@ -4,7 +4,7 @@ import subprocess
 
 import pytest
 
-from ml_lifecycle_platform.ci.gcp_auth_verifier import (
+from ml_lifecycle_platform.hosted_ci.gcp_auth_verifier import (
     GcpAuthVerificationConfig,
     VerificationError,
     format_success_summary,
@@ -139,7 +139,7 @@ def test_verify_resources_checks_expected_gcloud_calls(
         return responses[tuple(args)]
 
     monkeypatch.setattr(
-        "ml_lifecycle_platform.ci.gcp_auth_verifier.subprocess.run", fake_run
+        "ml_lifecycle_platform.hosted_ci.gcp_auth_verifier.subprocess.run", fake_run
     )
 
     config = GcpAuthVerificationConfig(
@@ -167,7 +167,7 @@ def test_verify_resources_fails_with_actionable_message_on_account_mismatch(
         return _completed('[{"account": "someone@example.com"}]')
 
     monkeypatch.setattr(
-        "ml_lifecycle_platform.ci.gcp_auth_verifier.subprocess.run", fake_run
+        "ml_lifecycle_platform.hosted_ci.gcp_auth_verifier.subprocess.run", fake_run
     )
 
     config = GcpAuthVerificationConfig(

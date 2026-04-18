@@ -3,7 +3,9 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 
-from ml_lifecycle_platform.ci.serving_staging_baseline import write_baseline_context
+from ml_lifecycle_platform.hosted_ci.serving_staging_baseline import (
+    write_baseline_context,
+)
 
 
 def parse_args() -> argparse.Namespace:

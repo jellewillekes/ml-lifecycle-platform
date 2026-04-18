@@ -3,7 +3,7 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 
-from ml_lifecycle_platform.ci.cloud_run_service import (
+from ml_lifecycle_platform.hosted_ci.cloud_run_service import (
     resolve_cloud_run_service_contract,
     try_resolve_cloud_run_service_contract,
     write_optional_github_output,

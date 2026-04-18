@@ -66,7 +66,7 @@ def test_main_returns_0_when_alias_verification_succeeds(
     )
     monkeypatch.setattr(module, "main", module.main)
 
-    from ml_lifecycle_platform.ci import hosted_model_alias_verifier as verifier
+    from ml_lifecycle_platform.hosted_ci import hosted_model_alias_verifier as verifier
 
     monkeypatch.setattr(
         verifier,

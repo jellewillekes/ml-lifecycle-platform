@@ -5,7 +5,7 @@ import subprocess
 
 import pytest
 
-from ml_lifecycle_platform.ci.cloud_run_service import (
+from ml_lifecycle_platform.hosted_ci.cloud_run_service import (
     CloudRunServiceContract,
     CloudRunServiceError,
     parse_cloud_run_service_contract,
@@ -123,7 +123,7 @@ def test_resolve_cloud_run_service_contract_uses_expected_gcloud_call(
         )
 
     monkeypatch.setattr(
-        "ml_lifecycle_platform.ci.cloud_run_service.subprocess.run",
+        "ml_lifecycle_platform.hosted_ci.cloud_run_service.subprocess.run",
         fake_run,
     )
 
@@ -168,7 +168,7 @@ def test_resolve_cloud_run_service_contract_raises_actionable_error_on_invalid_j
         return _completed("{not-json")
 
     monkeypatch.setattr(
-        "ml_lifecycle_platform.ci.cloud_run_service.subprocess.run",
+        "ml_lifecycle_platform.hosted_ci.cloud_run_service.subprocess.run",
         fake_run,
     )
 
@@ -198,7 +198,7 @@ def test_try_resolve_cloud_run_service_contract_returns_none_when_service_missin
         )
 
     monkeypatch.setattr(
-        "ml_lifecycle_platform.ci.cloud_run_service.subprocess.run",
+        "ml_lifecycle_platform.hosted_ci.cloud_run_service.subprocess.run",
         fake_run,
     )
 

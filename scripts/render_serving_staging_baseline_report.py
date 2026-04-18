@@ -3,7 +3,7 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 
-from ml_lifecycle_platform.ci.serving_staging_baseline import (
+from ml_lifecycle_platform.hosted_ci.serving_staging_baseline import (
     render_baseline_markdown_from_paths,
 )
 

@@ -4,7 +4,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from ml_lifecycle_platform.ci.hosted_model_alias_verifier import (
+from ml_lifecycle_platform.hosted_ci.hosted_model_alias_verifier import (
     HostedModelAliasVerificationConfig,
     VerificationError,
     verify_model_alias,
@@ -26,11 +26,11 @@ def test_verify_model_alias_returns_resolved_version(
             return SimpleNamespace(version="7")
 
     monkeypatch.setattr(
-        "ml_lifecycle_platform.ci.hosted_model_alias_verifier.mlflow.set_tracking_uri",
+        "ml_lifecycle_platform.hosted_ci.hosted_model_alias_verifier.mlflow.set_tracking_uri",
         lambda uri: calls.append(("set_tracking_uri", (uri,))),
     )
     monkeypatch.setattr(
-        "ml_lifecycle_platform.ci.hosted_model_alias_verifier.MlflowClient",
+        "ml_lifecycle_platform.hosted_ci.hosted_model_alias_verifier.MlflowClient",
         lambda: _FakeClient(),
     )
 
@@ -60,11 +60,11 @@ def test_verify_model_alias_fails_with_actionable_message(
             )
 
     monkeypatch.setattr(
-        "ml_lifecycle_platform.ci.hosted_model_alias_verifier.mlflow.set_tracking_uri",
+        "ml_lifecycle_platform.hosted_ci.hosted_model_alias_verifier.mlflow.set_tracking_uri",
         lambda uri: None,
     )
     monkeypatch.setattr(
-        "ml_lifecycle_platform.ci.hosted_model_alias_verifier.MlflowClient",
+        "ml_lifecycle_platform.hosted_ci.hosted_model_alias_verifier.MlflowClient",
         lambda: _FakeClient(),
     )
 

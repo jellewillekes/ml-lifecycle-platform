@@ -6,7 +6,7 @@ from typing import Any, cast
 
 import pytest
 
-from ml_lifecycle_platform.ci.serving_staging_baseline import (
+from ml_lifecycle_platform.hosted_ci.serving_staging_baseline import (
     build_baseline_context,
     render_baseline_markdown,
     render_baseline_markdown_from_paths,

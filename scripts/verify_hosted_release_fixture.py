@@ -27,7 +27,7 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def main() -> int:
-    from ml_lifecycle_platform.ci.hosted_release_fixture_verifier import (
+    from ml_lifecycle_platform.hosted_ci.hosted_release_fixture_verifier import (
         HostedReleaseFixtureVerificationConfig,
         VerificationError,
         verify_release_fixture,
