@@ -28,6 +28,7 @@ from ml_lifecycle_platform.common.constants import (
     TAG_PREVIOUS_PROD_VERSION,
     TAG_SOURCE_RUN_ID,
 )
+from ml_lifecycle_platform.common.jobs import start_job
 from ml_lifecycle_platform.runtime.mlflow import client as mlflow_client
 from ml_lifecycle_platform.runtime.bootstrap import get_runtime_context
 from ml_lifecycle_platform.contracts.dataset_fingerprint import (
@@ -592,45 +593,45 @@ def reproduce_model(
 
 
 def main(argv: list[str] | None = None) -> None:
-    logging.basicConfig(level=get_runtime_context().log_level)
     args = parse_args(sys.argv[1:] if argv is None else argv)
     report_path = Path(args.report_path)
-    client = mlflow_client()
+    with start_job("reproduce", level=get_runtime_context().log_level):
+        client = mlflow_client()
 
-    try:
-        report = reproduce_model(
-            client,
-            model_name=args.model_name,
-            model_version=args.model_version,
-            alias=args.alias,
-        )
-        _write_report(report_path, report)
-        _emit_reproduce_evidence(
-            client,
-            model_name=args.model_name,
-            model_version=args.model_version,
-            alias=args.alias,
-            report=report,
-        )
-        _print_report(report, args.format)
-        raise SystemExit(0)
-    except ReproduceFailure as exc:
-        report = {
-            "status": "failed",
-            "reason": exc.code,
-            "message": exc.message,
-            "details": exc.details,
-        }
-        _write_report(report_path, report)
-        _emit_reproduce_evidence(
-            client,
-            model_name=args.model_name,
-            model_version=args.model_version,
-            alias=args.alias,
-            report=report,
-        )
-        _print_report(report, args.format)
-        raise SystemExit(2)
+        try:
+            report = reproduce_model(
+                client,
+                model_name=args.model_name,
+                model_version=args.model_version,
+                alias=args.alias,
+            )
+            _write_report(report_path, report)
+            _emit_reproduce_evidence(
+                client,
+                model_name=args.model_name,
+                model_version=args.model_version,
+                alias=args.alias,
+                report=report,
+            )
+            _print_report(report, args.format)
+            raise SystemExit(0)
+        except ReproduceFailure as exc:
+            report = {
+                "status": "failed",
+                "reason": exc.code,
+                "message": exc.message,
+                "details": exc.details,
+            }
+            _write_report(report_path, report)
+            _emit_reproduce_evidence(
+                client,
+                model_name=args.model_name,
+                model_version=args.model_version,
+                alias=args.alias,
+                report=report,
+            )
+            _print_report(report, args.format)
+            raise SystemExit(2)
 
 
 if __name__ == "__main__":

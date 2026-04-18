@@ -13,6 +13,7 @@ from typing import Any
 from mlflow.exceptions import MlflowException
 from mlflow.tracking import MlflowClient
 
+from ml_lifecycle_platform.common.jobs import start_job
 from ml_lifecycle_platform.runtime.mlflow import client as mlflow_client
 from ml_lifecycle_platform.runtime.bootstrap import get_runtime_context
 from ml_lifecycle_platform.common.constants import (
@@ -364,28 +365,26 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
 
 
 def main(argv: list[str] | None = None) -> None:
-    logging.basicConfig(level=get_runtime_context().log_level)
-
     args = parse_args(sys.argv[1:] if argv is None else argv)
+    with start_job("promote", level=get_runtime_context().log_level):
+        client = mlflow_client()
+        plan = plan_promotion(
+            client,
+            model_name=args.model_name,
+            from_alias=args.from_alias,
+            to_alias=args.to_alias,
+        )
 
-    client = mlflow_client()
-    plan = plan_promotion(
-        client,
-        model_name=args.model_name,
-        from_alias=args.from_alias,
-        to_alias=args.to_alias,
-    )
+        _print_decision(plan.decision, args.format)
 
-    _print_decision(plan.decision, args.format)
+        if args.dry_run:
+            raise SystemExit(0 if plan.decision.allowed else 2)
 
-    if args.dry_run:
-        raise SystemExit(0 if plan.decision.allowed else 2)
+        if not plan.decision.allowed:
+            raise SystemExit(2)
 
-    if not plan.decision.allowed:
-        raise SystemExit(2)
-
-    result = apply_promotion(client, plan)
-    emit_promotion_evidence(client, result)
+        result = apply_promotion(client, plan)
+        emit_promotion_evidence(client, result)
 
 
 if __name__ == "__main__":
