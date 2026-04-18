@@ -6,6 +6,8 @@ import mlflow
 from mlflow import MlflowClient
 from mlflow.exceptions import MlflowException
 
+from ml_lifecycle_platform.common.constants import ALIAS_PROD
+
 
 class VerificationError(RuntimeError):
     """Raised when hosted MLflow model alias verification fails."""
@@ -16,7 +18,7 @@ class HostedModelAliasVerificationConfig:
     tracking_uri: str
     tracking_token: str
     model_name: str
-    alias: str = "prod"
+    alias: str = ALIAS_PROD
 
 
 def verify_model_alias(config: HostedModelAliasVerificationConfig) -> str:

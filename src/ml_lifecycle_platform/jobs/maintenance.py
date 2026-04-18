@@ -6,6 +6,7 @@ import logging
 import sys
 from dataclasses import asdict, dataclass
 
+from ml_lifecycle_platform.common.constants import ALIAS_PROD
 from ml_lifecycle_platform.hosted_ci.hosted_model_alias_verifier import (
     HostedModelAliasVerificationConfig,
     verify_model_alias,
@@ -31,12 +32,12 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Run safe hosted staging maintenance checks."
     )
-    parser.add_argument("--alias", default="prod")
+    parser.add_argument("--alias", default=ALIAS_PROD)
     parser.add_argument("--format", choices=["json", "text"], default="json")
     return parser.parse_args(argv)
 
 
-def run_maintenance_check(*, alias: str = "prod") -> MaintenanceReport:
+def run_maintenance_check(*, alias: str = ALIAS_PROD) -> MaintenanceReport:
     runtime = get_runtime_context()
     configure_mlflow(runtime)
 

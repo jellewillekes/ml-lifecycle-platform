@@ -16,6 +16,7 @@ from mlflow.exceptions import MlflowException
 from mlflow.tracking import MlflowClient
 
 from ml_lifecycle_platform.common.constants import (
+    ALIAS_PROD,
     ART_REPRO_CONTRACT_JSON,
     ART_REPRO_REPORT_JSON,
     TAG_CONFIG_HASH,
@@ -213,7 +214,7 @@ def _print_report(report: dict[str, Any], fmt: str) -> None:
 
 def _resolve_current_prod_version(client: MlflowClient, model_name: str) -> str | None:
     try:
-        prod = client.get_model_version_by_alias(model_name, "prod")
+        prod = client.get_model_version_by_alias(model_name, ALIAS_PROD)
     except MlflowException:
         return None
     return str(prod.version)
