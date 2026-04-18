@@ -4,6 +4,7 @@ import argparse
 import json
 import logging
 import sys
+from dataclasses import dataclass
 from typing import Any
 
 from mlflow.exceptions import MlflowException
@@ -45,6 +46,27 @@ from ml_lifecycle_platform.registry.release_evidence import emit_release_evidenc
 logger = logging.getLogger(__name__)
 
 
+# ---------------------------------------------------------------------------
+# Plan: read-only policy evaluation.
+# ---------------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class PromotionPlan:
+    """Decision and inputs needed to apply a promotion or report a dry-run."""
+
+    model_name: str
+    from_alias: str
+    to_alias: str
+    decision: PolicyDecision
+
+    @property
+    def candidate_version(self) -> str | None:
+        if not self.decision.allowed:
+            return None
+        return str(self.decision.context["candidate_version"])
+
+
 def _resolve_policy_for_model(model_name: str) -> PolicySpec:
     spec = load_model_spec(get_runtime_context().model_spec_path)
     if spec.model_name != model_name:
@@ -58,17 +80,41 @@ def _resolve_policy_for_model(model_name: str) -> PolicySpec:
     return spec.policy
 
 
-def _print_decision(decision: PolicyDecision, fmt: str) -> None:
-    if fmt == "json":
-        print(json.dumps(decision.to_dict(), indent=2, sort_keys=True))
-        return
+def plan_promotion(
+    client: MlflowClient,
+    *,
+    model_name: str,
+    from_alias: str,
+    to_alias: str,
+) -> PromotionPlan:
+    """Evaluate the promotion policy. No registry mutation."""
+    decision = evaluate_promotion_policy(
+        client=client,
+        model_name=model_name,
+        policy=_resolve_policy_for_model(model_name),
+        from_alias=from_alias,
+        to_alias=to_alias,
+    )
+    return PromotionPlan(
+        model_name=model_name,
+        from_alias=from_alias,
+        to_alias=to_alias,
+        decision=decision,
+    )
 
-    print(f"allowed={decision.allowed}")
-    for v in decision.errors:
-        print(f"ERROR {v.code}: {v.message} {v.details}")
-    for v in decision.warnings:
-        print(f"WARN  {v.code}: {v.message} {v.details}")
-    print(f"context={decision.context}")
+
+# ---------------------------------------------------------------------------
+# Apply: alias and tag mutations only. No evidence emission.
+# ---------------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class PromotionResult:
+    """Outcome of apply_promotion, threaded into evidence emission."""
+
+    plan: PromotionPlan
+    candidate_version: str
+    previous_prod_version: str | None
 
 
 def _try_get_prod_version(client: MlflowClient, model_name: str) -> str | None:
@@ -77,6 +123,75 @@ def _try_get_prod_version(client: MlflowClient, model_name: str) -> str | None:
     except MlflowException:
         return None
     return str(prod.version)
+
+
+def apply_promotion(client: MlflowClient, plan: PromotionPlan) -> PromotionResult:
+    """Promote one candidate version and record rollback metadata."""
+    candidate_version = plan.candidate_version
+    if candidate_version is None:
+        raise RuntimeError("Cannot apply a promotion plan whose decision was denied.")
+
+    prev_prod_version = _try_get_prod_version(client, plan.model_name)
+
+    client.set_registered_model_alias(plan.model_name, ALIAS_PROD, candidate_version)
+    client.set_registered_model_alias(
+        plan.model_name, ALIAS_CHAMPION, candidate_version
+    )
+
+    client.set_model_version_tag(
+        name=plan.model_name,
+        version=candidate_version,
+        key=TAG_RELEASE_STATUS,
+        value=ALIAS_PROD,
+    )
+    client.set_model_version_tag(
+        name=plan.model_name,
+        version=candidate_version,
+        key=TAG_PROMOTED_FROM_ALIAS,
+        value=plan.from_alias,
+    )
+
+    if prev_prod_version is not None:
+        # Rollback reads this tag instead of inferring state from history.
+        client.set_model_version_tag(
+            name=plan.model_name,
+            version=candidate_version,
+            key=TAG_PREVIOUS_PROD_VERSION,
+            value=prev_prod_version,
+        )
+
+        try:
+            client.set_model_version_tag(
+                name=plan.model_name,
+                version=prev_prod_version,
+                key=TAG_RELEASE_STATUS,
+                value=RELEASE_STATUS_PREVIOUS_PROD,
+            )
+        except MlflowException:
+            logger.info(
+                "Could not mark old prod version %s as %s",
+                prev_prod_version,
+                RELEASE_STATUS_PREVIOUS_PROD,
+            )
+
+    logger.info(
+        "Promoted %s v%s -> alias '%s' and '%s'",
+        plan.model_name,
+        candidate_version,
+        ALIAS_PROD,
+        ALIAS_CHAMPION,
+    )
+
+    return PromotionResult(
+        plan=plan,
+        candidate_version=candidate_version,
+        previous_prod_version=prev_prod_version,
+    )
+
+
+# ---------------------------------------------------------------------------
+# Evidence: build the release-report bundle and emit it through MLflow.
+# ---------------------------------------------------------------------------
 
 
 def _model_version_source_run_id(model_version: Any) -> str:
@@ -189,83 +304,44 @@ def _build_promotion_bundle(
     )
 
 
-def apply_promotion(
-    client: MlflowClient,
-    *,
-    model_name: str,
-    candidate_version: str,
-    from_alias: str,
-    decision: PolicyDecision,
-) -> None:
-    """Promote one candidate version and record rollback metadata."""
-
-    prev_prod_version = _try_get_prod_version(client, model_name)
-
-    client.set_registered_model_alias(model_name, ALIAS_PROD, candidate_version)
-    client.set_registered_model_alias(model_name, ALIAS_CHAMPION, candidate_version)
-
-    client.set_model_version_tag(
-        name=model_name,
-        version=candidate_version,
-        key=TAG_RELEASE_STATUS,
-        value=ALIAS_PROD,
-    )
-    client.set_model_version_tag(
-        name=model_name,
-        version=candidate_version,
-        key=TAG_PROMOTED_FROM_ALIAS,
-        value=from_alias,
-    )
-
-    if prev_prod_version is not None:
-        # Rollback reads this tag instead of inferring state from history.
-        client.set_model_version_tag(
-            name=model_name,
-            version=candidate_version,
-            key=TAG_PREVIOUS_PROD_VERSION,
-            value=prev_prod_version,
-        )
-
-        try:
-            client.set_model_version_tag(
-                name=model_name,
-                version=prev_prod_version,
-                key=TAG_RELEASE_STATUS,
-                value=RELEASE_STATUS_PREVIOUS_PROD,
-            )
-        except MlflowException:
-            logger.info(
-                "Could not mark old prod version %s as %s",
-                prev_prod_version,
-                RELEASE_STATUS_PREVIOUS_PROD,
-            )
-
-    logger.info(
-        "Promoted %s v%s -> alias '%s' and '%s'",
-        model_name,
-        candidate_version,
-        ALIAS_PROD,
-        ALIAS_CHAMPION,
-    )
-
+def emit_promotion_evidence(client: MlflowClient, result: PromotionResult) -> None:
+    """Build and emit the release-evidence bundle for an applied promotion."""
     source_run_id, bundle = _build_promotion_bundle(
         client=client,
-        decision=decision,
-        model_name=model_name,
-        candidate_version=candidate_version,
-        current_prod_version=candidate_version,
-        previous_prod_version=prev_prod_version,
+        decision=result.plan.decision,
+        model_name=result.plan.model_name,
+        candidate_version=result.candidate_version,
+        current_prod_version=result.candidate_version,
+        previous_prod_version=result.previous_prod_version,
     )
     emit_release_evidence(
         client,
         source_run_id=source_run_id,
         operation="promote",
-        model_name=model_name,
-        model_version=candidate_version,
+        model_name=result.plan.model_name,
+        model_version=result.candidate_version,
         bundle=bundle,
-        tag_target_version=candidate_version,
+        tag_target_version=result.candidate_version,
         event_type="release.promoted",
     )
+
+
+# ---------------------------------------------------------------------------
+# CLI: thin orchestration over plan -> apply -> emit.
+# ---------------------------------------------------------------------------
+
+
+def _print_decision(decision: PolicyDecision, fmt: str) -> None:
+    if fmt == "json":
+        print(json.dumps(decision.to_dict(), indent=2, sort_keys=True))
+        return
+
+    print(f"allowed={decision.allowed}")
+    for v in decision.errors:
+        print(f"ERROR {v.code}: {v.message} {v.details}")
+    for v in decision.warnings:
+        print(f"WARN  {v.code}: {v.message} {v.details}")
+    print(f"context={decision.context}")
 
 
 def parse_args(argv: list[str]) -> argparse.Namespace:
@@ -290,30 +366,23 @@ def main(argv: list[str] | None = None) -> None:
     args = parse_args(sys.argv[1:] if argv is None else argv)
 
     client = mlflow_client()
-    decision = evaluate_promotion_policy(
-        client=client,
+    plan = plan_promotion(
+        client,
         model_name=args.model_name,
-        policy=_resolve_policy_for_model(args.model_name),
         from_alias=args.from_alias,
         to_alias=args.to_alias,
     )
 
-    _print_decision(decision, args.format)
+    _print_decision(plan.decision, args.format)
 
     if args.dry_run:
-        raise SystemExit(0 if decision.allowed else 2)
+        raise SystemExit(0 if plan.decision.allowed else 2)
 
-    if not decision.allowed:
+    if not plan.decision.allowed:
         raise SystemExit(2)
 
-    candidate_version = str(decision.context["candidate_version"])
-    apply_promotion(
-        client=client,
-        model_name=args.model_name,
-        candidate_version=candidate_version,
-        from_alias=args.from_alias,
-        decision=decision,
-    )
+    result = apply_promotion(client, plan)
+    emit_promotion_evidence(client, result)
 
 
 if __name__ == "__main__":
