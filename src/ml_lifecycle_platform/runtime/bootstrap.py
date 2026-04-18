@@ -7,7 +7,7 @@ try:
 except Exception:  # pragma: no cover
     mlflow = None  # type: ignore[assignment]
 
-from ml_lifecycle_platform.common.mlflow_cloud_run_auth import (
+from ml_lifecycle_platform.hosted_ci.mlflow_cloud_run_auth import (
     configure_mlflow_cloud_run_auth,
 )
 from ml_lifecycle_platform.backends.local.artifact_store import LocalArtifactStore
