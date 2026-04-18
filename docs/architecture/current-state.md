@@ -76,6 +76,7 @@ models:/<model_name>@prod
 - hosted Cloud Run Jobs for platform actions are live and manually validated
 - Cloud Scheduler now triggers conservative maintenance cadence on top of those jobs
 - bootstrap IAM for `mlp-ci` bucket access is still partially out-of-band and documented in the runbooks
+- Grafana Cloud account, stack, and access-policy token are partially out-of-band (created in the Grafana Cloud UI, fed to Terraform via env vars); datasources, contact points, and the Cloud Run OTLP wiring are managed by the `deployments/grafana/terraform/` and `deployments/gcp/terraform/` roots, documented in [docs/runbooks/observability-setup.md](../runbooks/observability-setup.md)
 - current operating target is:
   - local green
   - GCP staging green

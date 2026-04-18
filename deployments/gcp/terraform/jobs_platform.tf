@@ -114,6 +114,40 @@ resource "google_cloud_run_v2_job" "platform" {
           name  = "LOG_LEVEL"
           value = "INFO"
         }
+
+        env {
+          name  = "GOOGLE_CLOUD_PROJECT"
+          value = data.google_project.current.project_id
+        }
+
+        dynamic "env" {
+          for_each = local.otlp_enabled ? [1] : []
+          content {
+            name  = "OTEL_EXPORTER_OTLP_ENDPOINT"
+            value = var.grafana_cloud_otlp_endpoint
+          }
+        }
+
+        dynamic "env" {
+          for_each = local.otlp_enabled ? [1] : []
+          content {
+            name  = "OTEL_EXPORTER_OTLP_PROTOCOL"
+            value = "http/protobuf"
+          }
+        }
+
+        dynamic "env" {
+          for_each = local.otlp_enabled ? [1] : []
+          content {
+            name = "OTEL_EXPORTER_OTLP_HEADERS"
+            value_source {
+              secret_key_ref {
+                secret  = google_secret_manager_secret.otlp_auth_header[0].secret_id
+                version = "latest"
+              }
+            }
+          }
+        }
       }
     }
   }
@@ -121,6 +155,7 @@ resource "google_cloud_run_v2_job" "platform" {
   depends_on = [
     google_project_service.required["run.googleapis.com"],
     google_cloud_run_v2_service.mlflow,
+    google_secret_manager_secret_iam_member.runtime_otlp_auth_accessor,
   ]
 }
 
