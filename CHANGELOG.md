@@ -4,6 +4,38 @@ All important changes and updates to this project are documented here.
 
 This repo uses Conventional Commits and Release Please.
 
+## [0.5.3](https://github.com/jellewillekes/ml-lifecycle-platform/compare/v0.5.2...v0.5.3) (2026-04-18)
+
+
+### Features
+
+* add cloud scheduler support for cr jobs ([#119](https://github.com/jellewillekes/ml-lifecycle-platform/issues/119)) ([7904c01](https://github.com/jellewillekes/ml-lifecycle-platform/commit/7904c0182f87548aa804bdee633c0b6e575a6b8a))
+* add hosted serving staging baseline workflow ([#109](https://github.com/jellewillekes/ml-lifecycle-platform/issues/109)) ([9e241cd](https://github.com/jellewillekes/ml-lifecycle-platform/commit/9e241cd83b9aebf088a62b990c8fe10ba461ace5))
+* add OpenTelemetry runtime instrumentation for serving and jobs ([#176](https://github.com/jellewillekes/ml-lifecycle-platform/issues/176)) ([d2da11f](https://github.com/jellewillekes/ml-lifecycle-platform/commit/d2da11f042c52e1f072ad67b3707d1a11eb89a9f)), closes [#171](https://github.com/jellewillekes/ml-lifecycle-platform/issues/171)
+* ci add docs and infra validation ([#138](https://github.com/jellewillekes/ml-lifecycle-platform/issues/138)) ([fd8c6cc](https://github.com/jellewillekes/ml-lifecycle-platform/commit/fd8c6cc8b54547c7ab117aeb62b5579622bff380))
+* ci cd trigger policy ([#137](https://github.com/jellewillekes/ml-lifecycle-platform/issues/137)) ([ba77fcd](https://github.com/jellewillekes/ml-lifecycle-platform/commit/ba77fcd607bc5de590f31f92a4790591f082e315))
+* deploy platform workflows as cloud run jobs ([#114](https://github.com/jellewillekes/ml-lifecycle-platform/issues/114)) ([8ec3f03](https://github.com/jellewillekes/ml-lifecycle-platform/commit/8ec3f03f251cb67b3e8ca87903e78a3122e5cff0))
+* make hosted staging golden path deterministic ([#131](https://github.com/jellewillekes/ml-lifecycle-platform/issues/131)) ([28c4a25](https://github.com/jellewillekes/ml-lifecycle-platform/commit/28c4a255313579aa92f07e3983b65eead825f12e))
+
+
+### Bug Fixes
+
+* fix local operator path and golden-path validation ([#129](https://github.com/jellewillekes/ml-lifecycle-platform/issues/129)) ([a2a41d1](https://github.com/jellewillekes/ml-lifecycle-platform/commit/a2a41d1f7e1355fe23e1b9996fa91708c15fb13a))
+* hotfix cloud golden path ([#133](https://github.com/jellewillekes/ml-lifecycle-platform/issues/133)) ([4fffd57](https://github.com/jellewillekes/ml-lifecycle-platform/commit/4fffd57a02f763cd814cef07e5b125ea0c08445a))
+* hotfix cr jobs ([#118](https://github.com/jellewillekes/ml-lifecycle-platform/issues/118)) ([8ccd49e](https://github.com/jellewillekes/ml-lifecycle-platform/commit/8ccd49ea937a00221e8305372ab6c59dcf3b84e8))
+* read compose AWS creds from MLP_COMPOSE_* env vars ([#150](https://github.com/jellewillekes/ml-lifecycle-platform/issues/150)) ([f6327f4](https://github.com/jellewillekes/ml-lifecycle-platform/commit/f6327f41d9cf4f7c19ec0bc8aa171bb8263d789d)), closes [#142](https://github.com/jellewillekes/ml-lifecycle-platform/issues/142)
+* retry MLflow staging health probe and drop Cloud Run cold-start flakes ([#147](https://github.com/jellewillekes/ml-lifecycle-platform/issues/147)) ([6959995](https://github.com/jellewillekes/ml-lifecycle-platform/commit/6959995abd2c8b4c5a42d42bb45b3dbf72caa37b)), closes [#146](https://github.com/jellewillekes/ml-lifecycle-platform/issues/146)
+* shorten workflow names for README badges ([#140](https://github.com/jellewillekes/ml-lifecycle-platform/issues/140)) ([180d991](https://github.com/jellewillekes/ml-lifecycle-platform/commit/180d99156d81e7fbd6f99a3b5a504b705595989c))
+* stabilize hosted mlflow and staging baseline workflows ([#112](https://github.com/jellewillekes/ml-lifecycle-platform/issues/112)) ([18deee4](https://github.com/jellewillekes/ml-lifecycle-platform/commit/18deee477b5a3f2eff594471db249cc7361affab))
+
+
+### Documentation
+
+* add current operator guide for local and hosted paths ([#120](https://github.com/jellewillekes/ml-lifecycle-platform/issues/120)) ([1cb497f](https://github.com/jellewillekes/ml-lifecycle-platform/commit/1cb497f7a31c4352afa52d17a87b1574be87b91b))
+* add simplification charter (P01) ([#157](https://github.com/jellewillekes/ml-lifecycle-platform/issues/157)) ([77cc6b7](https://github.com/jellewillekes/ml-lifecycle-platform/commit/77cc6b7739672e04a07862847a10b8fa1d5d35a6))
+* reset repo story and architecture truth for OSS contributors (P03) ([#158](https://github.com/jellewillekes/ml-lifecycle-platform/issues/158)) ([bda0b28](https://github.com/jellewillekes/ml-lifecycle-platform/commit/bda0b282135a0339dda6a4be7633ee5d764be3f6))
+* verify post-cleanup state and bump Last verified dates ([#169](https://github.com/jellewillekes/ml-lifecycle-platform/issues/169)) ([b64f28c](https://github.com/jellewillekes/ml-lifecycle-platform/commit/b64f28cfa480ab88cd4c0403346f19756f7e76ba)), closes [#165](https://github.com/jellewillekes/ml-lifecycle-platform/issues/165)
+
 ## [0.5.2](https://github.com/jellewillekes/ml-lifecycle-platform/compare/v0.5.1...v0.5.2) (2026-03-10)
 
 
