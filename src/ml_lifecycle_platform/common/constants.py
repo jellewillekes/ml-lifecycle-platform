@@ -1,3 +1,7 @@
+"""Repo-wide constants: contract schema versions, registry alias names,
+MLflow tag keys, release-artifact filenames, and environment variable names
+shared across pipeline, registry, serving, and hosted CI."""
+
 from __future__ import annotations
 
 # Contracts schema versions

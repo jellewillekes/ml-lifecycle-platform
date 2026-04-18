@@ -1,3 +1,7 @@
+"""Runtime profile loader: reads the selected env YAML under configs/env/,
+applies `MLP_*` / `MLP_COMPOSE_*` env-var overrides, and validates the merged
+profile via pydantic before returning it to the bootstrap layer."""
+
 from __future__ import annotations
 
 from functools import lru_cache

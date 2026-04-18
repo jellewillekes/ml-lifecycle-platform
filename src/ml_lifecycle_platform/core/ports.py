@@ -1,3 +1,7 @@
+"""Runtime port Protocols: structural types for the artifact store, event
+store, job runner, secrets, and runtime metadata. Backend adapters (local,
+hosted) implement these without inheritance."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass

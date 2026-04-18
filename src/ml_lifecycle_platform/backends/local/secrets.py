@@ -1,3 +1,6 @@
+"""Environment-variable-backed `Secrets` adapter for the local runtime
+profile; pulls values directly from `os.environ`."""
+
 from __future__ import annotations
 
 import os

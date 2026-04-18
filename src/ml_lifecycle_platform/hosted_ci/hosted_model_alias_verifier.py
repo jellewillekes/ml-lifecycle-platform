@@ -1,3 +1,7 @@
+"""Verify that the hosted MLflow registry still resolves a given alias
+(default: `prod`) to a concrete model version — used by the maintenance
+job and CI staging readiness checks."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass

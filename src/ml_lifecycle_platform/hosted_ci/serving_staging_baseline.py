@@ -1,3 +1,7 @@
+"""Assemble the k6 baseline-context JSON that drives the serving staging
+load test — pins service URL, image, git SHA, and traffic scenarios for
+the next load run."""
+
 from __future__ import annotations
 
 import json

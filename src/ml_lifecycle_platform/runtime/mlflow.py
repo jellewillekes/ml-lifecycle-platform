@@ -1,3 +1,6 @@
+"""MlflowClient factory and experiment helper that honour the active runtime
+profile (tracking URI, registry URI, auth)."""
+
 from __future__ import annotations
 
 import mlflow

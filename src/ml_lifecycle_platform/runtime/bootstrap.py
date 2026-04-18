@@ -1,3 +1,6 @@
+"""Build the process-local RuntimeContext from the active runtime profile and
+configure MLflow tracking/registry URIs for CLI and pipeline entrypoints."""
+
 from __future__ import annotations
 
 from functools import lru_cache

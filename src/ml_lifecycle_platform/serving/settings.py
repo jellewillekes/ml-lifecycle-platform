@@ -1,3 +1,6 @@
+"""Pydantic `Settings` for the serving container — read straight from env
+vars, independent of the runtime profile loader used by the CLI."""
+
 from __future__ import annotations
 
 from functools import lru_cache

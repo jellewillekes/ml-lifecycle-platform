@@ -1,3 +1,6 @@
+"""Periodic hosted-staging maintenance check that the configured model alias
+still resolves to a registered version on the hosted MLflow tracking server."""
+
 from __future__ import annotations
 
 import argparse

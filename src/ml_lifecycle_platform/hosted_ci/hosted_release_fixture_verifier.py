@@ -1,3 +1,7 @@
+"""Verify that the hosted MLflow instance has a promotable release fixture:
+a candidate that clears promotion policy and a rollback target resolvable
+from the previous prod version."""
+
 from __future__ import annotations
 
 import json

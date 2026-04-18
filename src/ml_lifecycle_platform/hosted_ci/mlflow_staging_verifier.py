@@ -1,3 +1,7 @@
+"""HTTP reachability and round-trip smoke test for hosted MLflow staging —
+retries through Cloud Run cold starts, then logs and reads back a tiny
+artifact to prove tracking + artifact storage are both healthy."""
+
 from __future__ import annotations
 
 import time

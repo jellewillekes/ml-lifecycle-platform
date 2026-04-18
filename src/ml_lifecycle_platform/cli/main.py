@@ -1,3 +1,6 @@
+"""`mlp` CLI entrypoint — drives the local docker-compose stack and runs
+pipeline, registry, and serving commands inside the selected runtime profile."""
+
 from __future__ import annotations
 
 import argparse

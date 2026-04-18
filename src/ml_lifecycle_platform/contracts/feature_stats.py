@@ -1,3 +1,6 @@
+"""Schema-versioned feature distribution stats contract (per-feature
+summary statistics) logged alongside a training run."""
+
 from __future__ import annotations
 
 import json
