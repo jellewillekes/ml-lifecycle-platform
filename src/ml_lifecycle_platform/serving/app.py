@@ -15,7 +15,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from starlette.responses import Response
 
 try:
-    import mlflow  # type: ignore
+    import mlflow
     from mlflow.exceptions import MlflowException
 except Exception:  # pragma: no cover
     mlflow = None  # type: ignore[assignment]

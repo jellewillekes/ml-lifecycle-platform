@@ -32,7 +32,7 @@ class FeatureStats:
         raw = payload.get("stats")
         if not isinstance(raw, dict):
             raise TypeError("FeatureStats.stats must be a dict")
-        return FeatureStats(stats={str(k): dict(v) for k, v in raw.items()})  # type: ignore[arg-type]
+        return FeatureStats(stats={str(k): dict(v) for k, v in raw.items()})
 
     @staticmethod
     def from_json(payload: str) -> FeatureStats:
