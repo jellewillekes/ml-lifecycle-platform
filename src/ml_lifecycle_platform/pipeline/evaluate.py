@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import json
+
 import matplotlib.pyplot as plt
 import mlflow
 import numpy as np
@@ -17,7 +19,7 @@ from ml_lifecycle_platform.common.constants import (
     TAG_STEP,
     TEST_CSV,
 )
-from ml_lifecycle_platform.common.mlflow_utils import ensure_experiment, write_json
+from ml_lifecycle_platform.runtime.mlflow import ensure_experiment
 from ml_lifecycle_platform.runtime.bootstrap import get_runtime_context
 from ml_lifecycle_platform.core.batch_contracts import validate_labeled_dataset
 from ml_lifecycle_platform.core.model_specs import load_model_spec
@@ -60,7 +62,10 @@ def main() -> None:
 
     ctx.artifacts_dir.mkdir(parents=True, exist_ok=True)
     report_path = ctx.artifacts_dir / ART_EVALUATION_JSON
-    write_json(report_path, metrics)
+    report_bytes = json.dumps(metrics, indent=2, sort_keys=True).encode("utf-8")
+    ctx.artifact_store.write_bytes(
+        report_path.relative_to(ctx.artifacts_dir).as_posix(), report_bytes
+    )
 
     fig_path = ctx.artifacts_dir / ART_ROC_CURVE_PNG
     plt.figure()

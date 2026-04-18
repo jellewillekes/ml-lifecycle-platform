@@ -1,9 +1,5 @@
 from __future__ import annotations
 
-import json
-from pathlib import Path
-from typing import Any
-
 import mlflow
 from mlflow.tracking import MlflowClient
 
@@ -28,17 +24,3 @@ def client() -> MlflowClient:
         tracking_uri=runtime.metadata.tracking_uri,
         registry_uri=runtime.metadata.registry_uri,
     )
-
-
-def write_json(path: Path, payload: dict[str, Any]) -> None:
-    runtime = get_runtime_context()
-    content = json.dumps(payload, indent=2, sort_keys=True).encode("utf-8")
-    try:
-        relative_path = path.relative_to(runtime.artifacts_dir).as_posix()
-    except ValueError:
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_bytes(content)
-        return
-
-    # Keep writes under artifacts_dir going through the configured artifact store.
-    runtime.artifact_store.write_bytes(relative_path, content)

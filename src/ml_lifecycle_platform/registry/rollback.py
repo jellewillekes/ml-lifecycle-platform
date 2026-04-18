@@ -20,7 +20,7 @@ from ml_lifecycle_platform.common.constants import (
     TAG_RELEASE_MANIFEST_PATH,
     TAG_SOURCE_RUN_ID,
 )
-from ml_lifecycle_platform.common.mlflow_utils import client as mlflow_client
+from ml_lifecycle_platform.runtime.mlflow import client as mlflow_client
 from ml_lifecycle_platform.runtime.bootstrap import get_runtime_context
 from ml_lifecycle_platform.contracts.release_reports import (
     OperationResult,

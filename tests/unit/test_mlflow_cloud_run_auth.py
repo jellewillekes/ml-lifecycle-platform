@@ -6,7 +6,7 @@ import os
 
 import pytest
 
-from ml_lifecycle_platform.common import mlflow_cloud_run_auth
+from ml_lifecycle_platform.hosted_ci import mlflow_cloud_run_auth
 
 pytestmark = pytest.mark.unit
 

@@ -10,7 +10,7 @@ from ml_lifecycle_platform.common.constants import (
     TAG_MODEL_NAME,
     TAG_STEP,
 )
-from ml_lifecycle_platform.common.mlflow_utils import ensure_experiment
+from ml_lifecycle_platform.runtime.mlflow import ensure_experiment
 from ml_lifecycle_platform.runtime.bootstrap import get_runtime_context
 from ml_lifecycle_platform.core.batch_contracts import validate_labeled_dataset
 from ml_lifecycle_platform.core.model_spec_types import CsvSourceSpec, ModelSpec

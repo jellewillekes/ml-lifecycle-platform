@@ -10,7 +10,7 @@ from typing import Any
 from mlflow.exceptions import MlflowException
 from mlflow.tracking import MlflowClient
 
-from ml_lifecycle_platform.common.mlflow_utils import client as mlflow_client
+from ml_lifecycle_platform.runtime.mlflow import client as mlflow_client
 from ml_lifecycle_platform.runtime.bootstrap import get_runtime_context
 from ml_lifecycle_platform.common.constants import (
     ALIAS_CANDIDATE,
@@ -37,7 +37,7 @@ from ml_lifecycle_platform.contracts.release_reports import (
     render_model_card,
     utc_now_iso,
 )
-from ml_lifecycle_platform.core.policy_engine import (
+from ml_lifecycle_platform.policy.policy_engine import (
     PolicyDecision,
     evaluate_promotion_policy,
 )

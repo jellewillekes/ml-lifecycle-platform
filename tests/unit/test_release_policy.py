@@ -25,7 +25,7 @@ from ml_lifecycle_platform.core.model_spec_types import (
     PolicySpec,
     default_policy_spec,
 )
-from ml_lifecycle_platform.core.policy_engine import (
+from ml_lifecycle_platform.policy.policy_engine import (
     evaluate_gate_rule,
     evaluate_metric_thresholds_rule,
     evaluate_noop_promotion_rule,
@@ -33,7 +33,7 @@ from ml_lifecycle_platform.core.policy_engine import (
     evaluate_reproducibility_rule,
     evaluate_required_metadata_rule,
 )
-from ml_lifecycle_platform.core.policy_engine import evaluate_promotion_policy
+from ml_lifecycle_platform.policy.policy_engine import evaluate_promotion_policy
 from ml_lifecycle_platform.registry.promote import main as promote_main
 
 pytestmark = pytest.mark.unit
