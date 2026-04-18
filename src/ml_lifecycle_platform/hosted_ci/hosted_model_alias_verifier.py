@@ -4,6 +4,7 @@ from dataclasses import dataclass
 
 import mlflow
 from mlflow import MlflowClient
+from mlflow.exceptions import MlflowException
 
 
 class VerificationError(RuntimeError):
@@ -24,7 +25,7 @@ def verify_model_alias(config: HostedModelAliasVerificationConfig) -> str:
 
     try:
         version = client.get_model_version_by_alias(config.model_name, config.alias)
-    except Exception as error:
+    except MlflowException as error:
         raise VerificationError(
             "hosted MLflow is missing required model alias "
             f"'{config.model_name}@{config.alias}': {error}"

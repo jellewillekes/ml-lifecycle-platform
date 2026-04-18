@@ -309,7 +309,7 @@ def evaluate_promotion_policy(
         try:
             source_run = client.get_run(source_run_id)
             source_run_lookup_ok = True
-        except Exception:
+        except MlflowException:
             warnings.append(
                 Violation(
                     code="SOURCE_RUN_ID_NOT_FOUND",

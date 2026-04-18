@@ -90,7 +90,7 @@ def get_git_sha() -> str:
             ["git", "rev-parse", "HEAD"], stderr=subprocess.DEVNULL
         )
         return out.decode("utf-8").strip()
-    except Exception:
+    except (OSError, subprocess.CalledProcessError):
         return "unknown"
 
 

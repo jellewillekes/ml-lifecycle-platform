@@ -3,6 +3,7 @@ from __future__ import annotations
 from types import SimpleNamespace
 
 import pytest
+from mlflow.exceptions import MlflowException
 
 from ml_lifecycle_platform.hosted_ci.hosted_model_alias_verifier import (
     HostedModelAliasVerificationConfig,
@@ -55,7 +56,7 @@ def test_verify_model_alias_fails_with_actionable_message(
             self, model_name: str, alias: str
         ) -> SimpleNamespace:
             del model_name, alias
-            raise RuntimeError(
+            raise MlflowException(
                 "INVALID_PARAMETER_VALUE: Registered model alias prod not found."
             )
 

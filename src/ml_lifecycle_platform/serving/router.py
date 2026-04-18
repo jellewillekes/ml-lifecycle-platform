@@ -79,7 +79,7 @@ def choose_canary_bucket(ctx: BucketContext) -> BucketDecision:
             bucket=stable_bucket_from_rows(ctx.rows),
             seed_source=SeedSource.PAYLOAD_HASH,
         )
-    except Exception:
+    except (TypeError, ValueError):
         # Fallback if the payload is not JSON-serializable.
         seed = secrets.token_hex(16)
         return BucketDecision(
