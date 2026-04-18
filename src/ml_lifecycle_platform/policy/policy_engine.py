@@ -1,3 +1,7 @@
+"""Rules engine that validates a candidate model version against promotion
+policy: required metadata tags, gate status, release status, reproducibility
+evidence, and minimum metric thresholds."""
+
 from __future__ import annotations
 
 from collections.abc import Mapping

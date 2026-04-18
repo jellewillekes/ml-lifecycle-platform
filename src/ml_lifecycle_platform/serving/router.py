@@ -1,3 +1,6 @@
+"""Deterministic request routing between model variants (prod, candidate,
+canary, shadow) using stable bucketing from the request id or payload hash."""
+
 from __future__ import annotations
 
 import hashlib

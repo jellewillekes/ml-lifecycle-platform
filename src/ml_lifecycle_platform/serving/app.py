@@ -1,3 +1,7 @@
+"""FastAPI service exposing ``/predict``, ``/metadata``, and ``/metrics``,
+with request-level routing across the prod, candidate, canary, and shadow
+model aliases loaded from the MLflow registry."""
+
 from __future__ import annotations
 
 import json

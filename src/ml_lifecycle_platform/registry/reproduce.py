@@ -1,3 +1,6 @@
+"""Replay a training run from its reproducibility contract and verify that
+the produced model matches the registered one."""
+
 from __future__ import annotations
 
 import argparse

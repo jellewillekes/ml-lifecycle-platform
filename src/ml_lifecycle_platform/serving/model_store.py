@@ -1,3 +1,6 @@
+"""Hot-swappable store of the prod and candidate models loaded from the
+MLflow registry by alias, with background refresh and a unit-test stub."""
+
 from __future__ import annotations
 
 import threading

@@ -1,3 +1,6 @@
+"""Binary classification metric helpers shared by the train and evaluate
+pipeline steps."""
+
 from __future__ import annotations
 
 import numpy as np

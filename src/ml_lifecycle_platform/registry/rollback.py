@@ -1,3 +1,6 @@
+"""CLI to roll the prod alias back to a prior model version and emit audit
+evidence describing the rollback target."""
+
 from __future__ import annotations
 
 import argparse

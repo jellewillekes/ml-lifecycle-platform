@@ -1,3 +1,6 @@
+"""Row-level feature-contract validation used by the serving layer to
+reject malformed ``/predict`` inputs and by the pipeline for dataset checks."""
+
 from __future__ import annotations
 
 import math

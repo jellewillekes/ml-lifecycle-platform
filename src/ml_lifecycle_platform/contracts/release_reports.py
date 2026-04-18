@@ -1,3 +1,6 @@
+"""Typed schemas for the promotion and rollback release-report bundles that
+get written to MLflow artifacts (decision, manifest, rollback target, card)."""
+
 from __future__ import annotations
 
 import json

@@ -1,3 +1,6 @@
+"""Load the trained model from MLflow, score it on the held-out test split,
+emit evaluation artifacts, and write the gate marker when the gate passes."""
+
 from __future__ import annotations
 
 import json

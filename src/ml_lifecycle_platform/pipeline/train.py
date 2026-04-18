@@ -1,3 +1,7 @@
+"""Train the pipeline defined by the model spec, log metrics and
+reproducibility evidence to MLflow, and write the training run id for
+downstream steps."""
+
 from __future__ import annotations
 
 import hashlib

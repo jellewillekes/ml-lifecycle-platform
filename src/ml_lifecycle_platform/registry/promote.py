@@ -1,3 +1,6 @@
+"""CLI to promote a candidate model version to prod after running it through
+the promotion policy engine and writing a release-report bundle."""
+
 from __future__ import annotations
 
 import argparse

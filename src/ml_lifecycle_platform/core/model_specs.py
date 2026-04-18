@@ -1,3 +1,6 @@
+"""Parse model-spec YAML payloads into strongly-typed ``ModelSpec``
+dataclasses, enforcing the model-spec schema version."""
+
 from __future__ import annotations
 
 from pathlib import Path

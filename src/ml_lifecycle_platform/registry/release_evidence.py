@@ -1,3 +1,6 @@
+"""Write release-report bundles (promotion decision, rollback target,
+release manifest, model card) to MLflow artifacts for a model version."""
+
 from __future__ import annotations
 
 import logging

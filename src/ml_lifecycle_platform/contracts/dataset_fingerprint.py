@@ -1,3 +1,6 @@
+"""Stable dataset fingerprint (content and schema hashes) plus git-SHA
+capture, used by the pipeline for reproducible run lineage."""
+
 from __future__ import annotations
 
 import hashlib

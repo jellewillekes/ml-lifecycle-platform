@@ -1,3 +1,6 @@
+"""Build prediction payloads by running the primary model and, optionally,
+the shadow model for diff observability."""
+
 from __future__ import annotations
 
 import logging

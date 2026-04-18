@@ -1,3 +1,6 @@
+"""Pandera-backed dataset-level contracts used by pipeline steps to validate
+training and evaluation dataframes against the model spec."""
+
 from __future__ import annotations
 
 from typing import Any

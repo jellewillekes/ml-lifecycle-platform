@@ -1,3 +1,6 @@
+"""Drive the local pipeline end-to-end by running ingest, featurize, train,
+evaluate, and register as child MLflow runs under a single parent run."""
+
 from __future__ import annotations
 
 import mlflow
