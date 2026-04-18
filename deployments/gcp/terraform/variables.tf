@@ -110,3 +110,9 @@ variable "platform_image" {
   type        = string
   default     = ""
 }
+
+variable "otlp_collector_endpoint" {
+  description = "OTLP/gRPC endpoint of the self-hosted observability collector, e.g. 10.42.0.100:4317. Empty disables OTLP export on hosted Cloud Run. Provided by deployments/observability/terraform's otlp_collector_endpoint output."
+  type        = string
+  default     = ""
+}

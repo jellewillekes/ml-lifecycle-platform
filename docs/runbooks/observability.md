@@ -6,12 +6,18 @@ from the serving API and from every Cloud Run Job (`pipeline`, `promote`,
 the collector named in `OTEL_EXPORTER_OTLP_ENDPOINT`; the serving Prometheus
 `/metrics` endpoint stays available for local scrape.
 
+Bootstrap for the self-hosted Grafana/Prometheus/Tempo stack and how to
+wire staging to it are in
+[observability-setup.md](observability-setup.md). This page is the
+day-to-day reference for the telemetry surface itself.
+
 ## Environment
 
 | Variable | Purpose |
 | --- | --- |
-| `OTEL_EXPORTER_OTLP_ENDPOINT` | gRPC collector endpoint, e.g. `http://otel-collector:4317`. When unset, boot still succeeds and exporters become no-ops. |
-| `OTEL_EXPORTER_OTLP_HEADERS` | Auth header for Grafana Cloud, e.g. `authorization=Basic <token>`. |
+| `OTEL_EXPORTER_OTLP_ENDPOINT` | OTLP collector endpoint. Local dev: `http://otel-collector:4317`. Hosted staging: `http://<obs-vm-internal-ip>:4317` (default `10.42.0.100:4317`). When unset, boot still succeeds and exporters become no-ops. |
+| `OTEL_EXPORTER_OTLP_PROTOCOL` | `grpc` end-to-end (default). `http/protobuf` is kept as a fallback for any future managed OTLP/HTTP gateway. |
+| `OTEL_EXPORTER_OTLP_INSECURE` | `true` when targeting the internal collector over plain gRPC (no TLS inside the VPC). |
 | `GOOGLE_CLOUD_PROJECT` | When set, logs emit `logging.googleapis.com/trace` as `projects/<id>/traces/<trace_id>` so Cloud Logging Explorer resolves the jump to trace. |
 | `MLP_RUN_ID` | Overrides the generated run_id inside `start_job`. Set this to the Cloud Run execution ID so one log/trace group per run is visible end-to-end. |
 
@@ -46,8 +52,9 @@ Workflow in Cloud Logging Explorer:
 
 1. Filter for the service: `jsonPayload.service="serving"` (or `promote`, etc.).
 2. Open a log record and click the trace icon. Cloud Logging resolves the
-   trace ID and opens the matching span in Cloud Trace (or the linked
-   Grafana Tempo view in M3 once Grafana Cloud is wired up in UP-27).
+   trace ID and opens the matching span in Cloud Trace. Full-detail trace
+   view lives in the self-hosted Grafana → Tempo datasource once staging
+   is wired up per [observability-setup.md](observability-setup.md).
 3. From the span, use the same trace ID to find every other log line in the
    request or job run.
 
@@ -84,4 +91,6 @@ under the same names and label keys:
 - `shadow_diff_mae{mode}`
 
 `/metrics` continues to serve the Prometheus exposition format unchanged.
-OTLP metrics flow through the collector to Grafana Cloud.
+OTLP metrics flow through the collector into the self-hosted Prometheus
+TSDB. Tempo's `metrics_generator` adds `traces_spanmetrics_*` and
+`traces_service_graph_*` series automatically from span data.

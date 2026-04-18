@@ -1,6 +1,7 @@
 locals {
   serving_service_name   = "${local.foundation_name_prefix}-serving-staging"
   serving_deploy_enabled = length(trimspace(var.serving_image)) > 0
+  otlp_enabled           = length(trimspace(var.otlp_collector_endpoint)) > 0
 }
 
 resource "google_cloud_run_v2_service" "serving" {
@@ -100,6 +101,35 @@ resource "google_cloud_run_v2_service" "serving" {
       env {
         name  = "LOG_LEVEL"
         value = "INFO"
+      }
+
+      env {
+        name  = "GOOGLE_CLOUD_PROJECT"
+        value = data.google_project.current.project_id
+      }
+
+      dynamic "env" {
+        for_each = local.otlp_enabled ? [1] : []
+        content {
+          name  = "OTEL_EXPORTER_OTLP_ENDPOINT"
+          value = "http://${var.otlp_collector_endpoint}"
+        }
+      }
+
+      dynamic "env" {
+        for_each = local.otlp_enabled ? [1] : []
+        content {
+          name  = "OTEL_EXPORTER_OTLP_PROTOCOL"
+          value = "grpc"
+        }
+      }
+
+      dynamic "env" {
+        for_each = local.otlp_enabled ? [1] : []
+        content {
+          name  = "OTEL_EXPORTER_OTLP_INSECURE"
+          value = "true"
+        }
       }
 
       startup_probe {

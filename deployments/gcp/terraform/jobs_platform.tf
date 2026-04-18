@@ -68,6 +68,15 @@ resource "google_cloud_run_v2_job" "platform" {
       timeout         = each.value.timeout
       max_retries     = 0
 
+      vpc_access {
+        egress = "PRIVATE_RANGES_ONLY"
+
+        network_interfaces {
+          network    = google_compute_network.staging.id
+          subnetwork = google_compute_subnetwork.staging.id
+        }
+      }
+
       containers {
         image   = var.platform_image
         command = each.value.command
@@ -113,6 +122,35 @@ resource "google_cloud_run_v2_job" "platform" {
         env {
           name  = "LOG_LEVEL"
           value = "INFO"
+        }
+
+        env {
+          name  = "GOOGLE_CLOUD_PROJECT"
+          value = data.google_project.current.project_id
+        }
+
+        dynamic "env" {
+          for_each = local.otlp_enabled ? [1] : []
+          content {
+            name  = "OTEL_EXPORTER_OTLP_ENDPOINT"
+            value = "http://${var.otlp_collector_endpoint}"
+          }
+        }
+
+        dynamic "env" {
+          for_each = local.otlp_enabled ? [1] : []
+          content {
+            name  = "OTEL_EXPORTER_OTLP_PROTOCOL"
+            value = "grpc"
+          }
+        }
+
+        dynamic "env" {
+          for_each = local.otlp_enabled ? [1] : []
+          content {
+            name  = "OTEL_EXPORTER_OTLP_INSECURE"
+            value = "true"
+          }
         }
       }
     }

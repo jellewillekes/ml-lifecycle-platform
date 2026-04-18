@@ -5,6 +5,12 @@ metrics, reading the endpoint from ``OTEL_EXPORTER_OTLP_ENDPOINT``. All
 exporter setup is best-effort: if the collector is unreachable or the
 endpoint is unset, boot continues with a no-op tracer/meter.
 
+Protocol selection follows the OTel SDK convention via
+``OTEL_EXPORTER_OTLP_PROTOCOL``: ``grpc`` (default, used end-to-end by both
+the local compose collector and the self-hosted staging collector) or
+``http/protobuf`` (kept as a future option for any managed OTLP/HTTP
+gateway).
+
 The Prometheus ``/metrics`` endpoint remains the local scrape surface
 (metrics are dual-emitted to Prometheus and to OTel), so compose stays
 unchanged.
@@ -28,6 +34,40 @@ def _otlp_enabled() -> bool:
     return bool(os.getenv("OTEL_EXPORTER_OTLP_ENDPOINT", "").strip())
 
 
+def _otlp_protocol() -> str:
+    return os.getenv("OTEL_EXPORTER_OTLP_PROTOCOL", "grpc").strip().lower()
+
+
+def _build_span_exporter() -> Any:
+    if _otlp_protocol() == "http/protobuf":
+        from opentelemetry.exporter.otlp.proto.http.trace_exporter import (
+            OTLPSpanExporter as HttpSpanExporter,
+        )
+
+        return HttpSpanExporter()
+
+    from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import (
+        OTLPSpanExporter as GrpcSpanExporter,
+    )
+
+    return GrpcSpanExporter()
+
+
+def _build_metric_exporter() -> Any:
+    if _otlp_protocol() == "http/protobuf":
+        from opentelemetry.exporter.otlp.proto.http.metric_exporter import (
+            OTLPMetricExporter as HttpMetricExporter,
+        )
+
+        return HttpMetricExporter()
+
+    from opentelemetry.exporter.otlp.proto.grpc.metric_exporter import (
+        OTLPMetricExporter as GrpcMetricExporter,
+    )
+
+    return GrpcMetricExporter()
+
+
 def _install_trace_provider(service: str, resource: Resource) -> None:
     from opentelemetry.sdk.trace import TracerProvider
     from opentelemetry.sdk.trace.export import BatchSpanProcessor
@@ -35,11 +75,7 @@ def _install_trace_provider(service: str, resource: Resource) -> None:
     provider = TracerProvider(resource=resource)
     if _otlp_enabled():
         try:
-            from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import (
-                OTLPSpanExporter,
-            )
-
-            provider.add_span_processor(BatchSpanProcessor(OTLPSpanExporter()))
+            provider.add_span_processor(BatchSpanProcessor(_build_span_exporter()))
         except Exception as exc:  # pragma: no cover - best effort
             logger.warning(
                 "otel trace exporter init failed; traces will be dropped: %s",
@@ -55,11 +91,7 @@ def _install_meter_provider(service: str, resource: Resource) -> None:
     readers: list[Any] = []
     if _otlp_enabled():
         try:
-            from opentelemetry.exporter.otlp.proto.grpc.metric_exporter import (
-                OTLPMetricExporter,
-            )
-
-            readers.append(PeriodicExportingMetricReader(OTLPMetricExporter()))
+            readers.append(PeriodicExportingMetricReader(_build_metric_exporter()))
         except Exception as exc:  # pragma: no cover - best effort
             logger.warning(
                 "otel metric exporter init failed; metrics will be dropped: %s",
