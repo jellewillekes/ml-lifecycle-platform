@@ -1,0 +1,18 @@
+# Copy to terraform.tfvars (gitignored) and adjust as needed.
+# See docs/runbooks/observability-setup.md for the full apply flow.
+
+project_id = "fpl-project-jelle"
+region     = "europe-west1"
+zone       = "europe-west1-b"
+
+# Existing staging VPC + subnet (owned by deployments/gcp/terraform).
+staging_network_name    = "mlp-staging-vpc"
+staging_subnetwork_name = "mlp-staging-subnet"
+
+# Machine sizing — e2-medium is the honest floor for Prometheus + Tempo + Grafana.
+vm_machine_type         = "e2-medium"
+vm_static_internal_ip   = "10.42.0.100"
+prometheus_disk_size_gb = 50
+
+# Lock Grafana UI to one operator CIDR. Replace 127.0.0.1/32 before you want to log in.
+grafana_admin_cidr = "127.0.0.1/32"

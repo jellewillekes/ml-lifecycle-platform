@@ -111,15 +111,8 @@ variable "platform_image" {
   default     = ""
 }
 
-variable "grafana_cloud_otlp_endpoint" {
-  description = "Grafana Cloud OTLP/HTTP gateway base URL, e.g. https://otlp-gateway-prod-eu-west-0.grafana.net/otlp. Empty disables OTLP export on hosted Cloud Run."
+variable "otlp_collector_endpoint" {
+  description = "OTLP/gRPC endpoint of the self-hosted observability collector, e.g. 10.42.0.100:4317. Empty disables OTLP export on hosted Cloud Run. Provided by deployments/observability/terraform's otlp_collector_endpoint output."
   type        = string
-  default     = ""
-}
-
-variable "grafana_cloud_otlp_auth_header" {
-  description = "Value for OTEL_EXPORTER_OTLP_HEADERS (e.g. 'Authorization=Basic <base64>'). Stored in Secret Manager and mounted into hosted Cloud Run services."
-  type        = string
-  sensitive   = true
   default     = ""
 }

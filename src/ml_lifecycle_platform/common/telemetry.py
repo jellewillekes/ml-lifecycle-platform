@@ -6,8 +6,10 @@ exporter setup is best-effort: if the collector is unreachable or the
 endpoint is unset, boot continues with a no-op tracer/meter.
 
 Protocol selection follows the OTel SDK convention via
-``OTEL_EXPORTER_OTLP_PROTOCOL``: ``grpc`` (default, used by the local
-collector) or ``http/protobuf`` (used by Grafana Cloud's OTLP gateway).
+``OTEL_EXPORTER_OTLP_PROTOCOL``: ``grpc`` (default, used end-to-end by both
+the local compose collector and the self-hosted staging collector) or
+``http/protobuf`` (kept as a future option for any managed OTLP/HTTP
+gateway).
 
 The Prometheus ``/metrics`` endpoint remains the local scrape surface
 (metrics are dual-emitted to Prometheus and to OTel), so compose stays

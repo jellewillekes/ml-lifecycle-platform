@@ -76,7 +76,7 @@ models:/<model_name>@prod
 - hosted Cloud Run Jobs for platform actions are live and manually validated
 - Cloud Scheduler now triggers conservative maintenance cadence on top of those jobs
 - bootstrap IAM for `mlp-ci` bucket access is still partially out-of-band and documented in the runbooks
-- Grafana Cloud account, stack, and access-policy token are partially out-of-band (created in the Grafana Cloud UI, fed to Terraform via env vars); datasources, contact points, and the Cloud Run OTLP wiring are managed by the `deployments/grafana/terraform/` and `deployments/gcp/terraform/` roots, documented in [docs/runbooks/observability-setup.md](../runbooks/observability-setup.md)
+- self-hosted observability stack (OpenTelemetry Collector + Prometheus + Tempo + Grafana OSS) runs on a single GCE VM inside the staging VPC; the VM, firewall rules, Tempo GCS bucket, config bucket, and Secret Manager entries are managed by `deployments/observability/terraform/`, and the OTLP wiring into Cloud Run is managed by `deployments/gcp/terraform/`, both documented in [docs/runbooks/observability-setup.md](../runbooks/observability-setup.md)
 - current operating target is:
   - local green
   - GCP staging green

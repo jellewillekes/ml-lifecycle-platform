@@ -68,6 +68,15 @@ resource "google_cloud_run_v2_job" "platform" {
       timeout         = each.value.timeout
       max_retries     = 0
 
+      vpc_access {
+        egress = "PRIVATE_RANGES_ONLY"
+
+        network_interfaces {
+          network    = google_compute_network.staging.id
+          subnetwork = google_compute_subnetwork.staging.id
+        }
+      }
+
       containers {
         image   = var.platform_image
         command = each.value.command
@@ -124,7 +133,7 @@ resource "google_cloud_run_v2_job" "platform" {
           for_each = local.otlp_enabled ? [1] : []
           content {
             name  = "OTEL_EXPORTER_OTLP_ENDPOINT"
-            value = var.grafana_cloud_otlp_endpoint
+            value = "http://${var.otlp_collector_endpoint}"
           }
         }
 
@@ -132,20 +141,15 @@ resource "google_cloud_run_v2_job" "platform" {
           for_each = local.otlp_enabled ? [1] : []
           content {
             name  = "OTEL_EXPORTER_OTLP_PROTOCOL"
-            value = "http/protobuf"
+            value = "grpc"
           }
         }
 
         dynamic "env" {
           for_each = local.otlp_enabled ? [1] : []
           content {
-            name = "OTEL_EXPORTER_OTLP_HEADERS"
-            value_source {
-              secret_key_ref {
-                secret  = google_secret_manager_secret.otlp_auth_header[0].secret_id
-                version = "latest"
-              }
-            }
+            name  = "OTEL_EXPORTER_OTLP_INSECURE"
+            value = "true"
           }
         }
       }
@@ -155,7 +159,6 @@ resource "google_cloud_run_v2_job" "platform" {
   depends_on = [
     google_project_service.required["run.googleapis.com"],
     google_cloud_run_v2_service.mlflow,
-    google_secret_manager_secret_iam_member.runtime_otlp_auth_accessor,
   ]
 }
 
