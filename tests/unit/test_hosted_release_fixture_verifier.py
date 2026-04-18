@@ -9,7 +9,7 @@ from ml_lifecycle_platform.hosted_ci.hosted_release_fixture_verifier import (
     VerificationError,
     verify_release_fixture,
 )
-from ml_lifecycle_platform.core.policy_engine import PolicyDecision, Violation
+from ml_lifecycle_platform.policy.policy_engine import PolicyDecision, Violation
 
 pytestmark = pytest.mark.unit
 
