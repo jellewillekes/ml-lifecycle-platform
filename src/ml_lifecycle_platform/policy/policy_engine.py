@@ -32,6 +32,8 @@ REPRODUCIBILITY_EVIDENCE_TAGS: tuple[str, ...] = (
 
 
 class PromotionPolicyClient(Protocol):
+    # Returns kept as Any: real callers pass mlflow.ModelVersion / mlflow.Run,
+    # but unit tests fake this surface with SimpleNamespace.
     def get_model_version_by_alias(self, model_name: str, alias: str) -> Any: ...
 
     def get_model_version(self, model_name: str, version: str) -> Any: ...

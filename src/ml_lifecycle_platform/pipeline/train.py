@@ -11,6 +11,7 @@ import joblib
 import mlflow
 import pandas as pd
 from mlflow.models.signature import infer_signature
+from sklearn.base import BaseEstimator
 from sklearn.linear_model import LogisticRegression
 from sklearn.pipeline import Pipeline
 
@@ -91,7 +92,7 @@ REPRO_ENV_ARTIFACT_PATH: Final[str] = f"{MLFLOW_ARTIFACT_PATH_REPRO}/env"
 class TrainingInputs:
     train_df: pd.DataFrame
     test_df: pd.DataFrame
-    preprocessor: Any
+    preprocessor: BaseEstimator
 
 
 @dataclass

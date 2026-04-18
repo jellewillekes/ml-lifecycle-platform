@@ -12,6 +12,7 @@ from ml_lifecycle_platform.common.constants import (
     ART_ROLLBACK_TARGET_JSON,
     RELEASE_REPORT_SCHEMA_VERSION,
 )
+from ml_lifecycle_platform.policy.policy_engine import PolicyDecision
 
 
 def utc_now_iso() -> str:
@@ -38,7 +39,7 @@ class PolicyOutcome:
         }
 
     @classmethod
-    def from_policy_decision(cls, decision: Any) -> PolicyOutcome:
+    def from_policy_decision(cls, decision: PolicyDecision) -> PolicyOutcome:
         return cls(
             status="evaluated",
             allowed=bool(decision.allowed),
