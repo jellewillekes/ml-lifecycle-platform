@@ -2,12 +2,12 @@ locals {
   config_bucket_name = "${var.project_id}-${var.config_bucket_suffix}"
 
   config_files = {
-    "docker-compose.yml"                                  = "${path.module}/../docker-compose.yml"
-    "otel-collector.yaml"                                 = "${path.module}/../otel-collector.yaml"
-    "prometheus.yml"                                      = "${path.module}/../prometheus.yml"
-    "tempo.yaml"                                          = "${path.module}/../tempo.yaml"
-    "grafana/provisioning/datasources/datasources.yaml"   = "${path.module}/../grafana/provisioning/datasources/datasources.yaml"
-    "grafana/provisioning/dashboards/dashboards.yaml"     = "${path.module}/../grafana/provisioning/dashboards/dashboards.yaml"
+    "docker-compose.yml"                                = "${path.module}/../docker-compose.yml"
+    "otel-collector.yaml"                               = "${path.module}/../otel-collector.yaml"
+    "prometheus.yml"                                    = "${path.module}/../prometheus.yml"
+    "tempo.yaml"                                        = "${path.module}/../tempo.yaml"
+    "grafana/provisioning/datasources/datasources.yaml" = "${path.module}/../grafana/provisioning/datasources/datasources.yaml"
+    "grafana/provisioning/dashboards/dashboards.yaml"   = "${path.module}/../grafana/provisioning/dashboards/dashboards.yaml"
   }
 }
 

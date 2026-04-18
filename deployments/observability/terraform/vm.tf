@@ -91,7 +91,7 @@ resource "google_compute_instance" "observability" {
   machine_type = var.vm_machine_type
   zone         = var.zone
 
-  tags = [local.name_prefix]
+  tags   = [local.name_prefix]
   labels = merge(local.common_labels, { purpose = "observability_stack" })
 
   boot_disk {
