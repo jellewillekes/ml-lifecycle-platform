@@ -228,6 +228,105 @@ def _try_get_alias_version(
     return str(mv.version)
 
 
+@dataclass(frozen=True)
+class _SourceRunState:
+    run: Any | None
+    lookup_ok: bool
+    run_id: str
+
+
+def _evaluate_warning_rules(
+    client: PromotionPolicyClient,
+    candidate_tags: Mapping[str, str],
+) -> tuple[list[Violation], _SourceRunState]:
+    warnings: list[Violation] = []
+    source_run_id = str(candidate_tags.get(TAG_SOURCE_RUN_ID, "")).strip()
+    if not source_run_id:
+        warnings.append(
+            Violation(
+                code="MISSING_SOURCE_RUN_ID",
+                message="Missing source_run_id tag; promotion will be less auditable.",
+                details={"tag": TAG_SOURCE_RUN_ID},
+            )
+        )
+        return warnings, _SourceRunState(
+            run=None, lookup_ok=False, run_id=source_run_id
+        )
+
+    try:
+        source_run = client.get_run(source_run_id)
+    except MlflowException:
+        warnings.append(
+            Violation(
+                code="SOURCE_RUN_ID_NOT_FOUND",
+                message="source_run_id tag is present but the MLflow run could not be fetched.",
+                details={"run_id": source_run_id},
+            )
+        )
+        return warnings, _SourceRunState(
+            run=None, lookup_ok=False, run_id=source_run_id
+        )
+
+    return warnings, _SourceRunState(
+        run=source_run, lookup_ok=True, run_id=source_run_id
+    )
+
+
+def _evaluate_error_rules(
+    *,
+    candidate_tags: Mapping[str, str],
+    policy: PolicySpec,
+    candidate_version: str,
+    current_prod_version: str | None,
+    source_run_state: _SourceRunState,
+) -> list[Violation]:
+    errors: list[Violation] = []
+    for violation in (
+        evaluate_required_metadata_rule(candidate_tags, policy),
+        evaluate_gate_rule(candidate_tags),
+        evaluate_release_status_rule(candidate_tags, policy),
+        evaluate_noop_promotion_rule(
+            candidate_version=candidate_version,
+            current_prod_version=current_prod_version,
+            policy=policy,
+        ),
+    ):
+        if violation is not None:
+            errors.append(violation)
+
+    errors.extend(
+        evaluate_reproducibility_rule(
+            candidate_tags=candidate_tags,
+            policy=policy,
+            source_run_lookup_ok=source_run_state.lookup_ok,
+        )
+    )
+    errors.extend(
+        evaluate_metric_thresholds_rule(
+            source_run=source_run_state.run,
+            source_run_id=source_run_state.run_id,
+            policy=policy,
+        )
+    )
+    return errors
+
+
+def _candidate_tags_subset(candidate_tags: Mapping[str, str]) -> dict[str, str]:
+    keys = (
+        TAG_GATE,
+        TAG_RELEASE_STATUS,
+        TAG_SOURCE_RUN_ID,
+        TAG_DATASET_FINGERPRINT,
+        TAG_GIT_SHA,
+        TAG_CONFIG_HASH,
+        TAG_TRAINING_RUN_ID,
+        TAG_ENV_LOCK_HASH,
+        TAG_DETERMINISTIC_SEED,
+        TAG_REPRO_SCHEMA_VERSION,
+    )
+    return {key: candidate_tags.get(key, "") for key in keys}
+
+
 def evaluate_promotion_policy(
     client: PromotionPolicyClient,
     model_name: str,
@@ -237,8 +336,6 @@ def evaluate_promotion_policy(
     to_alias: str = ALIAS_PROD,
 ) -> PolicyDecision:
     active_policy = default_policy_spec() if policy is None else policy
-    errors: list[Violation] = []
-    warnings: list[Violation] = []
 
     candidate_version = _try_get_alias_version(client, model_name, from_alias)
     current_prod_version = _try_get_alias_version(client, model_name, to_alias)
@@ -252,85 +349,30 @@ def evaluate_promotion_policy(
     }
 
     if candidate_version is None:
-        errors.append(
-            Violation(
-                code="MISSING_ALIAS",
-                message=f"Promotion blocked: alias '{from_alias}' does not exist.",
-                details={"alias": from_alias},
-            )
-        )
         return PolicyDecision(
             allowed=False,
-            errors=tuple(errors),
-            warnings=tuple(warnings),
+            errors=(
+                Violation(
+                    code="MISSING_ALIAS",
+                    message=f"Promotion blocked: alias '{from_alias}' does not exist.",
+                    details={"alias": from_alias},
+                ),
+            ),
+            warnings=(),
             context=context,
         )
 
     candidate = client.get_model_version(model_name, candidate_version)
     candidate_tags = candidate.tags or {}
-    context["candidate_tags_subset"] = {
-        TAG_GATE: candidate_tags.get(TAG_GATE, ""),
-        TAG_RELEASE_STATUS: candidate_tags.get(TAG_RELEASE_STATUS, ""),
-        TAG_SOURCE_RUN_ID: candidate_tags.get(TAG_SOURCE_RUN_ID, ""),
-        TAG_DATASET_FINGERPRINT: candidate_tags.get(TAG_DATASET_FINGERPRINT, ""),
-        TAG_GIT_SHA: candidate_tags.get(TAG_GIT_SHA, ""),
-        TAG_CONFIG_HASH: candidate_tags.get(TAG_CONFIG_HASH, ""),
-        TAG_TRAINING_RUN_ID: candidate_tags.get(TAG_TRAINING_RUN_ID, ""),
-        TAG_ENV_LOCK_HASH: candidate_tags.get(TAG_ENV_LOCK_HASH, ""),
-        TAG_DETERMINISTIC_SEED: candidate_tags.get(TAG_DETERMINISTIC_SEED, ""),
-        TAG_REPRO_SCHEMA_VERSION: candidate_tags.get(TAG_REPRO_SCHEMA_VERSION, ""),
-    }
+    context["candidate_tags_subset"] = _candidate_tags_subset(candidate_tags)
 
-    for violation in (
-        evaluate_required_metadata_rule(candidate_tags, active_policy),
-        evaluate_gate_rule(candidate_tags),
-        evaluate_release_status_rule(candidate_tags, active_policy),
-        evaluate_noop_promotion_rule(
-            candidate_version=candidate_version,
-            current_prod_version=current_prod_version,
-            policy=active_policy,
-        ),
-    ):
-        if violation is not None:
-            errors.append(violation)
-
-    source_run = None
-    source_run_lookup_ok = False
-    source_run_id = str(candidate_tags.get(TAG_SOURCE_RUN_ID, "")).strip()
-    if not source_run_id:
-        warnings.append(
-            Violation(
-                code="MISSING_SOURCE_RUN_ID",
-                message="Missing source_run_id tag; promotion will be less auditable.",
-                details={"tag": TAG_SOURCE_RUN_ID},
-            )
-        )
-    else:
-        try:
-            source_run = client.get_run(source_run_id)
-            source_run_lookup_ok = True
-        except MlflowException:
-            warnings.append(
-                Violation(
-                    code="SOURCE_RUN_ID_NOT_FOUND",
-                    message="source_run_id tag is present but the MLflow run could not be fetched.",
-                    details={"run_id": source_run_id},
-                )
-            )
-
-    errors.extend(
-        evaluate_reproducibility_rule(
-            candidate_tags=candidate_tags,
-            policy=active_policy,
-            source_run_lookup_ok=source_run_lookup_ok,
-        )
-    )
-    errors.extend(
-        evaluate_metric_thresholds_rule(
-            source_run=source_run,
-            source_run_id=source_run_id,
-            policy=active_policy,
-        )
+    warnings, source_run_state = _evaluate_warning_rules(client, candidate_tags)
+    errors = _evaluate_error_rules(
+        candidate_tags=candidate_tags,
+        policy=active_policy,
+        candidate_version=candidate_version,
+        current_prod_version=current_prod_version,
+        source_run_state=source_run_state,
     )
 
     return PolicyDecision(

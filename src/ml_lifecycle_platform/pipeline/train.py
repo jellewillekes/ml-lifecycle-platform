@@ -228,6 +228,85 @@ def _write_json(path: Path, payload: Mapping[str, Any]) -> None:
     path.write_text(json.dumps(payload, indent=2, sort_keys=True), encoding="utf-8")
 
 
+def _log_training_tags(
+    *,
+    run_id: str,
+    spec: ModelSpec,
+    config_hash: str,
+    params: Mapping[str, Any],
+) -> None:
+    mlflow.set_tag(TAG_STEP, STEP_TRAIN)
+    mlflow.set_tag(TAG_MODEL_NAME, spec.model_name)
+    mlflow.set_tag(TAG_TRAINING_RUN_ID, run_id)
+    mlflow.set_tag(TAG_CONFIG_HASH, config_hash)
+    mlflow.set_tag(TAG_DETERMINISTIC_SEED, str(params["random_state"]))
+
+
+def _compute_fingerprint_and_tags(
+    inputs: TrainingInputs,
+    data_source_uri: str,
+) -> tuple[DatasetFingerprint, str]:
+    fp = compute_fingerprint(
+        train_df=inputs.train_df,
+        test_df=inputs.test_df,
+        data_source_uri=data_source_uri,
+        index_cols=None,
+    )
+    dataset_fingerprint_hash = sha256_text(fp.to_json())
+    mlflow.set_tags(fp.as_tags())
+    mlflow.set_tag(TAG_DATASET_FINGERPRINT, dataset_fingerprint_hash)
+    mlflow.set_tag(TAG_ENV_LOCK_HASH, get_uv_lock_hash())
+    return fp, dataset_fingerprint_hash
+
+
+def _record_repro_contract(
+    *,
+    art_dir: Path,
+    data_dir: Path,
+    result: TrainingResult,
+    repro_contract: ReproContract,
+    fp: DatasetFingerprint,
+) -> tuple[Path, Path]:
+    fp_path = art_dir / ART_DATASET_FINGERPRINT_JSON
+    write_fingerprint_json(fp, fp_path)
+    mlflow.log_artifact(str(fp_path), artifact_path=MLFLOW_ARTIFACT_PATH_REPORTS)
+
+    summary_path = art_dir / ART_TRAIN_SUMMARY_JSON
+    _write_json(summary_path, result.metrics)
+    mlflow.log_artifact(str(summary_path), artifact_path=MLFLOW_ARTIFACT_PATH_REPORTS)
+
+    contract_path = art_dir / ART_REPRO_CONTRACT_JSON
+    contract_path.write_text(repro_contract.to_json(), encoding="utf-8")
+    mlflow.log_artifact(str(contract_path), artifact_path=MLFLOW_ARTIFACT_PATH_REPRO)
+
+    probe_inputs_path = art_dir / ART_REPRO_PROBE_INPUTS_CSV
+    result.probe_inputs.to_csv(probe_inputs_path, index=False)
+    mlflow.log_artifact(
+        str(probe_inputs_path), artifact_path=REPRO_INPUTS_ARTIFACT_PATH
+    )
+
+    expected_predictions_path = art_dir / ART_REPRO_EXPECTED_PREDICTIONS_JSON
+    _write_json(
+        expected_predictions_path,
+        {"probabilities": result.expected_probabilities},
+    )
+    mlflow.log_artifact(
+        str(expected_predictions_path), artifact_path=REPRO_OUTPUTS_ARTIFACT_PATH
+    )
+
+    mlflow.log_artifact(str(get_uv_lock_path()), artifact_path=REPRO_ENV_ARTIFACT_PATH)
+    mlflow.log_artifact(
+        str(data_dir / TRAIN_CSV), artifact_path=REPRO_INPUTS_ARTIFACT_PATH
+    )
+    mlflow.log_artifact(
+        str(data_dir / TEST_CSV), artifact_path=REPRO_INPUTS_ARTIFACT_PATH
+    )
+    mlflow.log_artifact(
+        str(art_dir / ART_PREPROCESSOR), artifact_path=REPRO_INPUTS_ARTIFACT_PATH
+    )
+    return fp_path, contract_path
+
+
 def main() -> None:
     ctx = get_runtime_context()
     logging.basicConfig(level=ctx.log_level)
@@ -243,24 +322,15 @@ def main() -> None:
     inputs = load_training_inputs()
 
     with mlflow.start_run(run_name="train") as run:
-        mlflow.set_tag(TAG_STEP, STEP_TRAIN)
-        mlflow.set_tag(TAG_MODEL_NAME, spec.model_name)
-        mlflow.set_tag(TAG_TRAINING_RUN_ID, run.info.run_id)
-        mlflow.set_tag(TAG_CONFIG_HASH, config_hash)
-        mlflow.set_tag(TAG_DETERMINISTIC_SEED, str(params["random_state"]))
-
-        fp = compute_fingerprint(
-            train_df=inputs.train_df,
-            test_df=inputs.test_df,
-            data_source_uri=data_source_uri,
-            index_cols=None,
+        _log_training_tags(
+            run_id=run.info.run_id,
+            spec=spec,
+            config_hash=config_hash,
+            params=params,
         )
-        dataset_fingerprint_hash = sha256_text(fp.to_json())
-
-        mlflow.set_tags(fp.as_tags())
-        mlflow.set_tag(TAG_DATASET_FINGERPRINT, dataset_fingerprint_hash)
-        mlflow.set_tag(TAG_ENV_LOCK_HASH, get_uv_lock_hash())
-
+        fp, dataset_fingerprint_hash = _compute_fingerprint_and_tags(
+            inputs, data_source_uri
+        )
         result = train_from_inputs(inputs, spec)
         repro_contract = build_repro_contract(
             training_run_id=run.info.run_id,
@@ -276,47 +346,12 @@ def main() -> None:
         art_dir = ctx.artifacts_dir
         art_dir.mkdir(parents=True, exist_ok=True)
 
-        fp_path = art_dir / ART_DATASET_FINGERPRINT_JSON
-        write_fingerprint_json(fp, fp_path)
-        mlflow.log_artifact(str(fp_path), artifact_path=MLFLOW_ARTIFACT_PATH_REPORTS)
-
-        summary_path = art_dir / ART_TRAIN_SUMMARY_JSON
-        _write_json(summary_path, result.metrics)
-        mlflow.log_artifact(
-            str(summary_path), artifact_path=MLFLOW_ARTIFACT_PATH_REPORTS
-        )
-
-        contract_path = art_dir / ART_REPRO_CONTRACT_JSON
-        contract_path.write_text(repro_contract.to_json(), encoding="utf-8")
-        mlflow.log_artifact(
-            str(contract_path), artifact_path=MLFLOW_ARTIFACT_PATH_REPRO
-        )
-
-        probe_inputs_path = art_dir / ART_REPRO_PROBE_INPUTS_CSV
-        result.probe_inputs.to_csv(probe_inputs_path, index=False)
-        mlflow.log_artifact(
-            str(probe_inputs_path), artifact_path=REPRO_INPUTS_ARTIFACT_PATH
-        )
-
-        expected_predictions_path = art_dir / ART_REPRO_EXPECTED_PREDICTIONS_JSON
-        _write_json(
-            expected_predictions_path,
-            {"probabilities": result.expected_probabilities},
-        )
-        mlflow.log_artifact(
-            str(expected_predictions_path), artifact_path=REPRO_OUTPUTS_ARTIFACT_PATH
-        )
-
-        uv_lock_path = get_uv_lock_path()
-        mlflow.log_artifact(str(uv_lock_path), artifact_path=REPRO_ENV_ARTIFACT_PATH)
-        mlflow.log_artifact(
-            str(ctx.data_dir / TRAIN_CSV), artifact_path=REPRO_INPUTS_ARTIFACT_PATH
-        )
-        mlflow.log_artifact(
-            str(ctx.data_dir / TEST_CSV), artifact_path=REPRO_INPUTS_ARTIFACT_PATH
-        )
-        mlflow.log_artifact(
-            str(art_dir / ART_PREPROCESSOR), artifact_path=REPRO_INPUTS_ARTIFACT_PATH
+        fp_path, contract_path = _record_repro_contract(
+            art_dir=art_dir,
+            data_dir=ctx.data_dir,
+            result=result,
+            repro_contract=repro_contract,
+            fp=fp,
         )
 
         mlflow.log_params(dict(params))
