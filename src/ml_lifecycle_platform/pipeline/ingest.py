@@ -1,3 +1,6 @@
+"""Load the raw dataset from the model spec's source (sklearn builtin or CSV)
+and persist it to ``data/raw.csv`` with lineage tags on the MLflow run."""
+
 from __future__ import annotations
 
 import mlflow

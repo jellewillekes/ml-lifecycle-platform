@@ -1,3 +1,6 @@
+"""Schema-versioned reference to a model in the registry — identified by
+name plus alias, version, or source run id."""
+
 from __future__ import annotations
 
 import json

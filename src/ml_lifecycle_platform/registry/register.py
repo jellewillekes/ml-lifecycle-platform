@@ -1,3 +1,6 @@
+"""Register the most recent train run's model into the MLflow registry,
+tag it with reproducibility evidence, and point the candidate alias at it."""
+
 from __future__ import annotations
 
 import logging

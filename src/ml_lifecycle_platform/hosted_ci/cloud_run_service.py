@@ -1,3 +1,7 @@
+"""Resolve a deployed Cloud Run service's URL and container image via
+`gcloud run services describe`, used by staging CI to pin load-test baselines
+to a known revision."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -27,6 +31,8 @@ def _is_not_found_error(stderr: str) -> bool:
     return "not found" in lowered or "was not found" in lowered
 
 
+# Returns Any because gcloud's JSON output shape varies by subcommand
+# (dict, list, nested); callers narrow to the shape they expect.
 def _run_gcloud_json(args: list[str], *, expectation: str) -> Any:
     completed = _run_command(args)
     if completed.returncode != 0:

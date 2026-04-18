@@ -1,3 +1,6 @@
+"""Pydantic model for typed runtime events written to the append-only
+event log by the local `EventStore`."""
+
 from __future__ import annotations
 
 from datetime import UTC, datetime

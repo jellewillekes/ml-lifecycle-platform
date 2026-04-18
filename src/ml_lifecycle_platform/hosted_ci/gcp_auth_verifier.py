@@ -1,3 +1,7 @@
+"""CI preflight checks that the hosted GCP service account can reach the
+Artifact Registry, GCS buckets, and Secret Manager entries required by the
+staging pipeline."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -42,6 +46,8 @@ def _run_command(args: list[str]) -> subprocess.CompletedProcess[str]:
     return subprocess.run(args, check=False, capture_output=True, text=True)
 
 
+# Returns Any because gcloud's JSON output shape varies by subcommand
+# (dict, list, nested); callers narrow to the shape they expect.
 def _run_gcloud_json(args: list[str], *, expectation: str) -> Any:
     completed = _run_command(args)
     if completed.returncode != 0:

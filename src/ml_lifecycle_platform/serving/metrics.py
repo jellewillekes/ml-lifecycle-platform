@@ -1,3 +1,7 @@
+"""Prometheus counters and histograms exposed by the serving API (request
+counts, prediction latency, shadow-diff magnitude). Labels are kept bounded
+to avoid cardinality explosions."""
+
 from __future__ import annotations
 
 from prometheus_client import Counter, Histogram

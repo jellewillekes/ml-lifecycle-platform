@@ -1,3 +1,6 @@
+"""Reproducibility contract capturing the minimum evidence (git SHA, spec,
+dataset fingerprint, env lock hash, seed) needed to replay a training run."""
+
 from __future__ import annotations
 
 import json

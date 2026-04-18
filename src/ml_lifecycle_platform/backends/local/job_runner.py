@@ -1,3 +1,6 @@
+"""Local `JobRunner` implementation that launches pipeline/registry steps
+as `python -m <module>` subprocesses and returns the exit code."""
+
 from __future__ import annotations
 
 import os

@@ -1,3 +1,6 @@
+"""Build prediction payloads by running the primary model and, optionally,
+the shadow model for diff observability."""
+
 from __future__ import annotations
 
 import logging
@@ -6,6 +9,7 @@ from dataclasses import dataclass
 from typing import Any, Literal
 
 import pandas as pd
+from mlflow.exceptions import MlflowException
 
 from ml_lifecycle_platform.core.feature_contracts import (
     validate_rows_against_contract,
@@ -55,7 +59,7 @@ def run_prediction(
                 y_shadow = [float(x) for x in model_shadow.predict(df)]
                 diffs = [abs(a - b) for a, b in zip(y_primary, y_shadow)]
                 shadow_mae = sum(diffs) / max(len(diffs), 1)
-            except Exception as e:
+            except (MlflowException, ValueError) as e:
                 logger.warning("shadow prediction failed: %s", e)
 
     if shadow_mae is not None and math.isfinite(shadow_mae):

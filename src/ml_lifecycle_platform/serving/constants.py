@@ -1,3 +1,7 @@
+"""Serving-local constants: alias string literals, environment variable
+names, and HTTP header keys. Kept separate from `common.constants` because
+the serving image ships without the rest of the package."""
+
 from __future__ import annotations
 
 from typing import Literal

@@ -1,3 +1,6 @@
+"""File-backed `ArtifactStore` implementation used by the local runtime
+profile; rooted under the configured artifacts directory."""
+
 from __future__ import annotations
 
 from pathlib import Path

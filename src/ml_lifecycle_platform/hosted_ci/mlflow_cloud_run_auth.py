@@ -1,3 +1,7 @@
+"""Attach a Google-signed OIDC identity token to MLflow outbound requests so
+hosted CI jobs can authenticate to a private Cloud Run-hosted MLflow server;
+handles caching, refresh, and tracking-store cache invalidation on rotation."""
+
 from __future__ import annotations
 
 import base64

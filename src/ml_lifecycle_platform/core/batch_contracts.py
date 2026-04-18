@@ -1,3 +1,6 @@
+"""Pandera-backed dataset-level contracts used by pipeline steps to validate
+training and evaluation dataframes against the model spec."""
+
 from __future__ import annotations
 
 from typing import Any
@@ -14,6 +17,8 @@ class BatchContractValidationError(ValueError):
     pass
 
 
+# Returns Any because Pandera accepts a runtime dtype class reference
+# (type/int/float/bool/str) rather than a single static type.
 def _pandera_dtype(feature: FeatureFieldSpec) -> Any:
     if feature.dtype == "float":
         return float
@@ -58,23 +63,17 @@ def _format_schema_error(error: SchemaError | SchemaErrors) -> str:
     parts: list[str] = []
     records = failure_cases.head(5).to_dict(orient="records")
     for record in records:
-        column = record.get("column")
-        check = record.get("check")
-        failure_case = record.get("failure_case")
-        index = record.get("index")
-
-        detail = []
-        if column not in (None, "None", ""):
-            detail.append(f"column={column}")
-        if check not in (None, "None", ""):
-            detail.append(f"check={check}")
-        if failure_case not in (None, "None", ""):
-            detail.append(f"failure_case={failure_case}")
-        if index not in (None, "None", ""):
-            detail.append(f"row={index}")
-
+        fields = [
+            ("column", record.get("column")),
+            ("check", record.get("check")),
+            ("failure_case", record.get("failure_case")),
+            ("row", record.get("index")),
+        ]
+        detail = [
+            f"{name}={value}" for name, value in fields if value not in (None, "")
+        ]
         if detail:
-            parts.append(", ".join(str(item) for item in detail))
+            parts.append(", ".join(detail))
 
     if not parts:
         return str(error)

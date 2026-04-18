@@ -1,3 +1,6 @@
+"""Typed dataclass schema for a model spec (task, source, trainer, features,
+metrics, policy) — the parsed representation of a `configs/models/*.yaml`."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass

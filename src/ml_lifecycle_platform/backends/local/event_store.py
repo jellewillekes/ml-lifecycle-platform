@@ -1,3 +1,6 @@
+"""Append-only JSONL `EventStore` used by the local runtime to log validated
+`RuntimeEvent` records for later inspection or replay."""
+
 from __future__ import annotations
 
 import json

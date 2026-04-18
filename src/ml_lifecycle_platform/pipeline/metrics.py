@@ -1,7 +1,9 @@
+"""Binary classification metric helpers shared by the train and evaluate
+pipeline steps."""
+
 from __future__ import annotations
 
-from typing import Any
-
+import numpy as np
 import pandas as pd
 from sklearn.metrics import accuracy_score, f1_score, roc_auc_score
 
@@ -10,8 +12,8 @@ def compute_binary_metrics(
     *,
     metric_names: tuple[str, ...],
     y_true: pd.Series,
-    pred: Any,
-    proba: Any,
+    pred: np.ndarray,
+    proba: np.ndarray,
     prefix: str,
 ) -> dict[str, float]:
     metrics: dict[str, float] = {}

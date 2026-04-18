@@ -1,3 +1,6 @@
+"""CLI to roll the prod alias back to a prior model version and emit audit
+evidence describing the rollback target."""
+
 from __future__ import annotations
 
 import argparse
@@ -86,7 +89,7 @@ def _previous_prod_from_manifest(
                 manifest_path=manifest_path,
                 work_dir=Path(tmpdir),
             )
-        except Exception as exc:
+        except (json.JSONDecodeError, KeyError) as exc:
             logger.warning("Could not read release manifest for rollback: %s", exc)
             return None, "tag_fallback"
     return manifest.previous_prod_version, "manifest"

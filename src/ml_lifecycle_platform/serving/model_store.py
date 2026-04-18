@@ -1,3 +1,6 @@
+"""Hot-swappable store of the prod and candidate models loaded from the
+MLflow registry by alias, with background refresh and a unit-test stub."""
+
 from __future__ import annotations
 
 import threading
@@ -27,6 +30,8 @@ class _UnitTestModel:
         return [1.0] * len(df)
 
 
+# Returns Any because mlflow.pyfunc.load_model's return type is untyped and the
+# unit-testing branch returns a deterministic stub with a compatible .predict().
 def _load_model_from_registry(settings: Settings, alias: str) -> Any:
     if settings.unit_testing:
         return _UnitTestModel()
@@ -115,6 +120,8 @@ class ModelStore:
 
             self._last_refresh_ts = now
 
+    # Returns Any because the cached model is whatever _load_model_from_registry
+    # produced (mlflow pyfunc or test stub); no shared static type exists.
     def get_model(
         self,
         settings: Settings,

@@ -1,3 +1,7 @@
+"""FastAPI service exposing ``/predict``, ``/metadata``, and ``/metrics``,
+with request-level routing across the prod, candidate, canary, and shadow
+model aliases loaded from the MLflow registry."""
+
 from __future__ import annotations
 
 import json
@@ -15,7 +19,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from starlette.responses import Response
 
 try:
-    import mlflow  # type: ignore
+    import mlflow
     from mlflow.exceptions import MlflowException
 except Exception:  # pragma: no cover
     mlflow = None  # type: ignore[assignment]
@@ -106,7 +110,7 @@ async def coarse_metrics_middleware(
             endpoint=endpoint, mode=mode_label, status=str(e.status_code)
         ).inc()
         raise
-    except Exception:
+    except (ValueError, RuntimeError):
         REQUESTS_TOTAL.labels(endpoint=endpoint, mode=mode_label, status="500").inc()
         raise
 
@@ -213,7 +217,7 @@ def _prod_model_loadable(settings: Settings) -> tuple[bool, str | None]:
     try:
         _ = store.get_model(settings, ALIAS_PROD, required=True)
         return True, None
-    except Exception as e:
+    except MlflowException as e:
         return False, f"prod model not loadable: {e}"
 
 
@@ -449,6 +453,7 @@ async def predict(
 
     except Exception as e:
         status_code = 500
+        logger.exception("predict failed: %s", e)
         raise HTTPException(status_code=500, detail="internal error") from e
 
     finally:

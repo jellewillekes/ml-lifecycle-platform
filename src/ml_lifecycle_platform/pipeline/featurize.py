@@ -1,3 +1,6 @@
+"""Split the raw dataset into train/test, fit the preprocessor, and persist
+both CSVs plus the ``preprocessor.joblib`` artifact for downstream steps."""
+
 from __future__ import annotations
 
 import joblib

@@ -1,3 +1,6 @@
+"""Write release-report bundles (promotion decision, rollback target,
+release manifest, model card) to MLflow artifacts for a model version."""
+
 from __future__ import annotations
 
 import logging
@@ -6,6 +9,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from mlflow.exceptions import MlflowException
 from mlflow.tracking import MlflowClient
 
 from ml_lifecycle_platform.common.constants import (
@@ -124,7 +128,7 @@ def _mirror_local_bundle(*, root_path: str, file_contents: dict[str, bytes]) -> 
         relative_path = f"{root_path}/{file_name}"
         try:
             runtime.artifact_store.write_bytes(relative_path, content)
-        except Exception:
+        except (MlflowException, OSError):
             logger.warning(
                 "Could not mirror release evidence locally: %s", relative_path
             )
@@ -172,5 +176,5 @@ def _append_event(
     }
     try:
         runtime.event_store.append_event(event_type, payload)
-    except Exception:
+    except (MlflowException, OSError):
         logger.warning("Could not append release evidence event: %s", event_type)

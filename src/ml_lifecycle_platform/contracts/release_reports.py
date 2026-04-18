@@ -1,3 +1,6 @@
+"""Typed schemas for the promotion and rollback release-report bundles that
+get written to MLflow artifacts (decision, manifest, rollback target, card)."""
+
 from __future__ import annotations
 
 import json
@@ -12,6 +15,7 @@ from ml_lifecycle_platform.common.constants import (
     ART_ROLLBACK_TARGET_JSON,
     RELEASE_REPORT_SCHEMA_VERSION,
 )
+from ml_lifecycle_platform.policy.policy_engine import PolicyDecision
 
 
 def utc_now_iso() -> str:
@@ -38,7 +42,7 @@ class PolicyOutcome:
         }
 
     @classmethod
-    def from_policy_decision(cls, decision: Any) -> PolicyOutcome:
+    def from_policy_decision(cls, decision: PolicyDecision) -> PolicyOutcome:
         return cls(
             status="evaluated",
             allowed=bool(decision.allowed),
@@ -160,20 +164,8 @@ class ReleaseManifest:
             git_sha=_optional_str(raw.get("git_sha")),
             current_prod_version=_optional_str(raw.get("current_prod_version")),
             previous_prod_version=_optional_str(raw.get("previous_prod_version")),
-            policy_outcome=PolicyOutcome(
-                status=str(policy.get("status", "")),
-                allowed=_optional_bool(policy.get("allowed")),
-                errors=_tuple_of_dicts(policy.get("errors")),
-                warnings=_tuple_of_dicts(policy.get("warnings")),
-                context=_dict_or_empty(policy.get("context")),
-                reason=_optional_str(policy.get("reason")),
-            ),
-            result=OperationResult(
-                status=str(result.get("status", "")),
-                code=_optional_str(result.get("code")),
-                message=_optional_str(result.get("message")),
-                details=_dict_or_empty(result.get("details")),
-            ),
+            policy_outcome=_parse_policy_outcome(policy),
+            result=_parse_operation_result(result),
             metrics={str(key): float(value) for key, value in metrics.items()},
         )
 
@@ -255,6 +247,26 @@ def render_model_card(bundle: ReleaseReportBundle) -> str:
         for key, value in sorted(manifest.metrics.items()):
             lines.append(f"- {key}: `{value}`")
     return "\n".join(lines) + "\n"
+
+
+def _parse_policy_outcome(policy: dict[str, Any]) -> PolicyOutcome:
+    return PolicyOutcome(
+        status=str(policy.get("status", "")),
+        allowed=_optional_bool(policy.get("allowed")),
+        errors=_tuple_of_dicts(policy.get("errors")),
+        warnings=_tuple_of_dicts(policy.get("warnings")),
+        context=_dict_or_empty(policy.get("context")),
+        reason=_optional_str(policy.get("reason")),
+    )
+
+
+def _parse_operation_result(result: dict[str, Any]) -> OperationResult:
+    return OperationResult(
+        status=str(result.get("status", "")),
+        code=_optional_str(result.get("code")),
+        message=_optional_str(result.get("message")),
+        details=_dict_or_empty(result.get("details")),
+    )
 
 
 def _optional_str(value: Any) -> str | None:

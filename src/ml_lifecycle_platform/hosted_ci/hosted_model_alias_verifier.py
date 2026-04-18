@@ -1,9 +1,16 @@
+"""Verify that the hosted MLflow registry still resolves a given alias
+(default: `prod`) to a concrete model version — used by the maintenance
+job and CI staging readiness checks."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass
 
 import mlflow
 from mlflow import MlflowClient
+from mlflow.exceptions import MlflowException
+
+from ml_lifecycle_platform.common.constants import ALIAS_PROD
 
 
 class VerificationError(RuntimeError):
@@ -15,7 +22,7 @@ class HostedModelAliasVerificationConfig:
     tracking_uri: str
     tracking_token: str
     model_name: str
-    alias: str = "prod"
+    alias: str = ALIAS_PROD
 
 
 def verify_model_alias(config: HostedModelAliasVerificationConfig) -> str:
@@ -24,7 +31,7 @@ def verify_model_alias(config: HostedModelAliasVerificationConfig) -> str:
 
     try:
         version = client.get_model_version_by_alias(config.model_name, config.alias)
-    except Exception as error:
+    except MlflowException as error:
         raise VerificationError(
             "hosted MLflow is missing required model alias "
             f"'{config.model_name}@{config.alias}': {error}"

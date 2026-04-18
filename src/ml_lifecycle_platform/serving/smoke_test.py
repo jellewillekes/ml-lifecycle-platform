@@ -10,7 +10,7 @@ import requests
 from ml_lifecycle_platform.runtime.bootstrap import configure_mlflow
 
 try:
-    import mlflow  # type: ignore
+    import mlflow
 except Exception:  # pragma: no cover
     mlflow = None  # type: ignore[assignment]
 

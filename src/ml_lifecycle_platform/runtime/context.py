@@ -1,3 +1,7 @@
+"""RuntimeContext dataclass — the frozen bundle of profile metadata, paths,
+and backend adapters (artifact store, event store, job runner, secrets)
+shared by CLI and runtime entrypoints."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass

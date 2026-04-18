@@ -1,3 +1,6 @@
+"""Replay a training run from its reproducibility contract and verify that
+the produced model matches the registered one."""
+
 from __future__ import annotations
 
 import argparse
@@ -16,6 +19,7 @@ from mlflow.exceptions import MlflowException
 from mlflow.tracking import MlflowClient
 
 from ml_lifecycle_platform.common.constants import (
+    ALIAS_PROD,
     ART_REPRO_CONTRACT_JSON,
     ART_REPRO_REPORT_JSON,
     TAG_CONFIG_HASH,
@@ -103,6 +107,8 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     return parser.parse_args(argv)
 
 
+# Returns Any because MLflow's get_model_version* return a mlflow.ModelVersion
+# at runtime, but unit tests substitute a SimpleNamespace with the same surface.
 def _resolve_model_version(
     client: MlflowClient,
     model_name: str,
@@ -213,7 +219,7 @@ def _print_report(report: dict[str, Any], fmt: str) -> None:
 
 def _resolve_current_prod_version(client: MlflowClient, model_name: str) -> str | None:
     try:
-        prod = client.get_model_version_by_alias(model_name, "prod")
+        prod = client.get_model_version_by_alias(model_name, ALIAS_PROD)
     except MlflowException:
         return None
     return str(prod.version)
@@ -343,6 +349,174 @@ def _report_details(report: dict[str, Any]) -> dict[str, Any]:
     return {}
 
 
+def _verify_environment_hashes(contract: ReproContract, report: dict[str, Any]) -> None:
+    current_git_sha = get_git_sha()
+    report["checks"]["git_sha"] = {
+        "expected": contract.git_sha,
+        "actual": current_git_sha,
+        "matched": current_git_sha == contract.git_sha,
+    }
+    if current_git_sha != contract.git_sha:
+        raise ReproduceFailure(
+            code="git_sha_mismatch",
+            message="Current checkout does not match the training run git SHA.",
+            details=report["checks"]["git_sha"],
+        )
+
+    current_env_lock_hash = get_uv_lock_hash()
+    report["checks"]["env_lock_hash"] = {
+        "expected": contract.env_lock_hash,
+        "actual": current_env_lock_hash,
+        "matched": current_env_lock_hash == contract.env_lock_hash,
+    }
+    if current_env_lock_hash != contract.env_lock_hash:
+        raise ReproduceFailure(
+            code="env_lock_mismatch",
+            message="Current uv.lock hash does not match the source training run.",
+            details=report["checks"]["env_lock_hash"],
+        )
+
+
+def _verify_config_hash(
+    contract: ReproContract, spec: Any, report: dict[str, Any]
+) -> None:
+    recomputed_config_hash = config_hash_for_spec(spec)
+    report["checks"]["config_hash"] = {
+        "expected": contract.config_hash,
+        "actual": recomputed_config_hash,
+        "matched": recomputed_config_hash == contract.config_hash,
+    }
+    if recomputed_config_hash != contract.config_hash:
+        raise ReproduceFailure(
+            code="config_hash_mismatch",
+            message="Repro contract params do not reproduce the logged config hash.",
+            details=report["checks"]["config_hash"],
+        )
+
+
+@dataclass
+class _DownloadedArtifacts:
+    train_path: Path
+    preprocessor_path: Path
+    probe_inputs_path: Path
+    expected_predictions_path: Path
+    uv_lock_path: Path
+
+
+def _download_contract_artifacts(
+    client: MlflowClient,
+    source_run_id: str,
+    contract: ReproContract,
+    work_dir: Path,
+) -> _DownloadedArtifacts:
+    train_path = _download_required_artifact(
+        client, source_run_id, contract.train_dataset_artifact, work_dir
+    )
+    _ = _download_required_artifact(
+        client, source_run_id, contract.test_dataset_artifact, work_dir
+    )
+    preprocessor_path = _download_required_artifact(
+        client, source_run_id, contract.preprocessor_artifact, work_dir
+    )
+    probe_inputs_path = _download_required_artifact(
+        client, source_run_id, contract.probe_inputs_artifact, work_dir
+    )
+    expected_predictions_path = _download_required_artifact(
+        client, source_run_id, contract.expected_predictions_artifact, work_dir
+    )
+    uv_lock_path = _download_required_artifact(
+        client, source_run_id, contract.uv_lock_artifact, work_dir
+    )
+    return _DownloadedArtifacts(
+        train_path=train_path,
+        preprocessor_path=preprocessor_path,
+        probe_inputs_path=probe_inputs_path,
+        expected_predictions_path=expected_predictions_path,
+        uv_lock_path=uv_lock_path,
+    )
+
+
+def _verify_dataset_fingerprint(
+    contract: ReproContract,
+    artifacts: _DownloadedArtifacts,
+    report: dict[str, Any],
+) -> Any:
+    logged_env_lock_hash = sha256_file(artifacts.uv_lock_path)
+    report["checks"]["logged_env_lock_hash"] = {
+        "expected": contract.env_lock_hash,
+        "actual": logged_env_lock_hash,
+        "matched": logged_env_lock_hash == contract.env_lock_hash,
+    }
+    if logged_env_lock_hash != contract.env_lock_hash:
+        raise ReproduceFailure(
+            code="logged_env_lock_mismatch",
+            message="Logged uv.lock artifact does not match the contract hash.",
+            details=report["checks"]["logged_env_lock_hash"],
+        )
+
+    downloaded_inputs = load_training_inputs(
+        data_dir=artifacts.train_path.parent,
+        artifacts_dir=artifacts.preprocessor_path.parent,
+    )
+    recomputed_fp = compute_fingerprint(
+        train_df=downloaded_inputs.train_df,
+        test_df=downloaded_inputs.test_df,
+        data_source_uri=contract.data_source_uri,
+        git_sha=contract.git_sha,
+    )
+    recomputed_dataset_fingerprint = sha256_text(recomputed_fp.to_json())
+    report["checks"]["dataset_fingerprint"] = {
+        "expected": contract.dataset_fingerprint,
+        "actual": recomputed_dataset_fingerprint,
+        "matched": recomputed_dataset_fingerprint == contract.dataset_fingerprint,
+    }
+    if recomputed_dataset_fingerprint != contract.dataset_fingerprint:
+        raise ReproduceFailure(
+            code="dataset_fingerprint_mismatch",
+            message="Downloaded training inputs do not match the logged dataset fingerprint.",
+            details=report["checks"]["dataset_fingerprint"],
+        )
+    return downloaded_inputs
+
+
+def _verify_prediction_parity(
+    pipeline: Any,
+    artifacts: _DownloadedArtifacts,
+    report: dict[str, Any],
+) -> None:
+    probe_inputs = pd.read_csv(artifacts.probe_inputs_path)
+    expected_probabilities = _read_expected_predictions(
+        artifacts.expected_predictions_path
+    )
+    actual_probabilities = [
+        float(v) for v in pipeline.predict_proba(probe_inputs)[:, 1]
+    ]
+    max_abs_diff = max(
+        (
+            abs(expected - actual)
+            for expected, actual in zip(expected_probabilities, actual_probabilities)
+        ),
+        default=0.0,
+    )
+    prediction_match = np.allclose(
+        expected_probabilities,
+        actual_probabilities,
+        rtol=1e-12,
+        atol=1e-12,
+    )
+    report["checks"]["prediction_parity"] = {
+        "matched": bool(prediction_match),
+        "count": len(expected_probabilities),
+        "max_abs_diff": float(max_abs_diff),
+    }
+    if not prediction_match:
+        raise ReproduceFailure(
+            code="prediction_parity_failed",
+            message="Reproduced model predictions differ from the logged probe outputs.",
+            details=report["checks"]["prediction_parity"],
+        )
+
+
 def reproduce_model(
     client: MlflowClient,
     *,
@@ -389,47 +563,12 @@ def reproduce_model(
                 },
             )
 
-        current_git_sha = get_git_sha()
-        report["checks"]["git_sha"] = {
-            "expected": contract.git_sha,
-            "actual": current_git_sha,
-            "matched": current_git_sha == contract.git_sha,
-        }
-        if current_git_sha != contract.git_sha:
-            raise ReproduceFailure(
-                code="git_sha_mismatch",
-                message="Current checkout does not match the training run git SHA.",
-                details=report["checks"]["git_sha"],
-            )
-
-        current_env_lock_hash = get_uv_lock_hash()
-        report["checks"]["env_lock_hash"] = {
-            "expected": contract.env_lock_hash,
-            "actual": current_env_lock_hash,
-            "matched": current_env_lock_hash == contract.env_lock_hash,
-        }
-        if current_env_lock_hash != contract.env_lock_hash:
-            raise ReproduceFailure(
-                code="env_lock_mismatch",
-                message="Current uv.lock hash does not match the source training run.",
-                details=report["checks"]["env_lock_hash"],
-            )
+        _verify_environment_hashes(contract, report)
 
         spec = model_spec_from_dict(
             contract.model_spec, spec_path="contract://model-spec"
         )
-        recomputed_config_hash = config_hash_for_spec(spec)
-        report["checks"]["config_hash"] = {
-            "expected": contract.config_hash,
-            "actual": recomputed_config_hash,
-            "matched": recomputed_config_hash == contract.config_hash,
-        }
-        if recomputed_config_hash != contract.config_hash:
-            raise ReproduceFailure(
-                code="config_hash_mismatch",
-                message="Repro contract params do not reproduce the logged config hash.",
-                details=report["checks"]["config_hash"],
-            )
+        _verify_config_hash(contract, spec, report)
 
         if contract.deterministic_seed is None:
             raise ReproduceFailure(
@@ -438,94 +577,13 @@ def reproduce_model(
                 details={"training_run_id": source_run_id},
             )
 
-        train_path = _download_required_artifact(
-            client, source_run_id, contract.train_dataset_artifact, work_dir
+        artifacts = _download_contract_artifacts(
+            client, source_run_id, contract, work_dir
         )
-        _ = _download_required_artifact(
-            client, source_run_id, contract.test_dataset_artifact, work_dir
-        )
-        preprocessor_path = _download_required_artifact(
-            client, source_run_id, contract.preprocessor_artifact, work_dir
-        )
-        probe_inputs_path = _download_required_artifact(
-            client, source_run_id, contract.probe_inputs_artifact, work_dir
-        )
-        expected_predictions_path = _download_required_artifact(
-            client, source_run_id, contract.expected_predictions_artifact, work_dir
-        )
-        uv_lock_path = _download_required_artifact(
-            client, source_run_id, contract.uv_lock_artifact, work_dir
-        )
-
-        logged_env_lock_hash = sha256_file(uv_lock_path)
-        report["checks"]["logged_env_lock_hash"] = {
-            "expected": contract.env_lock_hash,
-            "actual": logged_env_lock_hash,
-            "matched": logged_env_lock_hash == contract.env_lock_hash,
-        }
-        if logged_env_lock_hash != contract.env_lock_hash:
-            raise ReproduceFailure(
-                code="logged_env_lock_mismatch",
-                message="Logged uv.lock artifact does not match the contract hash.",
-                details=report["checks"]["logged_env_lock_hash"],
-            )
-
-        inputs_dir = train_path.parent
-        downloaded_inputs = load_training_inputs(
-            data_dir=inputs_dir,
-            artifacts_dir=preprocessor_path.parent,
-        )
-        recomputed_fp = compute_fingerprint(
-            train_df=downloaded_inputs.train_df,
-            test_df=downloaded_inputs.test_df,
-            data_source_uri=contract.data_source_uri,
-            git_sha=contract.git_sha,
-        )
-        recomputed_dataset_fingerprint = sha256_text(recomputed_fp.to_json())
-        report["checks"]["dataset_fingerprint"] = {
-            "expected": contract.dataset_fingerprint,
-            "actual": recomputed_dataset_fingerprint,
-            "matched": recomputed_dataset_fingerprint == contract.dataset_fingerprint,
-        }
-        if recomputed_dataset_fingerprint != contract.dataset_fingerprint:
-            raise ReproduceFailure(
-                code="dataset_fingerprint_mismatch",
-                message="Downloaded training inputs do not match the logged dataset fingerprint.",
-                details=report["checks"]["dataset_fingerprint"],
-            )
+        downloaded_inputs = _verify_dataset_fingerprint(contract, artifacts, report)
 
         result = train_from_inputs(downloaded_inputs, spec)
-        probe_inputs = pd.read_csv(probe_inputs_path)
-        expected_probabilities = _read_expected_predictions(expected_predictions_path)
-        actual_probabilities = [
-            float(v) for v in result.pipeline.predict_proba(probe_inputs)[:, 1]
-        ]
-        max_abs_diff = max(
-            (
-                abs(expected - actual)
-                for expected, actual in zip(
-                    expected_probabilities, actual_probabilities
-                )
-            ),
-            default=0.0,
-        )
-        prediction_match = np.allclose(
-            expected_probabilities,
-            actual_probabilities,
-            rtol=1e-12,
-            atol=1e-12,
-        )
-        report["checks"]["prediction_parity"] = {
-            "matched": bool(prediction_match),
-            "count": len(expected_probabilities),
-            "max_abs_diff": float(max_abs_diff),
-        }
-        if not prediction_match:
-            raise ReproduceFailure(
-                code="prediction_parity_failed",
-                message="Reproduced model predictions differ from the logged probe outputs.",
-                details=report["checks"]["prediction_parity"],
-            )
+        _verify_prediction_parity(result.pipeline, artifacts, report)
 
         report["checks"]["metrics"] = result.metrics
         report["status"] = "matched"

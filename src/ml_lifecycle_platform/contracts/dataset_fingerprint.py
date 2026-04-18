@@ -1,3 +1,6 @@
+"""Stable dataset fingerprint (content and schema hashes) plus git-SHA
+capture, used by the pipeline for reproducible run lineage."""
+
 from __future__ import annotations
 
 import hashlib
@@ -90,7 +93,7 @@ def get_git_sha() -> str:
             ["git", "rev-parse", "HEAD"], stderr=subprocess.DEVNULL
         )
         return out.decode("utf-8").strip()
-    except Exception:
+    except (OSError, subprocess.CalledProcessError):
         return "unknown"
 
 
