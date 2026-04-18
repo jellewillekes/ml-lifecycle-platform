@@ -52,5 +52,6 @@ These runbooks cover the GCP staging path. You do not need them for normal local
 - [`reference/configuration.md`](./reference/configuration.md): runtime profiles, env vars, serving settings, and hosted staging secrets
 - [`reference/release-contract.md`](./reference/release-contract.md): package, image, and model release identities
 - [`reference/gcp-resources.md`](./reference/gcp-resources.md): current Terraform-managed GCP resource inventory and outputs
+- [`reference/security-hygiene.md`](./reference/security-hygiene.md): credential, secret, and workflow-log hygiene rules
 - [`adrs/ADR-0001-portability-surface.md`](./adrs/ADR-0001-portability-surface.md): M0 portability boundary
 - [`adrs/ADR-0002-mlflow-control-plane.md`](./adrs/ADR-0002-mlflow-control-plane.md): MLflow as M0 control plane

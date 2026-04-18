@@ -173,3 +173,10 @@ belong outside the fast review loop.
 
 CodeQL, Gitleaks, and Zizmor also publish findings into GitHub code scanning
 when the token has permission to upload SARIF.
+
+### Security hygiene contract
+
+The contributor-facing rules for secrets, credentials, and workflow-log
+exposure live in [`reference/security-hygiene.md`](./reference/security-hygiene.md).
+That page is the minimum bar every PR should preserve; the security-scanning
+workflows listed above are the enforcement layer.
