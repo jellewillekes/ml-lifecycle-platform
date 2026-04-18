@@ -52,6 +52,7 @@ from ml_lifecycle_platform.pipeline.train import (
     load_training_inputs,
     train_from_inputs,
 )
+from ml_lifecycle_platform.registry.metrics import record_release
 from ml_lifecycle_platform.registry.release_evidence import emit_release_evidence
 
 logger = logging.getLogger(__name__)
@@ -589,6 +590,7 @@ def reproduce_model(
         report["checks"]["metrics"] = result.metrics
         report["status"] = "matched"
         report["reason"] = None
+        record_release("reproduce", model_name)
         return report
 
 

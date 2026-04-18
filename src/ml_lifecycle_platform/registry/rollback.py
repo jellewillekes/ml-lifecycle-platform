@@ -36,6 +36,7 @@ from ml_lifecycle_platform.contracts.release_reports import (
     render_model_card,
     utc_now_iso,
 )
+from ml_lifecycle_platform.registry.metrics import record_release
 from ml_lifecycle_platform.registry.release_evidence import (
     emit_release_evidence,
     load_release_manifest,
@@ -182,6 +183,8 @@ def rollback_prod(client: MlflowClient, model_name: str) -> None:
         previous_prod,
         current_prod.version,
     )
+
+    record_release("rollback", model_name)
 
     if not current_source_run_id:
         raise RuntimeError(

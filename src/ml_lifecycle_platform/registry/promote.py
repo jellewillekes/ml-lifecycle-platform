@@ -45,6 +45,7 @@ from ml_lifecycle_platform.policy.policy_engine import (
     PolicyDecision,
     evaluate_promotion_policy,
 )
+from ml_lifecycle_platform.registry.metrics import record_release
 from ml_lifecycle_platform.registry.release_evidence import emit_release_evidence
 
 logger = logging.getLogger(__name__)
@@ -185,6 +186,8 @@ def apply_promotion(client: MlflowClient, plan: PromotionPlan) -> PromotionResul
         ALIAS_PROD,
         ALIAS_CHAMPION,
     )
+
+    record_release("promote", plan.model_name)
 
     return PromotionResult(
         plan=plan,
