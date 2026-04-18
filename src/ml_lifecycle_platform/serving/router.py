@@ -8,7 +8,7 @@ import json
 import secrets
 from dataclasses import dataclass
 from enum import StrEnum
-from typing import Any, Final, Literal, cast
+from typing import Any, Final, Literal
 
 from .constants import ALIAS_CANDIDATE, ALIAS_PROD
 
@@ -98,22 +98,18 @@ def decide_routing(mode: Mode, canary_pct: int, bucket: int) -> RoutingDecision:
 
     canary_pct = max(0, min(100, int(canary_pct)))
 
-    # Use serving.constants as the single source of truth.
-    prod: Alias = cast(Alias, ALIAS_PROD)
-    candidate: Alias = cast(Alias, ALIAS_CANDIDATE)
-
     if mode == MODE_PROD:
-        return RoutingDecision(chosen=prod, run_shadow=False)
+        return RoutingDecision(chosen=ALIAS_PROD, run_shadow=False)
 
     if mode == MODE_CANDIDATE:
-        return RoutingDecision(chosen=candidate, run_shadow=False)
+        return RoutingDecision(chosen=ALIAS_CANDIDATE, run_shadow=False)
 
     if mode == MODE_SHADOW:
-        return RoutingDecision(chosen=prod, run_shadow=True)
+        return RoutingDecision(chosen=ALIAS_PROD, run_shadow=True)
 
     if mode == MODE_CANARY:
         if bucket < canary_pct:
-            return RoutingDecision(chosen=candidate, run_shadow=True)
-        return RoutingDecision(chosen=prod, run_shadow=True)
+            return RoutingDecision(chosen=ALIAS_CANDIDATE, run_shadow=True)
+        return RoutingDecision(chosen=ALIAS_PROD, run_shadow=True)
 
     raise ValueError(f"Unknown mode: {mode}")

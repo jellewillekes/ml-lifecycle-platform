@@ -93,6 +93,59 @@ def _validate_value(value: Any, feature: FeatureFieldSpec) -> tuple[bool, Any]:
     return False, value
 
 
+def _validate_row(
+    row_idx: int,
+    row: Mapping[str, Any],
+    contract: FeatureContractSpec,
+    allowed_names: set[str],
+) -> tuple[dict[str, Any], list[FeatureContractIssue]]:
+    row_payload = dict(row)
+    validated_row: dict[str, Any] = {}
+    issues: list[FeatureContractIssue] = []
+
+    for feature in contract.features:
+        if feature.name not in row_payload:
+            if feature.required:
+                issues.append(
+                    FeatureContractIssue(
+                        row=row_idx,
+                        field=feature.name,
+                        code="missing_field",
+                        message="Required feature is missing from request row.",
+                        expected_type=feature.dtype,
+                    )
+                )
+            continue
+
+        ok, normalized_value = _validate_value(row_payload[feature.name], feature)
+        if not ok:
+            issues.append(
+                FeatureContractIssue(
+                    row=row_idx,
+                    field=feature.name,
+                    code="type_mismatch",
+                    message="Feature value does not match the declared contract type.",
+                    expected_type=feature.dtype,
+                    actual_type=_actual_type(row_payload[feature.name]),
+                )
+            )
+            continue
+        validated_row[feature.name] = normalized_value
+
+    if not contract.allow_unknown_fields:
+        for field_name in sorted(set(row_payload) - allowed_names):
+            issues.append(
+                FeatureContractIssue(
+                    row=row_idx,
+                    field=field_name,
+                    code="unknown_field",
+                    message="Request row contains a field that is not declared in the feature contract.",
+                )
+            )
+
+    return validated_row, issues
+
+
 def validate_rows_against_contract(
     rows: Sequence[Mapping[str, Any]],
     contract: FeatureContractSpec,
@@ -101,56 +154,15 @@ def validate_rows_against_contract(
         return [dict(row) for row in rows]
 
     allowed_names = {feature.name for feature in contract.features}
-    issues: list[FeatureContractIssue] = []
+    all_issues: list[FeatureContractIssue] = []
     validated_rows: list[dict[str, Any]] = []
 
     for row_idx, row in enumerate(rows):
-        row_payload = dict(row)
-        validated_row: dict[str, Any] = {}
-
-        for feature in contract.features:
-            if feature.name not in row_payload:
-                if feature.required:
-                    issues.append(
-                        FeatureContractIssue(
-                            row=row_idx,
-                            field=feature.name,
-                            code="missing_field",
-                            message="Required feature is missing from request row.",
-                            expected_type=feature.dtype,
-                        )
-                    )
-                continue
-
-            ok, normalized_value = _validate_value(row_payload[feature.name], feature)
-            if not ok:
-                issues.append(
-                    FeatureContractIssue(
-                        row=row_idx,
-                        field=feature.name,
-                        code="type_mismatch",
-                        message="Feature value does not match the declared contract type.",
-                        expected_type=feature.dtype,
-                        actual_type=_actual_type(row_payload[feature.name]),
-                    )
-                )
-                continue
-            validated_row[feature.name] = normalized_value
-
-        if not contract.allow_unknown_fields:
-            for field_name in sorted(set(row_payload) - allowed_names):
-                issues.append(
-                    FeatureContractIssue(
-                        row=row_idx,
-                        field=field_name,
-                        code="unknown_field",
-                        message="Request row contains a field that is not declared in the feature contract.",
-                    )
-                )
-
+        validated_row, row_issues = _validate_row(row_idx, row, contract, allowed_names)
+        all_issues.extend(row_issues)
         validated_rows.append(validated_row)
 
-    if issues:
-        raise FeatureContractValidationError(contract=contract, issues=issues)
+    if all_issues:
+        raise FeatureContractValidationError(contract=contract, issues=all_issues)
 
     return validated_rows
