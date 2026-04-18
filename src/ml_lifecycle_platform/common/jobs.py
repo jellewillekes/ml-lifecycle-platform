@@ -17,7 +17,7 @@ from ml_lifecycle_platform.common.logging import (
     clear_log_context,
     configure_logging,
 )
-from ml_lifecycle_platform.common.telemetry import init_telemetry
+from ml_lifecycle_platform.common.telemetry import force_flush, init_telemetry
 
 
 @contextmanager
@@ -46,4 +46,5 @@ def start_job(name: str, *, level: int | str = logging.INFO) -> Iterator[str]:
         try:
             yield run_id
         finally:
+            force_flush()
             clear_log_context()

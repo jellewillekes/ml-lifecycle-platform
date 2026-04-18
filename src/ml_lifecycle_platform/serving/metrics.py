@@ -52,6 +52,16 @@ def _otel_instruments() -> tuple[Any, Any, Any]:  # type: ignore[valid-type]
     )
 
 
+@lru_cache(maxsize=1)
+def _startup_histogram() -> Any:
+    meter = otel_metrics.get_meter("ml_lifecycle_platform.serving")
+    return meter.create_histogram(
+        "serving_startup_seconds",
+        description="Wall time from lifespan start to serving ready, in seconds.",
+        unit="s",
+    )
+
+
 def record_request(endpoint: str, mode: str, status: str) -> None:
     REQUESTS_TOTAL.labels(endpoint=endpoint, mode=mode, status=status).inc()
     counter, _, _ = _otel_instruments()
@@ -72,3 +82,7 @@ def record_shadow_diff(mode: str, mae: float) -> None:
     SHADOW_DIFF_MAE.labels(mode=mode).observe(mae)
     _, _, shadow = _otel_instruments()
     shadow.record(mae, {"mode": mode})
+
+
+def record_startup_latency(latency_s: float) -> None:
+    _startup_histogram().record(latency_s)

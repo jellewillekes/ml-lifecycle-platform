@@ -94,3 +94,58 @@ under the same names and label keys:
 OTLP metrics flow through the collector into the self-hosted Prometheus
 TSDB. Tempo's `metrics_generator` adds `traces_spanmetrics_*` and
 `traces_service_graph_*` series automatically from span data.
+
+Additional OTel-only signals:
+
+- `serving_startup_seconds` — histogram recorded once per container boot,
+  measuring wall time from FastAPI lifespan start to ready.
+- `releases_total{op,model}` — counter incremented on successful
+  `promote`, `rollback`, and `reproduce` registry operations.
+- `maintenance_job_last_success_seconds{job}` — observable gauge set to
+  the Unix timestamp of the most recent successful maintenance check.
+  Render staleness as `time() - maintenance_job_last_success_seconds`.
+
+## Dashboards
+
+Three dashboards ship in-repo and are loaded via Grafana's file-based
+provisioning:
+
+- **Serving health** (`mlp-serving`) — request rate, error rate, latency
+  p50/p95/p99, startup latency.
+- **Jobs health** (`mlp-jobs`) — maintenance freshness, per-job span
+  duration and failure counts from Tempo's span metrics.
+- **Release cadence** (`mlp-releases`) — promote / rollback / reproduce
+  counts, prod-version freshness.
+
+Start here when something feels off. Every panel resolves trace exemplars
+in Tempo via the Prometheus ↔ Tempo datasource link.
+
+### Authoring workflow
+
+The provisioning provider runs with `allowUiUpdates: true`, so UI edits
+persist to Grafana's local DB but **not** to the committed JSON. A
+container restart reloads from disk and UI-only edits are lost. That is
+the enforcement mechanism.
+
+To change a dashboard:
+
+1. Edit it in the Grafana UI.
+2. Share → Export → Save to file.
+3. Normalise and commit:
+
+   ```bash
+   python scripts/normalize_grafana_dashboard.py \
+     < ~/Downloads/serving-<timestamp>.json \
+     > deployments/observability/grafana/dashboards/serving.json
+   ```
+
+   The normalise script strips `id`, `version`, `iteration`, `gnetId` so
+   the diff reflects real changes only.
+
+4. Commit, open a PR, merge, redeploy the stack. On the observability
+   VM:
+
+   ```bash
+   docker compose -f deployments/observability/docker-compose.yml \
+     restart grafana
+   ```

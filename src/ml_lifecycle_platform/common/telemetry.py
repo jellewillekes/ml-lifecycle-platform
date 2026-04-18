@@ -126,6 +126,31 @@ def init_telemetry(service: str) -> None:
         logger.warning("init_telemetry(%s) failed: %s", service, exc)
 
 
+def force_flush(timeout_millis: int = 5000) -> None:
+    """Flush pending traces and metrics before process exit.
+
+    Best-effort: short-lived jobs (maintenance, promote, rollback, reproduce,
+    pipeline) exit before the periodic metric reader's next interval, so
+    without a flush the last observations are dropped.
+    """
+
+    tracer_provider = trace.get_tracer_provider()
+    flush_traces = getattr(tracer_provider, "force_flush", None)
+    if callable(flush_traces):
+        try:
+            flush_traces(timeout_millis)
+        except Exception as exc:  # pragma: no cover - best effort
+            logger.warning("otel trace flush failed: %s", exc)
+
+    meter_provider = metrics.get_meter_provider()
+    flush_metrics = getattr(meter_provider, "force_flush", None)
+    if callable(flush_metrics):
+        try:
+            flush_metrics(timeout_millis)
+        except Exception as exc:  # pragma: no cover - best effort
+            logger.warning("otel metric flush failed: %s", exc)
+
+
 def reset_for_tests() -> None:
     """Clear the init cache; for unit tests only."""
 

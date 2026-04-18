@@ -40,7 +40,7 @@ from .constants import (
     HEADER_MODEL_VERSION,
     HEADER_REQUEST_ID,
 )
-from .metrics import record_predict_latency, record_request
+from .metrics import record_predict_latency, record_request, record_startup_latency
 from .model_store import get_model_store
 from .prediction import run_prediction
 from .router import (
@@ -62,9 +62,11 @@ def _configure_logging(settings: Settings) -> None:
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI) -> AsyncGenerator[None, None]:
+    t0 = time.perf_counter()
     settings = get_settings()
     _configure_logging(settings)
     init_telemetry("serving")
+    record_startup_latency(time.perf_counter() - t0)
     logger.info("serving started")
     yield
     logger.info("serving stopped")
