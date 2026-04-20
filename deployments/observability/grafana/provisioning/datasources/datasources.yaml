@@ -9,7 +9,7 @@ datasources:
     isDefault: true
     jsonData:
       httpMethod: POST
-      manageAlerts: false
+      manageAlerts: true
       prometheusType: Prometheus
       prometheusVersion: 3.1.0
       exemplarTraceIdDestinations:

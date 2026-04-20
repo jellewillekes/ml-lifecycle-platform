@@ -16,3 +16,9 @@ prometheus_disk_size_gb = 50
 
 # Lock Grafana UI to one operator CIDR. Replace 127.0.0.1/32 before you want to log in.
 grafana_admin_cidr = "127.0.0.1/32"
+
+# Blackbox probe targets. Leave empty to disable a probe. Read the Cloud Run
+# staging URLs from `terraform output -state=../../gcp/terraform/terraform.tfstate`
+# after deploying serving / MLflow.
+serving_probe_url = ""
+mlflow_probe_url  = ""

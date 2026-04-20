@@ -1,0 +1,229 @@
+apiVersion: 1
+
+groups:
+  - orgId: 1
+    name: serving-fast
+    folder: mlp-alerts
+    interval: 1m
+    rules:
+      - uid: serving-high-error-rate
+        title: Serving high 5xx rate
+        condition: C
+        for: 5m
+        noDataState: NoData
+        execErrState: Error
+        labels:
+          severity: warning
+          service: serving
+        annotations:
+          summary: Serving 5xx ratio above 1% over 5m
+          runbook_url: https://github.com/jellewillekes/ml-lifecycle-platform/blob/master/docs/runbooks/observability-alerts.md
+        data:
+          - refId: A
+            relativeTimeRange: { from: 600, to: 0 }
+            datasourceUid: prometheus
+            model:
+              refId: A
+              expr: "serving:errors:ratio5m"
+              instant: true
+          - refId: C
+            relativeTimeRange: { from: 0, to: 0 }
+            datasourceUid: __expr__
+            model:
+              refId: C
+              type: threshold
+              expression: A
+              conditions:
+                - evaluator: { type: gt, params: [0.01] }
+
+      - uid: serving-health-probe-down
+        title: Serving health probe down
+        condition: C
+        for: 2m
+        noDataState: Alerting
+        execErrState: Error
+        labels:
+          severity: critical
+          service: serving
+        annotations:
+          summary: blackbox probe against serving /health failing
+          runbook_url: https://github.com/jellewillekes/ml-lifecycle-platform/blob/master/docs/runbooks/observability-alerts.md
+        data:
+          - refId: A
+            relativeTimeRange: { from: 300, to: 0 }
+            datasourceUid: prometheus
+            model:
+              refId: A
+              expr: 'min by (instance) (probe_success{instance=~".*serving.*"})'
+              instant: true
+          - refId: C
+            relativeTimeRange: { from: 0, to: 0 }
+            datasourceUid: __expr__
+            model:
+              refId: C
+              type: threshold
+              expression: A
+              conditions:
+                - evaluator: { type: lt, params: [1] }
+
+      - uid: mlflow-health-probe-down
+        title: MLflow health probe down
+        condition: C
+        for: 2m
+        noDataState: Alerting
+        execErrState: Error
+        labels:
+          severity: critical
+          service: mlflow
+        annotations:
+          summary: blackbox probe against MLflow /health failing
+          runbook_url: https://github.com/jellewillekes/ml-lifecycle-platform/blob/master/docs/runbooks/observability-alerts.md
+        data:
+          - refId: A
+            relativeTimeRange: { from: 300, to: 0 }
+            datasourceUid: prometheus
+            model:
+              refId: A
+              expr: 'min by (instance) (probe_success{instance=~".*mlflow.*"})'
+              instant: true
+          - refId: C
+            relativeTimeRange: { from: 0, to: 0 }
+            datasourceUid: __expr__
+            model:
+              refId: C
+              type: threshold
+              expression: A
+              conditions:
+                - evaluator: { type: lt, params: [1] }
+
+  - orgId: 1
+    name: serving-slow
+    folder: mlp-alerts
+    interval: 5m
+    rules:
+      - uid: serving-high-latency-p95
+        title: Serving p95 latency above budget
+        condition: C
+        for: 10m
+        noDataState: NoData
+        execErrState: Error
+        labels:
+          severity: warning
+          service: serving
+        annotations:
+          summary: /predict p95 > 1s over 5m for 10m
+          runbook_url: https://github.com/jellewillekes/ml-lifecycle-platform/blob/master/docs/runbooks/observability-alerts.md
+        data:
+          - refId: A
+            relativeTimeRange: { from: 600, to: 0 }
+            datasourceUid: prometheus
+            model:
+              refId: A
+              expr: "serving:predict_latency:p95_5m"
+              instant: true
+          - refId: C
+            relativeTimeRange: { from: 0, to: 0 }
+            datasourceUid: __expr__
+            model:
+              refId: C
+              type: threshold
+              expression: A
+              conditions:
+                - evaluator: { type: gt, params: [1.0] }
+
+      - uid: maintenance-job-stale
+        title: Maintenance job has not reported success
+        condition: C
+        for: 10m
+        noDataState: Alerting
+        execErrState: Error
+        labels:
+          severity: warning
+          service: maintenance
+        annotations:
+          summary: time() - maintenance_job_last_success_seconds above 26h
+          runbook_url: https://github.com/jellewillekes/ml-lifecycle-platform/blob/master/docs/runbooks/observability-alerts.md
+        data:
+          - refId: A
+            relativeTimeRange: { from: 600, to: 0 }
+            datasourceUid: prometheus
+            model:
+              refId: A
+              expr: "time() - max by (job) (maintenance_job_last_success_seconds)"
+              instant: true
+          - refId: C
+            relativeTimeRange: { from: 0, to: 0 }
+            datasourceUid: __expr__
+            model:
+              refId: C
+              type: threshold
+              expression: A
+              conditions:
+                - evaluator: { type: gt, params: [93600] }
+
+  - orgId: 1
+    name: serving-slo-burn
+    folder: mlp-alerts
+    interval: 1m
+    rules:
+      - uid: serving-availability-burn-fast
+        title: Serving availability fast burn (1h window)
+        condition: C
+        for: 2m
+        noDataState: NoData
+        execErrState: Error
+        labels:
+          severity: critical
+          service: serving
+          slo: availability
+        annotations:
+          summary: 1h burn rate > 14.4 against 99.5% availability SLO
+          runbook_url: https://github.com/jellewillekes/ml-lifecycle-platform/blob/master/docs/runbooks/observability-alerts.md
+        data:
+          - refId: A
+            relativeTimeRange: { from: 300, to: 0 }
+            datasourceUid: prometheus
+            model:
+              refId: A
+              expr: "serving:errors:ratio1h / 0.005"
+              instant: true
+          - refId: C
+            relativeTimeRange: { from: 0, to: 0 }
+            datasourceUid: __expr__
+            model:
+              refId: C
+              type: threshold
+              expression: A
+              conditions:
+                - evaluator: { type: gt, params: [14.4] }
+
+      - uid: serving-availability-burn-slow
+        title: Serving availability slow burn (6h window)
+        condition: C
+        for: 15m
+        noDataState: NoData
+        execErrState: Error
+        labels:
+          severity: warning
+          service: serving
+          slo: availability
+        annotations:
+          summary: 6h burn rate > 6 against 99.5% availability SLO
+          runbook_url: https://github.com/jellewillekes/ml-lifecycle-platform/blob/master/docs/runbooks/observability-alerts.md
+        data:
+          - refId: A
+            relativeTimeRange: { from: 900, to: 0 }
+            datasourceUid: prometheus
+            model:
+              refId: A
+              expr: "serving:errors:ratio6h / 0.005"
+              instant: true
+          - refId: C
+            relativeTimeRange: { from: 0, to: 0 }
+            datasourceUid: __expr__
+            model:
+              refId: C
+              type: threshold
+              expression: A
+              conditions:
+                - evaluator: { type: gt, params: [6] }
