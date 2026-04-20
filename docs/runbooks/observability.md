@@ -142,10 +142,35 @@ To change a dashboard:
    The normalise script strips `id`, `version`, `iteration`, `gnetId` so
    the diff reflects real changes only.
 
-4. Commit, open a PR, merge, redeploy the stack. On the observability
-   VM:
+4. Commit, open a PR, merge. Then apply to staging as in
+   [Apply a dashboard change to staging](#apply-a-dashboard-change-to-staging).
 
-   ```bash
-   docker compose -f deployments/observability/docker-compose.yml \
-     restart grafana
-   ```
+## Apply a dashboard change to staging
+
+Dashboard JSONs under `deployments/observability/grafana/dashboards/`
+are uploaded to the observability config bucket by a dynamic
+`fileset(...)` map in
+`deployments/observability/terraform/config.tf`, so a new or edited
+file is picked up on the next `terraform apply` with no Terraform
+edit. The VM startup script only syncs the bucket to
+`/opt/observability/` on boot; post-boot changes need a manual
+rsync.
+
+From a checkout on master:
+
+```bash
+cd deployments/observability/terraform
+terraform apply   # uploads changed JSONs to gs://<project>-<config_bucket_suffix>
+```
+
+Then on the observability VM:
+
+```bash
+sudo gcloud storage rsync --recursive --delete-unmatched-destination-objects \
+  gs://<project>-<config_bucket_suffix> /opt/observability
+sudo docker compose -f /opt/observability/docker-compose.yml up -d
+```
+
+`docker compose up -d` re-reads the bind-mounted dashboard directory
+without a full restart. Use `restart grafana` only if provisioning
+config (not dashboard JSON) changed.

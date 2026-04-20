@@ -1,7 +1,7 @@
 locals {
   config_bucket_name = "${var.project_id}-${var.config_bucket_suffix}"
 
-  config_files = {
+  static_config_files = {
     "docker-compose.yml"                                = "${path.module}/../docker-compose.yml"
     "otel-collector.yaml"                               = "${path.module}/../otel-collector.yaml"
     "prometheus.yml"                                    = "${path.module}/../prometheus.yml"
@@ -9,6 +9,13 @@ locals {
     "grafana/provisioning/datasources/datasources.yaml" = "${path.module}/../grafana/provisioning/datasources/datasources.yaml"
     "grafana/provisioning/dashboards/dashboards.yaml"   = "${path.module}/../grafana/provisioning/dashboards/dashboards.yaml"
   }
+
+  dashboard_files = {
+    for f in fileset("${path.module}/../grafana/dashboards", "*.json") :
+    "grafana/dashboards/${f}" => "${path.module}/../grafana/dashboards/${f}"
+  }
+
+  config_files = merge(local.static_config_files, local.dashboard_files)
 }
 
 resource "google_storage_bucket" "config" {
