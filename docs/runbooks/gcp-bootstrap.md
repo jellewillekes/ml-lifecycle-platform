@@ -2,6 +2,10 @@
 
 Last verified: 2026-03-10
 
+> Forking the repo? Start from [`oss-deploy.md`](./oss-deploy.md). It tells
+> you which identifiers in this runbook to swap and links back here at the
+> right step.
+
 This runbook covers the shared Terraform root that adopts the existing GCP project and remote state bucket and now also manages the first hosted foundation resources.
 
 Current adopted identifiers:

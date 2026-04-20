@@ -2,6 +2,10 @@
 
 Last verified: 2026-04-18
 
+> Forking the repo? Start from [`oss-deploy.md`](./oss-deploy.md). It
+> sequences this root after the GCP foundation and staging infra, and
+> names the placeholders you swap.
+
 This runbook covers the one-time bootstrap for the self-hosted observability
 stack that staging exports to. Day-to-day telemetry reference lives in
 [observability.md](observability.md).
