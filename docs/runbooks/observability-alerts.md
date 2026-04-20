@@ -9,10 +9,43 @@ Alerts are provisioned from
 and evaluated by Grafana OSS against the Prometheus datasource on the
 self-hosted observability VM (see [`observability-setup.md`](observability-setup.md)).
 
-**Notifications are deferred.** Alerts fire inside Grafana and are visible
-in the alerting UI; no email, Slack, or paging path is wired yet. Someone
-has to be looking at Grafana — or come here from a dashboard red marker —
-for an alert to produce action. Routing is tracked in [#189](https://github.com/jellewillekes/ml-lifecycle-platform/issues/189).
+## Escalation path
+
+Firing alerts reach a human via a GCP-native chain — no third-party SaaS,
+no tokens outside Secret Manager:
+
+```
+Grafana alert → webhook contact point
+             → Cloud Run `mlp-obs-alert-router` (shared-bearer auth)
+             → structured log entry (severity=WARNING, message=grafana_alert)
+             → log-based metric mlp-obs/grafana_alert_firing
+             → Cloud Monitoring alert policy "Grafana alert firing (via alert-router)"
+             → email notification channel (alert_email var)
+```
+
+Expect total time-to-email of roughly three to four minutes: Grafana's
+evaluation window, plus the log-based metric's ~60s aggregation, plus
+Cloud Monitoring's alignment period. That's acceptable for the SLOs in
+scope today; if it starts mattering, push evaluation intervals down
+first — the log-based metric floor is what it is.
+
+### Rotating the shared token
+
+```
+gcloud secrets versions add mlp-obs-alert-router-token --data-file=-
+# then redeploy the observability VM (or bounce the startup script) so
+# grafana.env re-reads the secret.
+```
+
+Terraform regenerates the token on `random_password` drift; running
+`terraform apply` with `-replace=random_password.alert_router_token`
+forces a rotation.
+
+### Silencing during incident work
+
+Use Grafana's built-in silence UI (Alerting → Silences) for per-alert or
+per-label muting. Silence at the Grafana layer, not at Cloud Monitoring —
+muting at CM means you lose the log record that the alert ever fired.
 
 ## Where to look first
 
@@ -85,7 +118,7 @@ reboot, or run `gcloud storage rsync` manually in an SSH session).
 
 ## Intentionally breaking staging
 
-To exercise the acceptance path:
+To exercise the acceptance path end-to-end (including email delivery):
 
 1. `gcloud run services update mlp-staging-serving --region=europe-west1
    --update-env-vars=FORCE_5XX=1` (or deploy an image that always 500s).
@@ -93,7 +126,24 @@ To exercise the acceptance path:
    inside its evaluation window (~5m pending + 1m eval).
 3. `ServingHealthProbeDown` will also flip once the probe catches a failing
    `/health`.
-4. Roll back the change; both alerts should resolve within one window.
+4. Check the alert-router's Cloud Run logs
+   (`gcloud logging read 'resource.labels.service_name=mlp-obs-alert-router AND jsonPayload.message=grafana_alert' --limit=10`);
+   one entry per firing alert should appear within a minute of the
+   Grafana transition.
+5. An email from `Cloud Monitoring <no-reply@google.com>` should arrive
+   at the configured `alert_email` within the next eval window.
+6. Roll back the change; Grafana alerts resolve; no further emails fire.
 
-This test is blocked on [#185](https://github.com/jellewillekes/ml-lifecycle-platform/issues/185)
-landing so dashboards reach the VM.
+## Bootstrap (first-time setup)
+
+Before the first `terraform apply` of `deployments/observability/terraform/`:
+
+1. Build and push the alert-router image:
+   `gh workflow run build-alert-router.yml` (or wait for a push to
+   `master` that touches `deployments/observability/alert-router/**`).
+   Verify the `:latest` tag exists in Artifact Registry.
+2. Set `alert_email` and `alert_router_image` in `terraform.tfvars`.
+3. `terraform apply` — creates the router, secret, log-based metric,
+   alert policy, and email notification channel.
+4. Cloud Monitoring sends a verification email to `alert_email` on first
+   creation of the notification channel. Confirm it to activate delivery.

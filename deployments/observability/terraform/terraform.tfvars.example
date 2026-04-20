@@ -22,3 +22,9 @@ grafana_admin_cidr = "127.0.0.1/32"
 # after deploying serving / MLflow.
 serving_probe_url = ""
 mlflow_probe_url  = ""
+
+# Alert routing (GCP-native email escalation).
+# Build+push the router image first via `.github/workflows/build-alert-router.yml`,
+# then set the :<sha> tag here (or keep :latest for the most recent build).
+alert_email        = "you@example.com"
+alert_router_image = "europe-west1-docker.pkg.dev/fpl-project-jelle/mlp-images/alert-router:latest"

@@ -65,6 +65,7 @@ locals {
     HMAC_ACCESS=$(fetch_secret "${google_secret_manager_secret.tempo_hmac_access.secret_id}")
     HMAC_SECRET=$(fetch_secret "${google_secret_manager_secret.tempo_hmac_secret.secret_id}")
     GRAFANA_PASSWORD=$(fetch_secret "${google_secret_manager_secret.grafana_admin_password.secret_id}")
+    ALERT_ROUTER_TOKEN=$(fetch_secret "${google_secret_manager_secret.alert_router_token.secret_id}")
 
     cat > "$INSTALL_DIR/tempo.env" <<ENV
     TEMPO_BUCKET=${google_storage_bucket.tempo.name}
@@ -75,6 +76,8 @@ locals {
     cat > "$INSTALL_DIR/grafana.env" <<ENV
     GF_SECURITY_ADMIN_USER=admin
     GF_SECURITY_ADMIN_PASSWORD=$GRAFANA_PASSWORD
+    MLP_ALERT_ROUTER_URL=${google_cloud_run_v2_service.alert_router.uri}
+    MLP_ALERT_ROUTER_TOKEN=$ALERT_ROUTER_TOKEN
     ENV
 
     chmod 600 "$INSTALL_DIR/tempo.env" "$INSTALL_DIR/grafana.env"
@@ -136,10 +139,13 @@ resource "google_compute_instance" "observability" {
     google_secret_manager_secret_version.grafana_admin_password,
     google_secret_manager_secret_version.tempo_hmac_access,
     google_secret_manager_secret_version.tempo_hmac_secret,
+    google_secret_manager_secret_version.alert_router_token,
     google_secret_manager_secret_iam_member.vm_grafana_admin_accessor,
     google_secret_manager_secret_iam_member.vm_tempo_hmac_access_accessor,
     google_secret_manager_secret_iam_member.vm_tempo_hmac_secret_accessor,
+    google_secret_manager_secret_iam_member.vm_alert_router_token_accessor,
     google_storage_bucket_iam_member.vm_config_reader,
     google_storage_bucket_iam_member.vm_tempo_writer,
+    google_cloud_run_v2_service.alert_router,
   ]
 }
