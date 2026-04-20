@@ -1,0 +1,39 @@
+groups:
+  - name: serving-sli
+    interval: 30s
+    rules:
+      - record: serving:requests:rate5m
+        expr: sum(rate(requests_total{service_name="serving"}[5m]))
+
+      - record: serving:errors:rate5m
+        expr: sum(rate(requests_total{service_name="serving",status=~"5.."}[5m]))
+
+      - record: serving:availability:ratio5m
+        expr: |
+          1 - (
+            serving:errors:rate5m
+            / clamp_min(serving:requests:rate5m, 1)
+          )
+
+      - record: serving:errors:ratio5m
+        expr: |
+          serving:errors:rate5m
+          / clamp_min(serving:requests:rate5m, 1)
+
+      - record: serving:errors:ratio30m
+        expr: |
+          sum(rate(requests_total{service_name="serving",status=~"5.."}[30m]))
+          / clamp_min(sum(rate(requests_total{service_name="serving"}[30m])), 1)
+
+      - record: serving:errors:ratio1h
+        expr: |
+          sum(rate(requests_total{service_name="serving",status=~"5.."}[1h]))
+          / clamp_min(sum(rate(requests_total{service_name="serving"}[1h])), 1)
+
+      - record: serving:errors:ratio6h
+        expr: |
+          sum(rate(requests_total{service_name="serving",status=~"5.."}[6h]))
+          / clamp_min(sum(rate(requests_total{service_name="serving"}[6h])), 1)
+
+      - record: serving:predict_latency:p95_5m
+        expr: histogram_quantile(0.95, sum by (le) (rate(predict_latency_seconds_bucket[5m])))

@@ -1,0 +1,12 @@
+apiVersion: 1
+
+contactPoints:
+  - orgId: 1
+    name: noop
+    receivers:
+      - uid: noop-receiver
+        type: webhook
+        disableResolveMessage: true
+        settings:
+          url: http://localhost:0/unused
+          httpMethod: POST

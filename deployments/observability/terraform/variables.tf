@@ -78,3 +78,15 @@ variable "config_bucket_suffix" {
   type        = string
   default     = "mlp-obs-config"
 }
+
+variable "serving_probe_url" {
+  description = "Full URL for the serving /health endpoint probed by blackbox_exporter. Empty disables the probe."
+  type        = string
+  default     = ""
+}
+
+variable "mlflow_probe_url" {
+  description = "Full URL for the MLflow /health endpoint probed by blackbox_exporter. Empty disables the probe."
+  type        = string
+  default     = ""
+}
