@@ -2,11 +2,13 @@ apiVersion: 1
 
 contactPoints:
   - orgId: 1
-    name: noop
+    name: gcp-alert-router
     receivers:
-      - uid: noop-receiver
+      - uid: gcp-alert-router
         type: webhook
-        disableResolveMessage: true
+        disableResolveMessage: false
         settings:
-          url: http://localhost:0/unused
+          url: $__env{MLP_ALERT_ROUTER_URL}
           httpMethod: POST
+          authorization_scheme: Bearer
+          authorization_credentials: $__env{MLP_ALERT_ROUTER_TOKEN}

@@ -1,0 +1,101 @@
+name: CD / Build Alert Router
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - deployments/observability/alert-router/**
+      - .github/workflows/build-alert-router.yml
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: build-alert-router-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  GCP_PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
+  GCP_WIF_PROVIDER: ${{ vars.GCP_WIF_PROVIDER }}
+  GCP_CI_SERVICE_ACCOUNT: ${{ vars.GCP_CI_SERVICE_ACCOUNT }}
+  GCP_REGION: europe-west1
+  ARTIFACT_REGISTRY_REPOSITORY: mlp-images
+
+jobs:
+  build-and-push:
+    name: Build And Push
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          persist-credentials: false
+
+      - name: Resolve image refs
+        id: refs
+        shell: bash
+        run: |
+          set -euo pipefail
+          repository="${GCP_REGION}-docker.pkg.dev/${GCP_PROJECT_ID}/${ARTIFACT_REGISTRY_REPOSITORY}"
+          echo "sha_ref=${repository}/alert-router:${GITHUB_SHA}" >> "${GITHUB_OUTPUT}"
+          echo "latest_ref=${repository}/alert-router:latest" >> "${GITHUB_OUTPUT}"
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3
+        with:
+          create_credentials_file: true
+          project_id: ${{ env.GCP_PROJECT_ID }}
+          workload_identity_provider: ${{ env.GCP_WIF_PROVIDER }}
+          service_account: ${{ env.GCP_CI_SERVICE_ACCOUNT }}
+
+      - name: Set up gcloud
+        uses: google-github-actions/setup-gcloud@aa5489c8933f4cc7a4f7d45035b3b1440c9c10db # v3.0.1
+        with:
+          version: ">= 363.0.0"
+          project_id: ${{ env.GCP_PROJECT_ID }}
+
+      - name: Log in to Artifact Registry
+        env:
+          REGISTRY_HOST: ${{ env.GCP_REGION }}-docker.pkg.dev
+        shell: bash
+        run: |
+          set -euo pipefail
+          gcloud auth print-access-token | docker login \
+            --username oauth2accesstoken \
+            --password-stdin \
+            "https://${REGISTRY_HOST}"
+
+      - name: Build alert-router image
+        env:
+          SHA_REF: ${{ steps.refs.outputs.sha_ref }}
+          LATEST_REF: ${{ steps.refs.outputs.latest_ref }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker build \
+            --tag "${SHA_REF}" \
+            --tag "${LATEST_REF}" \
+            deployments/observability/alert-router
+
+      - name: Smoke test alert-router image
+        env:
+          SHA_REF: ${{ steps.refs.outputs.sha_ref }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker run --rm --entrypoint python "${SHA_REF}" -c "import main"
+
+      - name: Push alert-router image
+        env:
+          SHA_REF: ${{ steps.refs.outputs.sha_ref }}
+          LATEST_REF: ${{ steps.refs.outputs.latest_ref }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker push "${SHA_REF}"
+          docker push "${LATEST_REF}"

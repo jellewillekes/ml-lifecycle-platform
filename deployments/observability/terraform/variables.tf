@@ -90,3 +90,23 @@ variable "mlflow_probe_url" {
   type        = string
   default     = ""
 }
+
+variable "alert_email" {
+  description = "Email address that receives Cloud Monitoring notifications when a Grafana alert fires. No default — set in terraform.tfvars."
+  type        = string
+
+  validation {
+    condition     = can(regex("^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$", var.alert_email))
+    error_message = "alert_email must be a valid email address."
+  }
+}
+
+variable "alert_router_image" {
+  description = "Artifact Registry image ref for the Grafana webhook receiver (e.g. europe-west1-docker.pkg.dev/<project>/mlp-images/alert-router:latest). Build+push via .github/workflows/build-alert-router.yml before first apply."
+  type        = string
+
+  validation {
+    condition     = length(var.alert_router_image) > 0
+    error_message = "alert_router_image must be a non-empty image reference."
+  }
+}
