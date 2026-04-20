@@ -2,6 +2,10 @@
 
 Last verified: 2026-03-10
 
+> Forking the repo? Start from [`oss-deploy.md`](./oss-deploy.md). The WIF
+> block in this runbook pins the primary maintainer's GitHub repo ID and
+> must be swapped for your fork's numeric ID before apply.
+
 This runbook creates the first hosted GCP foundation layer on top of the adopted project and Terraform backend from [`gcp-bootstrap.md`](./gcp-bootstrap.md).
 
 Current scope:

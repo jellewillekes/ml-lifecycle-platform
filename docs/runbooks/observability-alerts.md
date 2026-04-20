@@ -2,6 +2,10 @@
 
 Last verified: 2026-04-20
 
+> Forking the repo? Start from [`oss-deploy.md`](./oss-deploy.md). The
+> Bootstrap section at the bottom of this doc is the final step of that
+> walkthrough.
+
 Something is red in Grafana — here's what to check.
 
 Alerts are provisioned from
@@ -120,7 +124,7 @@ reboot, or run `gcloud storage rsync` manually in an SSH session).
 
 To exercise the acceptance path end-to-end (including email delivery):
 
-1. `gcloud run services update mlp-staging-serving --region=europe-west1
+1. `gcloud run services update mlp-serving-staging --region=europe-west1
    --update-env-vars=FORCE_5XX=1` (or deploy an image that always 500s).
 2. Watch Grafana → Alerting. `ServingHighErrorRate` should flip to Firing
    inside its evaluation window (~5m pending + 1m eval).
@@ -141,9 +145,74 @@ Before the first `terraform apply` of `deployments/observability/terraform/`:
 1. Build and push the alert-router image:
    `gh workflow run build-alert-router.yml` (or wait for a push to
    `master` that touches `deployments/observability/alert-router/**`).
-   Verify the `:latest` tag exists in Artifact Registry.
-2. Set `alert_email` and `alert_router_image` in `terraform.tfvars`.
-3. `terraform apply` — creates the router, secret, log-based metric,
+   Verify the image exists in Artifact Registry, then capture the
+   digest:
+
+   ```bash
+   gcloud artifacts docker images list \
+     europe-west1-docker.pkg.dev/<PROJECT_ID>/mlp-images/alert-router \
+     --include-tags --sort-by=~UPDATE_TIME --limit=1
+   ```
+
+2. `terraform init` with an explicit backend-config (the state bucket
+   is external to this root):
+
+   ```bash
+   terraform init \
+     -backend-config="bucket=<TF_STATE_BUCKET>" \
+     -backend-config="prefix=ml-lifecycle-platform/observability"
+   ```
+
+3. Set `alert_email` and `alert_router_image` in `terraform.tfvars`.
+   Pin `alert_router_image` by digest (`@sha256:<DIGEST>`), not
+   `:latest` — tag-resolution against `:latest` can 404 even when the
+   tag is present.
+4. `terraform apply` — creates the router, secret, log-based metric,
    alert policy, and email notification channel.
-4. Cloud Monitoring sends a verification email to `alert_email` on first
-   creation of the notification channel. Confirm it to activate delivery.
+5. Email-type Cloud Monitoring channels do **not** send a verification
+   email on creation. The first real (or synthetic) alert is also the
+   first delivery — use the synthetic curl in the acceptance test below
+   to prove the chain end-to-end.
+
+### Acceptance test (synthetic webhook)
+
+Fastest proof the full chain works, without needing real traffic:
+
+```bash
+TOKEN=$(gcloud secrets versions access latest --secret=mlp-obs-alert-router-token)
+ROUTER_URL=$(terraform -chdir=deployments/observability/terraform output -raw alert_router_url)
+NOW=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+
+curl -X POST "$ROUTER_URL" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d "{\"alerts\":[{\"status\":\"firing\",\"labels\":{\"alertname\":\"SyntheticTest\"},\"annotations\":{\"summary\":\"acceptance check\"},\"startsAt\":\"$NOW\",\"fingerprint\":\"synthetic-$(date +%s)\"}]}"
+```
+
+Expect `204`. Within ~1 minute the log entry appears:
+
+```bash
+gcloud logging read \
+  'resource.labels.service_name=mlp-obs-alert-router AND jsonPayload.message=grafana_alert' \
+  --limit=5 --format=json
+```
+
+Email from `Cloud Monitoring <no-reply@google.com>` arrives within ~3
+minutes (check spam / Promotions). A recovery email follows when the
+log-based metric drops back to zero.
+
+### Recovery: Cloud Run v2 service tainted
+
+If an apply leaves `mlp-obs-alert-router` tainted and the next apply
+errors with `cannot destroy service without setting deletion_protection=false`:
+
+```bash
+terraform untaint google_cloud_run_v2_service.alert_router
+terraform apply
+```
+
+`deletion_protection = false` is already set in
+[`alert_router.tf`](../../deployments/observability/terraform/alert_router.tf),
+so this runs as an in-place update. Flipping `deletionProtection` via
+`gcloud` or the REST API does not work — it is a Terraform-provider
+attribute, not a real Cloud Run API field.

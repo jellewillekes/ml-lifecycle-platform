@@ -33,6 +33,8 @@ The hosted staging path is a separate advanced path documented under [Advanced h
 
 These runbooks cover the GCP staging path. You do not need them for normal local contribution.
 
+- [`runbooks/oss-deploy.md`](./runbooks/oss-deploy.md): end-to-end walkthrough for deploying this platform to your own GCP project from a fork
+- [`environments/fpl-project-jelle/`](./environments/fpl-project-jelle/): concrete identifiers and cheatsheet for the primary maintainer's deployment
 - [`runbooks/hosted-golden-path.md`](./runbooks/hosted-golden-path.md): canonical hosted GCP publish-deploy-validate path
 - [`runbooks/gcp-bootstrap.md`](./runbooks/gcp-bootstrap.md): adopt the existing GCP project and Terraform backend
 - [`runbooks/gcp-foundation.md`](./runbooks/gcp-foundation.md): create the first hosted GCP foundation resources
