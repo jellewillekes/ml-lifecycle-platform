@@ -41,10 +41,11 @@ resource "google_secret_manager_secret_iam_member" "vm_alert_router_token_access
 }
 
 resource "google_cloud_run_v2_service" "alert_router" {
-  project  = data.google_project.current.project_id
-  name     = "${local.name_prefix}-alert-router"
-  location = var.region
-  ingress  = "INGRESS_TRAFFIC_ALL"
+  project             = data.google_project.current.project_id
+  name                = "${local.name_prefix}-alert-router"
+  location            = var.region
+  ingress             = "INGRESS_TRAFFIC_ALL"
+  deletion_protection = false
 
   labels = merge(local.common_labels, { purpose = "alert_router" })
 
