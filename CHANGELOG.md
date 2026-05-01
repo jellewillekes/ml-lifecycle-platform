@@ -4,6 +4,29 @@ All important changes and updates to this project are documented here.
 
 This repo uses Conventional Commits and Release Please.
 
+## [0.5.4](https://github.com/jellewillekes/ml-lifecycle-platform/compare/v0.5.3...v0.5.4) (2026-04-20)
+
+
+### Features
+
+* add observability alerts and serving SLOs ([#190](https://github.com/jellewillekes/ml-lifecycle-platform/issues/190)) ([57c0d42](https://github.com/jellewillekes/ml-lifecycle-platform/commit/57c0d42315380d8a0e5526512eb762f3ad563fec)), closes [#174](https://github.com/jellewillekes/ml-lifecycle-platform/issues/174)
+* add observability dashboards for serving, jobs, and releases ([#184](https://github.com/jellewillekes/ml-lifecycle-platform/issues/184)) ([ff3dbc7](https://github.com/jellewillekes/ml-lifecycle-platform/commit/ff3dbc7b0fcb891828d45cfacde2559572b42c3a)), closes [#173](https://github.com/jellewillekes/ml-lifecycle-platform/issues/173)
+* gcp-native alert routing for grafana managed alerts ([#191](https://github.com/jellewillekes/ml-lifecycle-platform/issues/191)) ([eb701f4](https://github.com/jellewillekes/ml-lifecycle-platform/commit/eb701f46e36001a1cacdd9c3c5d180d06e6574a6))
+* self-hosted observability stack on GCE VM ([#179](https://github.com/jellewillekes/ml-lifecycle-platform/issues/179)) ([e674fcc](https://github.com/jellewillekes/ml-lifecycle-platform/commit/e674fccd65c5401a6c0dcd91ec67784dec31b25f)), closes [#172](https://github.com/jellewillekes/ml-lifecycle-platform/issues/172)
+* self-hosted observability stack on GCE VM ([#181](https://github.com/jellewillekes/ml-lifecycle-platform/issues/181)) ([ea0c9d3](https://github.com/jellewillekes/ml-lifecycle-platform/commit/ea0c9d3fae8b834fb307ffc177a6c9aee4342ceb)), closes [#172](https://github.com/jellewillekes/ml-lifecycle-platform/issues/172)
+* upload grafana dashboard json to observability config bucket ([#187](https://github.com/jellewillekes/ml-lifecycle-platform/issues/187)) ([476e042](https://github.com/jellewillekes/ml-lifecycle-platform/commit/476e042bfa45ca08eef81875cd45c6203a091f08)), closes [#185](https://github.com/jellewillekes/ml-lifecycle-platform/issues/185)
+* upload grafana dashboard json to observability config bucket ([#188](https://github.com/jellewillekes/ml-lifecycle-platform/issues/188)) ([e680a4a](https://github.com/jellewillekes/ml-lifecycle-platform/commit/e680a4a4364638fa8d722647f1f02445c738adc9)), closes [#185](https://github.com/jellewillekes/ml-lifecycle-platform/issues/185)
+
+
+### Bug Fixes
+
+* **observability:** disable deletion_protection on alert-router ([#192](https://github.com/jellewillekes/ml-lifecycle-platform/issues/192)) ([9ad27e5](https://github.com/jellewillekes/ml-lifecycle-platform/commit/9ad27e53efb4c3b23d8063c6fd350f61157744fe))
+
+
+### Documentation
+
+* add platform roadmap ([#193](https://github.com/jellewillekes/ml-lifecycle-platform/issues/193)) ([453db10](https://github.com/jellewillekes/ml-lifecycle-platform/commit/453db109a78017f19b4e0dc67d9d468e88388ce9))
+
 ## [0.5.3](https://github.com/jellewillekes/ml-lifecycle-platform/compare/v0.5.2...v0.5.3) (2026-04-18)
 
 
