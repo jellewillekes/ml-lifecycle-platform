@@ -8,7 +8,7 @@
 [![python](https://img.shields.io/python/required-version-toml?tomlFilePath=https%3A%2F%2Fraw.githubusercontent.com%2Fjellewillekes%2Fml-lifecycle-platform%2Fmaster%2Fpyproject.toml&label=python)](pyproject.toml)
 [![license](https://img.shields.io/github/license/jellewillekes/ml-lifecycle-platform?label=license)](LICENSE)
 
-_Spec-driven ML lifecycle platform with MLflow as the control plane — local-first, with hosted GCP staging._
+_Spec-driven ML lifecycle platform with MLflow as the control plane with both local and hosted GCP staging._
 
 An ML platform for training, evaluating, registering, promoting, serving, and reproducing models. MLflow is the control plane. The current implementation is local-first with Terraform-managed GCP foundation and staging infra plus GitHub Actions-produced runtime images ready for hosted rollout.
 
@@ -25,6 +25,20 @@ hosted path:  GitHub Actions -> Artifact Registry -> Cloud Run / Jobs -> staging
 - hosted staging exists for image publication, staged deploy, and release validation
 - the supported first validation path is local `make e2e`
 - production rollout and multi-environment promotion remain out of scope
+
+## Architecture
+
+The platform runs the same logical contract across two environments. Local goes OSS-only via Docker Compose; hosted staging targets GCP under CI gating.
+
+**Local — Docker Compose, no cloud account required**
+
+![Architecture context diagram for local Compose runtime](docs/architecture/diagrams/context_local.svg)
+
+**Hosted — GCP staging, CI-gated**
+
+![Architecture context diagram for hosted GCP staging](docs/architecture/diagrams/context_hosted.svg)
+
+The full set (container + deployment + M6 low-latency views) lives in [`docs/architecture/diagrams/`](docs/architecture/diagrams/).
 
 ## Handbook Entry Points
 
