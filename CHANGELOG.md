@@ -4,6 +4,13 @@ All important changes and updates to this project are documented here.
 
 This repo uses Conventional Commits and Release Please.
 
+## [0.5.5](https://github.com/jellewillekes/ml-lifecycle-platform/compare/v0.5.4...v0.5.5) (2026-05-01)
+
+
+### Dependencies
+
+* **actions:** bump the github-actions group across 1 directory with 7 updates ([#186](https://github.com/jellewillekes/ml-lifecycle-platform/issues/186)) ([ab61142](https://github.com/jellewillekes/ml-lifecycle-platform/commit/ab61142e91ac9a0b5d688f8ebb5de9f8d1cd2600))
+
 ## [0.5.4](https://github.com/jellewillekes/ml-lifecycle-platform/compare/v0.5.3...v0.5.4) (2026-04-20)
 
 
