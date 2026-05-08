@@ -187,7 +187,7 @@ The next staged additions are:
 - hosted MLflow on Cloud Run
 - hosted serving on Cloud Run
 
-See [`../architecture/m2-staging-platform.md`](../architecture/m2-staging-platform.md) for the fixed decisions and implementation order.
+See [`../architecture.md`](../architecture.md#hosted-staging-path) for the fixed decisions.
 See [`./gcp-staging-infra.md`](./gcp-staging-infra.md) for the concrete `UP-16` stateful infra contract.
 
 ## Debugging

@@ -125,7 +125,7 @@ test-all:
 docs-check:
 	@$(PY) scripts/check_docs_links.py
 
-DIAGRAMS_DIR := docs/architecture/diagrams
+DIAGRAMS_DIR := docs/diagrams
 DIAGRAMS_SRC := $(DIAGRAMS_DIR)/context_local.py \
 	$(DIAGRAMS_DIR)/context_hosted.py \
 	$(DIAGRAMS_DIR)/container_local.py \

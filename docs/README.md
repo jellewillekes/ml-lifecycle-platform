@@ -15,12 +15,8 @@ The hosted staging path is a separate advanced path documented under [Advanced h
 
 ## Architecture
 
-- [`simplification-charter.md`](./simplification-charter.md): what "simpler" means in this repo, execution order, refactor guardrails, and core OSS vs hosted surface split
-- [`architecture/how-it-works.md`](./architecture/how-it-works.md): fastest current explanation of the local path, operator flows, and live boundaries
-- [`architecture/overview.md`](./architecture/overview.md): current local and hosted topology, boundaries, and lifecycle
-- [`architecture/local-runtime.md`](./architecture/local-runtime.md): runtime profiles, model specs, serving contract, local paths
-- [`architecture/current-state.md`](./architecture/current-state.md): current implemented scope and non-goals
-- [`architecture/m2-staging-platform.md`](./architecture/m2-staging-platform.md): fixed decisions for the first hosted GCP staging platform (advanced — maintainer only)
+- [`architecture.md`](./architecture.md): system shape, local and hosted paths, serving contract, release evidence, code layout, known limitations, and non-goals
+- [`reference/local-runtime.md`](./reference/local-runtime.md): runtime profiles, model spec shape, env var overrides, and local serving contract
 
 ## Local runbooks
 

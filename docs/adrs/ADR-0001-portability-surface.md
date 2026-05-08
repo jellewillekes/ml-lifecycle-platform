@@ -117,5 +117,4 @@ Trade-offs:
 
 ## Related documents
 
-- [`m0-portability-charter.md`](../architecture/m0-portability-charter.md)
 - [`ADR-0002-mlflow-control-plane.md`](./ADR-0002-mlflow-control-plane.md)

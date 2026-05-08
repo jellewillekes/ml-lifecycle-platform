@@ -8,7 +8,7 @@ package and are not duplicated here.
 ## How to populate
 
 ```sh
-bash docs/architecture/diagrams/assets/fetch.sh
+bash docs/diagrams/assets/fetch.sh
 ```
 
 The script attempts a single download per logo.  Anything that fails is left

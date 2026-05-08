@@ -113,7 +113,7 @@ This foundation layer is intentionally enough for:
 - hosted serving
 - edge and orchestration later
 
-Use the fixed decisions in [`../architecture/m2-staging-platform.md`](../architecture/m2-staging-platform.md) as the default shape unless a later ADR changes them.
+Use the fixed decisions in [`../architecture.md`](../architecture.md#fixed-decisions) as the default shape unless a later ADR changes them.
 The concrete stateful infra added in `UP-16` is documented in [`./gcp-staging-infra.md`](./gcp-staging-infra.md).
 
 ## Operator flow
