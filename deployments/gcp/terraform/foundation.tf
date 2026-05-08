@@ -9,6 +9,7 @@ locals {
   artifact_registry_repository_id = "${local.foundation_name_prefix}-images"
   bucket_location                 = upper(var.region)
   github_repository_full_name     = "${var.github_repository_owner}/${var.github_repository}"
+  tf_state_bucket                 = "fpl-tf-state-jelle"
   workload_identity_pool_id       = "github-actions"
   workload_identity_provider_id   = "github-oidc"
 
@@ -71,11 +72,20 @@ resource "google_secret_manager_secret" "foundation" {
   depends_on = [google_project_service.required["secretmanager.googleapis.com"]]
 }
 
-resource "google_service_account" "ci" {
+resource "google_service_account" "ci_staging" {
   project      = data.google_project.current.project_id
-  account_id   = "${local.foundation_name_prefix}-ci"
-  display_name = "ML lifecycle platform CI"
-  description  = "GitHub Actions identity for pushing images and later deploy automation."
+  account_id   = "${local.foundation_name_prefix}-ci-staging"
+  display_name = "ML lifecycle platform CI / staging"
+  description  = "GitHub Actions identity for staging deploys. Bound to environment:staging OIDC subject."
+
+  depends_on = [google_project_service.required["iam.googleapis.com"]]
+}
+
+resource "google_service_account" "ci_prod" {
+  project      = data.google_project.current.project_id
+  account_id   = "${local.foundation_name_prefix}-ci-prod"
+  display_name = "ML lifecycle platform CI / production"
+  description  = "Reserved production CI identity. No WIF binding until UP-47."
 
   depends_on = [google_project_service.required["iam.googleapis.com"]]
 }
@@ -89,18 +99,32 @@ resource "google_service_account" "runtime" {
   depends_on = [google_project_service.required["iam.googleapis.com"]]
 }
 
-resource "google_artifact_registry_repository_iam_member" "ci_writer" {
+resource "google_artifact_registry_repository_iam_member" "ci_staging_writer" {
   project    = google_artifact_registry_repository.images.project
   location   = google_artifact_registry_repository.images.location
   repository = google_artifact_registry_repository.images.name
   role       = "roles/artifactregistry.writer"
-  member     = "serviceAccount:${google_service_account.ci.email}"
+  member     = "serviceAccount:${google_service_account.ci_staging.email}"
 }
 
-resource "google_project_iam_member" "ci_viewer" {
+resource "google_project_iam_member" "ci_staging_viewer" {
   project = data.google_project.current.project_id
   role    = "roles/viewer"
-  member  = "serviceAccount:${google_service_account.ci.email}"
+  member  = "serviceAccount:${google_service_account.ci_staging.email}"
+}
+
+resource "google_project_iam_member" "ci_staging_scheduler_admin" {
+  project = data.google_project.current.project_id
+  role    = "roles/cloudscheduler.admin"
+  member  = "serviceAccount:${google_service_account.ci_staging.email}"
+}
+
+resource "google_storage_bucket_iam_member" "ci_staging_foundation_bucket_admin" {
+  for_each = google_storage_bucket.foundation
+
+  bucket = each.value.name
+  role   = "roles/storage.admin"
+  member = "serviceAccount:${google_service_account.ci_staging.email}"
 }
 
 resource "google_storage_bucket_iam_member" "runtime_bucket_admin" {
@@ -149,6 +173,7 @@ resource "google_iam_workload_identity_pool_provider" "github" {
     "google.subject"                = "assertion.sub"
     "attribute.actor"               = "assertion.actor"
     "attribute.aud"                 = "assertion.aud"
+    "attribute.environment"         = "assertion.environment"
     "attribute.ref"                 = "assertion.ref"
     "attribute.ref_type"            = "assertion.ref_type"
     "attribute.repository"          = "assertion.repository"
@@ -168,12 +193,17 @@ resource "google_iam_workload_identity_pool_provider" "github" {
   ]
 }
 
-resource "google_service_account_iam_member" "ci_workload_identity_user" {
-  service_account_id = google_service_account.ci.name
+resource "google_storage_bucket_iam_member" "ci_staging_tf_state_admin" {
+  bucket = local.tf_state_bucket
+  role   = "roles/storage.admin"
+  member = "serviceAccount:${google_service_account.ci_staging.email}"
+}
+
+resource "google_service_account_iam_member" "ci_staging_workload_identity_user" {
+  service_account_id = google_service_account.ci_staging.name
   role               = "roles/iam.workloadIdentityUser"
   member = format(
-    "principalSet://iam.googleapis.com/%s/attribute.repository_id/%s",
+    "principalSet://iam.googleapis.com/%s/attribute.environment/staging",
     google_iam_workload_identity_pool.github.name,
-    var.github_repository_id,
   )
 }

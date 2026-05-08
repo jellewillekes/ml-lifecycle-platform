@@ -162,3 +162,18 @@ After a good deploy you should see:
 - Terraform output `serving_service.uri`
 - Cloud Run service `mlp-serving-staging`
 - authenticated smoke passed for `/health`, `/metadata/model`, `/metadata/schema`, and `/predict`
+
+## Production deploy
+
+Production infrastructure is not yet provisioned (UP-47).
+
+The skeleton workflow `deploy-serving-production.yml` is available and gated behind the `production` GitHub Environment (5-minute wait timer, no required reviewer). Triggering it from `master` will pause for the timer before proceeding.
+
+To trigger the skeleton:
+
+```bash
+gh workflow run deploy-serving-production.yml --ref master
+gh run list --workflow=deploy-serving-production.yml --limit 1
+```
+
+The run will pause at the environment gate. No GCP resources are invoked.

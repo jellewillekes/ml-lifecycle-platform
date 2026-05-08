@@ -57,14 +57,15 @@ output "foundation_secret_ids" {
 output "foundation_service_accounts" {
   description = "Service account emails for CI and hosted runtime identities."
   value = {
-    ci      = google_service_account.ci.email
-    runtime = google_service_account.runtime.email
+    ci_staging = google_service_account.ci_staging.email
+    ci_prod    = google_service_account.ci_prod.email
+    runtime    = google_service_account.runtime.email
   }
 }
 
 output "ci_service_account_email" {
   description = "CI service account email for GitHub Actions federation."
-  value       = google_service_account.ci.email
+  value       = google_service_account.ci_staging.email
 }
 
 output "runtime_service_account_email" {
@@ -125,7 +126,7 @@ output "mlflow_service" {
     name       = google_cloud_run_v2_service.mlflow["staging"].name
     uri        = google_cloud_run_v2_service.mlflow["staging"].uri
     image      = google_cloud_run_v2_service.mlflow["staging"].template[0].containers[0].image
-    invoker_sa = google_service_account.ci.email
+    invoker_sa = google_service_account.ci_staging.email
   } : null
 }
 
@@ -135,7 +136,7 @@ output "serving_service" {
     name       = google_cloud_run_v2_service.serving["staging"].name
     uri        = google_cloud_run_v2_service.serving["staging"].uri
     image      = google_cloud_run_v2_service.serving["staging"].template[0].containers[0].image
-    invoker_sa = google_service_account.ci.email
+    invoker_sa = google_service_account.ci_staging.email
   } : null
 }
 

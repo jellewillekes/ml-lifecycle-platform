@@ -17,7 +17,7 @@ What it proves:
 
 ## Required GitHub Actions variables
 
-Set these repository variables from Terraform outputs:
+Set these as `staging` environment variables (not repository variables) from Terraform outputs:
 
 - `GCP_PROJECT_ID`
   - `terraform -chdir=deployments/gcp/terraform output -raw project_id`
@@ -25,6 +25,10 @@ Set these repository variables from Terraform outputs:
   - `terraform -chdir=deployments/gcp/terraform output -raw workload_identity_provider_name`
 - `GCP_CI_SERVICE_ACCOUNT`
   - `terraform -chdir=deployments/gcp/terraform output -raw ci_service_account_email`
+
+These variables are scoped to the `staging` GitHub Environment, not the repository. Any workflow job that needs them must declare `environment: staging`. The WIF subject-claim binding enforces this: `mlp-ci-staging` can only be impersonated when the OIDC token carries `environment=staging`.
+
+`mlp-ci-prod` is reserved as a placeholder service account with no WIF binding until UP-47.
 
 No static service account key is used.
 

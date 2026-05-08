@@ -1,0 +1,17 @@
+name: CD / Deploy Platform Jobs / Production
+
+on:
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    name: Deploy
+    runs-on: ubuntu-latest
+    environment: production
+    if: github.ref == 'refs/heads/master'
+    steps:
+      - name: Not yet implemented
+        run: echo "Production infrastructure is not yet provisioned (UP-47)."

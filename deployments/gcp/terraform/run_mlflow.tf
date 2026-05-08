@@ -6,19 +6,19 @@ locals {
 resource "google_project_iam_member" "ci_run_admin" {
   project = data.google_project.current.project_id
   role    = "roles/run.admin"
-  member  = "serviceAccount:${google_service_account.ci.email}"
+  member  = "serviceAccount:${google_service_account.ci_staging.email}"
 }
 
 resource "google_project_iam_member" "ci_service_usage_admin" {
   project = data.google_project.current.project_id
   role    = "roles/serviceusage.serviceUsageAdmin"
-  member  = "serviceAccount:${google_service_account.ci.email}"
+  member  = "serviceAccount:${google_service_account.ci_staging.email}"
 }
 
 resource "google_service_account_iam_member" "ci_runtime_service_account_user" {
   service_account_id = google_service_account.runtime.name
   role               = "roles/iam.serviceAccountUser"
-  member             = "serviceAccount:${google_service_account.ci.email}"
+  member             = "serviceAccount:${google_service_account.ci_staging.email}"
 }
 
 resource "google_cloud_run_v2_service" "mlflow" {
@@ -163,5 +163,5 @@ resource "google_cloud_run_v2_service_iam_member" "mlflow_ci_invoker" {
   location = each.value.location
   name     = each.value.name
   role     = "roles/run.invoker"
-  member   = "serviceAccount:${google_service_account.ci.email}"
+  member   = "serviceAccount:${google_service_account.ci_staging.email}"
 }
