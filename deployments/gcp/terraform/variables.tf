@@ -116,3 +116,21 @@ variable "otlp_collector_endpoint" {
   type        = string
   default     = ""
 }
+
+variable "production_mlflow_image" {
+  description = "Hosted production MLflow container image ref. Leave empty until the first production MLflow deploy."
+  type        = string
+  default     = ""
+}
+
+variable "production_serving_image" {
+  description = "Hosted production serving container image ref. Leave empty until the first production serving deploy."
+  type        = string
+  default     = ""
+}
+
+variable "production_platform_image" {
+  description = "Hosted production platform jobs container image ref. Leave empty until the first production platform-jobs deploy."
+  type        = string
+  default     = ""
+}

@@ -1,17 +1,288 @@
 name: CD / Deploy MLflow / Production
 
 on:
-  workflow_dispatch: {}
+  workflow_call:
+    inputs:
+      mlflow_image:
+        description: Digest-pinned Artifact Registry ref for the production MLflow image to deploy.
+        required: true
+        type: string
+    outputs:
+      mlflow_image:
+        description: Deployed production MLflow image pinned by digest.
+        value: ${{ jobs.deploy.outputs.mlflow_image }}
+      service_url:
+        description: Hosted production MLflow service URL after deploy.
+        value: ${{ jobs.deploy.outputs.service_url }}
+  workflow_dispatch:
+    inputs:
+      mlflow_image:
+        description: Digest-pinned Artifact Registry ref for the production MLflow image to deploy.
+        required: true
+        type: string
 
 permissions:
   contents: read
+
+concurrency:
+  group: production-mlflow-deploy
+  cancel-in-progress: false
+
+env:
+  GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+  GCP_WIF_PROVIDER: ${{ secrets.GCP_WIF_PROVIDER }}
+  GCP_CI_SERVICE_ACCOUNT: ${{ secrets.GCP_CI_SERVICE_ACCOUNT }}
+  GCP_REGION: europe-west1
 
 jobs:
   deploy:
     name: Deploy
     runs-on: ubuntu-latest
+    timeout-minutes: 40
     environment: production
     if: github.ref == 'refs/heads/master'
+    permissions:
+      contents: read
+      id-token: write
+    outputs:
+      mlflow_image: ${{ steps.service.outputs.service_image }}
+      service_url: ${{ steps.service.outputs.service_url }}
+
     steps:
-      - name: Not yet implemented
-        run: echo "Production infrastructure is not yet provisioned (UP-47)."
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          persist-credentials: false
+
+      - name: Validate required GitHub Actions secrets
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          missing=()
+          for var_name in GCP_PROJECT_ID GCP_WIF_PROVIDER GCP_CI_SERVICE_ACCOUNT; do
+            if [[ -z "${!var_name:-}" ]]; then
+              missing+=("${var_name}")
+            fi
+          done
+
+          if (( ${#missing[@]} > 0 )); then
+            printf 'Missing required GitHub Actions secret(s): %s\n' "${missing[*]}"
+            echo "Set them in the production GitHub Environment:"
+            echo "  GCP_PROJECT_ID <- terraform output project_id"
+            echo "  GCP_WIF_PROVIDER <- terraform output workload_identity_provider_name"
+            echo "  GCP_CI_SERVICE_ACCOUNT <- mlp-ci-prod@<project>.iam.gserviceaccount.com"
+            exit 1
+          fi
+
+      - id: context
+        name: Validate deploy image input
+        env:
+          INPUT_MLFLOW_IMAGE: ${{ inputs.mlflow_image }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          mlflow_image="${INPUT_MLFLOW_IMAGE}"
+          if [[ -z "${mlflow_image}" ]]; then
+            echo "Provide mlflow_image as a digest-pinned Artifact Registry ref."
+            exit 1
+          fi
+          if [[ "${mlflow_image}" != *@sha256:* ]]; then
+            echo "mlflow_image must be pinned by digest, for example .../mlflow@sha256:..."
+            exit 1
+          fi
+          if [[ "${mlflow_image%@*}" == *:* ]]; then
+            echo "mlflow_image must be a pure digest ref without a tag, for example .../mlflow@sha256:..."
+            exit 1
+          fi
+
+          echo "mlflow_image=${mlflow_image}" >> "${GITHUB_OUTPUT}"
+
+      - id: auth
+        name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3
+        with:
+          create_credentials_file: true
+          project_id: ${{ env.GCP_PROJECT_ID }}
+          workload_identity_provider: ${{ env.GCP_WIF_PROVIDER }}
+          service_account: ${{ env.GCP_CI_SERVICE_ACCOUNT }}
+
+      - name: Set up gcloud
+        uses: google-github-actions/setup-gcloud@aa5489c8933f4cc7a4f7d45035b3b1440c9c10db # v3
+        with:
+          version: ">= 363.0.0"
+          project_id: ${{ env.GCP_PROJECT_ID }}
+
+      - name: Verify MLflow image exists in Artifact Registry
+        env:
+          MLFLOW_IMAGE: ${{ steps.context.outputs.mlflow_image }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          digest="$(
+            gcloud artifacts docker images describe "${MLFLOW_IMAGE}" \
+              --format='value(image_summary.digest)'
+          )"
+          if [[ -z "${digest}" ]]; then
+            echo "Failed to resolve MLflow image digest from Artifact Registry."
+            exit 1
+          fi
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@5e8dbf3c6d9deaf4193ca7a8fb23f2ac83bb6c85 # v4.0.0
+        with:
+          terraform_version: 1.5.7
+
+      - name: Set up Python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6
+        with:
+          python-version: "3.11.7"
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
+        with:
+          enable-cache: true
+          cache-dependency-glob: |
+            uv.lock
+            pyproject.toml
+
+      - name: Sync (locked)
+        shell: bash
+        run: |
+          set -euo pipefail
+          uv sync --frozen --group dev
+
+      - name: Terraform init
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash scripts/retry_terraform_gcp_init.sh
+
+      - id: staging_mlflow
+        name: Resolve current staging MLflow image
+        shell: bash
+        run: |
+          set -euo pipefail
+          export MLFLOW_SERVICE_JSON="${RUNNER_TEMP}/mlflow-service.json"
+          terraform -chdir=deployments/gcp/terraform output -json mlflow_service > "${MLFLOW_SERVICE_JSON}"
+          mlflow_image="$(python3 -c '
+          import json, sys
+          value = json.load(open(sys.argv[1], encoding="utf-8"))
+          print(value["image"] if value else "")
+          ' "${MLFLOW_SERVICE_JSON}")"
+          echo "mlflow_image=${mlflow_image}" >> "${GITHUB_OUTPUT}"
+
+      - id: staging_serving
+        name: Resolve current staging serving image
+        shell: bash
+        run: |
+          set -euo pipefail
+          uv run python scripts/resolve_cloud_run_service_contract.py \
+            --project-id "${GCP_PROJECT_ID}" \
+            --region "${GCP_REGION}" \
+            --service-name "mlp-serving-staging" \
+            --github-output "${GITHUB_OUTPUT}" \
+            --allow-missing
+
+      - id: staging_platform
+        name: Resolve current staging platform image
+        shell: bash
+        run: |
+          set -euo pipefail
+          export PLATFORM_JOBS_JSON="${RUNNER_TEMP}/platform-jobs.json"
+          terraform -chdir=deployments/gcp/terraform output -json platform_jobs > "${PLATFORM_JOBS_JSON}"
+          platform_image="$(python3 -c '
+          import json, sys
+          value = json.load(open(sys.argv[1], encoding="utf-8"))
+          print(next(iter(value.values()))["image"] if value else "")
+          ' "${PLATFORM_JOBS_JSON}")"
+          echo "platform_image=${platform_image}" >> "${GITHUB_OUTPUT}"
+
+      - id: prod_serving
+        name: Resolve current production serving image
+        shell: bash
+        run: |
+          set -euo pipefail
+          uv run python scripts/resolve_cloud_run_service_contract.py \
+            --project-id "${GCP_PROJECT_ID}" \
+            --region "${GCP_REGION}" \
+            --service-name "mlp-serving-production" \
+            --github-output "${GITHUB_OUTPUT}" \
+            --allow-missing
+
+      - id: prod_platform
+        name: Resolve current production platform image
+        shell: bash
+        run: |
+          set -euo pipefail
+          export PLATFORM_JOBS_JSON="${RUNNER_TEMP}/platform-jobs-production.json"
+          terraform -chdir=deployments/gcp/terraform output -json platform_production_jobs > "${PLATFORM_JOBS_JSON}"
+          platform_image="$(python3 -c '
+          import json, sys
+          value = json.load(open(sys.argv[1], encoding="utf-8"))
+          print(next(iter(value.values()))["image"] if value else "")
+          ' "${PLATFORM_JOBS_JSON}")"
+          echo "platform_image=${platform_image}" >> "${GITHUB_OUTPUT}"
+
+      - name: Terraform apply hosted MLflow production
+        env:
+          TF_VAR_mlflow_image: ${{ steps.staging_mlflow.outputs.mlflow_image }}
+          TF_VAR_serving_image: ${{ steps.staging_serving.outputs.service_image }}
+          TF_VAR_platform_image: ${{ steps.staging_platform.outputs.platform_image }}
+          TF_VAR_production_mlflow_image: ${{ steps.context.outputs.mlflow_image }}
+          TF_VAR_production_serving_image: ${{ steps.prod_serving.outputs.service_image }}
+          TF_VAR_production_platform_image: ${{ steps.prod_platform.outputs.platform_image }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          terraform -chdir=deployments/gcp/terraform apply -auto-approve -input=false
+
+      - id: service
+        name: Resolve hosted MLflow production service contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          uv run python scripts/resolve_cloud_run_service_contract.py \
+            --project-id "${GCP_PROJECT_ID}" \
+            --region "${GCP_REGION}" \
+            --service-name "mlp-mlflow-production" \
+            --github-output "${GITHUB_OUTPUT}"
+
+      - name: Mint identity token for Cloud Run
+        id: token
+        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3
+        with:
+          create_credentials_file: false
+          project_id: ${{ env.GCP_PROJECT_ID }}
+          workload_identity_provider: ${{ env.GCP_WIF_PROVIDER }}
+          service_account: ${{ env.GCP_CI_SERVICE_ACCOUNT }}
+          token_format: id_token
+          id_token_audience: ${{ steps.service.outputs.service_url }}
+          id_token_include_email: true
+
+      - name: Verify hosted MLflow production
+        env:
+          MLFLOW_TRACKING_TOKEN: ${{ steps.token.outputs.id_token }}
+          TRACKING_URI: ${{ steps.service.outputs.service_url }}
+          EXPERIMENT_NAME: mlflow-production-smoke-${{ github.run_id }}-${{ github.run_attempt }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          uv run python scripts/verify_mlflow_staging.py \
+            --tracking-uri "${TRACKING_URI}" \
+            --experiment-name "${EXPERIMENT_NAME}"
+
+      - name: Write workflow summary
+        env:
+          MLFLOW_IMAGE: ${{ steps.service.outputs.service_image }}
+          SERVICE_URL: ${{ steps.service.outputs.service_url }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          {
+            echo "## Hosted MLflow production"
+            echo
+            echo "- Image: \`${MLFLOW_IMAGE}\`"
+            echo "- Service URL: \`${SERVICE_URL}\`"
+            echo "- Verification: metadata write + artifact write passed"
+          } >> "${GITHUB_STEP_SUMMARY}"
