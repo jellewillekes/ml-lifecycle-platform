@@ -113,6 +113,20 @@ resource "google_project_iam_member" "ci_staging_viewer" {
   member  = "serviceAccount:${google_service_account.ci_staging.email}"
 }
 
+resource "google_project_iam_member" "ci_staging_scheduler_admin" {
+  project = data.google_project.current.project_id
+  role    = "roles/cloudscheduler.admin"
+  member  = "serviceAccount:${google_service_account.ci_staging.email}"
+}
+
+resource "google_storage_bucket_iam_member" "ci_staging_foundation_bucket_admin" {
+  for_each = google_storage_bucket.foundation
+
+  bucket = each.value.name
+  role   = "roles/storage.admin"
+  member = "serviceAccount:${google_service_account.ci_staging.email}"
+}
+
 resource "google_storage_bucket_iam_member" "runtime_bucket_admin" {
   for_each = google_storage_bucket.foundation
 
@@ -181,7 +195,7 @@ resource "google_iam_workload_identity_pool_provider" "github" {
 
 resource "google_storage_bucket_iam_member" "ci_staging_tf_state_admin" {
   bucket = local.tf_state_bucket
-  role   = "roles/storage.objectAdmin"
+  role   = "roles/storage.admin"
   member = "serviceAccount:${google_service_account.ci_staging.email}"
 }
 
