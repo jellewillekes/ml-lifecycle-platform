@@ -9,6 +9,7 @@ locals {
   artifact_registry_repository_id = "${local.foundation_name_prefix}-images"
   bucket_location                 = upper(var.region)
   github_repository_full_name     = "${var.github_repository_owner}/${var.github_repository}"
+  tf_state_bucket                 = "fpl-tf-state-jelle"
   workload_identity_pool_id       = "github-actions"
   workload_identity_provider_id   = "github-oidc"
 
@@ -176,6 +177,12 @@ resource "google_iam_workload_identity_pool_provider" "github" {
     google_project_service.required["iamcredentials.googleapis.com"],
     google_project_service.required["sts.googleapis.com"],
   ]
+}
+
+resource "google_storage_bucket_iam_member" "ci_staging_tf_state_admin" {
+  bucket = local.tf_state_bucket
+  role   = "roles/storage.objectAdmin"
+  member = "serviceAccount:${google_service_account.ci_staging.email}"
 }
 
 resource "google_service_account_iam_member" "ci_staging_workload_identity_user" {
