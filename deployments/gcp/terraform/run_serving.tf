@@ -169,7 +169,7 @@ resource "google_cloud_run_v2_service_iam_member" "serving_ci_invoker" {
   location = each.value.location
   name     = each.value.name
   role     = "roles/run.invoker"
-  member   = "serviceAccount:${google_service_account.ci.email}"
+  member   = "serviceAccount:${google_service_account.ci_staging.email}"
 }
 
 resource "google_cloud_run_v2_service_iam_member" "mlflow_runtime_invoker" {

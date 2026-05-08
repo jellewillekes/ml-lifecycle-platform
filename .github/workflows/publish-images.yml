@@ -53,6 +53,7 @@ jobs:
   build-and-push:
     name: Build And Push
     runs-on: ubuntu-latest
+    environment: staging
     timeout-minutes: 30
     permissions:
       contents: read
