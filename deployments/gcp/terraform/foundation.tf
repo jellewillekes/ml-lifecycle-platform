@@ -207,3 +207,46 @@ resource "google_service_account_iam_member" "ci_staging_workload_identity_user"
     google_iam_workload_identity_pool.github.name,
   )
 }
+
+resource "google_artifact_registry_repository_iam_member" "ci_prod_writer" {
+  project    = google_artifact_registry_repository.images.project
+  location   = google_artifact_registry_repository.images.location
+  repository = google_artifact_registry_repository.images.name
+  role       = "roles/artifactregistry.writer"
+  member     = "serviceAccount:${google_service_account.ci_prod.email}"
+}
+
+resource "google_project_iam_member" "ci_prod_viewer" {
+  project = data.google_project.current.project_id
+  role    = "roles/viewer"
+  member  = "serviceAccount:${google_service_account.ci_prod.email}"
+}
+
+resource "google_project_iam_member" "ci_prod_scheduler_admin" {
+  project = data.google_project.current.project_id
+  role    = "roles/cloudscheduler.admin"
+  member  = "serviceAccount:${google_service_account.ci_prod.email}"
+}
+
+resource "google_storage_bucket_iam_member" "ci_prod_foundation_bucket_admin" {
+  for_each = google_storage_bucket.foundation
+
+  bucket = each.value.name
+  role   = "roles/storage.admin"
+  member = "serviceAccount:${google_service_account.ci_prod.email}"
+}
+
+resource "google_storage_bucket_iam_member" "ci_prod_tf_state_admin" {
+  bucket = local.tf_state_bucket
+  role   = "roles/storage.admin"
+  member = "serviceAccount:${google_service_account.ci_prod.email}"
+}
+
+resource "google_service_account_iam_member" "ci_prod_workload_identity_user" {
+  service_account_id = google_service_account.ci_prod.name
+  role               = "roles/iam.workloadIdentityUser"
+  member = format(
+    "principalSet://iam.googleapis.com/%s/attribute.environment/production",
+    google_iam_workload_identity_pool.github.name,
+  )
+}

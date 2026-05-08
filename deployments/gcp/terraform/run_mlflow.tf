@@ -1,36 +1,68 @@
 locals {
-  mlflow_service_name   = "${local.foundation_name_prefix}-mlflow-staging"
-  mlflow_deploy_enabled = length(trimspace(var.mlflow_image)) > 0
+  mlflow_deploy_enabled            = length(trimspace(var.mlflow_image)) > 0
+  mlflow_production_deploy_enabled = length(trimspace(var.production_mlflow_image)) > 0
+
+  mlflow_deploy_map = merge(
+    local.mlflow_deploy_enabled ? { staging = var.mlflow_image } : {},
+    local.mlflow_production_deploy_enabled ? { production = var.production_mlflow_image } : {},
+  )
+
+  mlflow_networks = {
+    staging    = google_compute_network.staging
+    production = google_compute_network.production
+  }
+  mlflow_subnetworks = {
+    staging    = google_compute_subnetwork.staging
+    production = google_compute_subnetwork.production
+  }
+  mlflow_sql_instances = {
+    staging    = google_sql_database_instance.mlflow
+    production = google_sql_database_instance.mlflow_production
+  }
+  mlflow_secret_refs = {
+    staging    = google_secret_manager_secret.mlflow
+    production = google_secret_manager_secret.mlflow_production
+  }
+  mlflow_ci_sas = {
+    staging    = google_service_account.ci_staging
+    production = google_service_account.ci_prod
+  }
 }
 
 resource "google_project_iam_member" "ci_run_admin" {
+  for_each = local.mlflow_ci_sas
+
   project = data.google_project.current.project_id
   role    = "roles/run.admin"
-  member  = "serviceAccount:${google_service_account.ci_staging.email}"
+  member  = "serviceAccount:${each.value.email}"
 }
 
 resource "google_project_iam_member" "ci_service_usage_admin" {
+  for_each = local.mlflow_ci_sas
+
   project = data.google_project.current.project_id
   role    = "roles/serviceusage.serviceUsageAdmin"
-  member  = "serviceAccount:${google_service_account.ci_staging.email}"
+  member  = "serviceAccount:${each.value.email}"
 }
 
 resource "google_service_account_iam_member" "ci_runtime_service_account_user" {
+  for_each = local.mlflow_ci_sas
+
   service_account_id = google_service_account.runtime.name
   role               = "roles/iam.serviceAccountUser"
-  member             = "serviceAccount:${google_service_account.ci_staging.email}"
+  member             = "serviceAccount:${each.value.email}"
 }
 
 resource "google_cloud_run_v2_service" "mlflow" {
-  for_each = local.mlflow_deploy_enabled ? { staging = var.mlflow_image } : {}
+  for_each = local.mlflow_deploy_map
 
   project             = data.google_project.current.project_id
-  name                = local.mlflow_service_name
+  name                = "${local.foundation_name_prefix}-mlflow-${each.key}"
   location            = var.region
   ingress             = "INGRESS_TRAFFIC_ALL"
   deletion_protection = true
 
-  labels = merge(local.common_labels, { purpose = "mlflow_staging" })
+  labels = merge(local.common_labels, { purpose = "mlflow_${each.key}" })
 
   template {
     service_account                  = google_service_account.runtime.email
@@ -46,8 +78,8 @@ resource "google_cloud_run_v2_service" "mlflow" {
       egress = "PRIVATE_RANGES_ONLY"
 
       network_interfaces {
-        network    = google_compute_network.staging.id
-        subnetwork = google_compute_subnetwork.staging.id
+        network    = local.mlflow_networks[each.key].id
+        subnetwork = local.mlflow_subnetworks[each.key].id
       }
     }
 
@@ -77,7 +109,7 @@ resource "google_cloud_run_v2_service" "mlflow" {
 
       env {
         name  = "DB_HOST"
-        value = google_sql_database_instance.mlflow.private_ip_address
+        value = local.mlflow_sql_instances[each.key].private_ip_address
       }
 
       env {
@@ -89,7 +121,7 @@ resource "google_cloud_run_v2_service" "mlflow" {
         name = "DB_NAME"
         value_source {
           secret_key_ref {
-            secret  = google_secret_manager_secret.mlflow["db_name"].secret_id
+            secret  = local.mlflow_secret_refs[each.key]["db_name"].secret_id
             version = "latest"
           }
         }
@@ -99,7 +131,7 @@ resource "google_cloud_run_v2_service" "mlflow" {
         name = "DB_USER"
         value_source {
           secret_key_ref {
-            secret  = google_secret_manager_secret.mlflow["db_user"].secret_id
+            secret  = local.mlflow_secret_refs[each.key]["db_user"].secret_id
             version = "latest"
           }
         }
@@ -109,7 +141,7 @@ resource "google_cloud_run_v2_service" "mlflow" {
         name = "DB_PASSWORD"
         value_source {
           secret_key_ref {
-            secret  = google_secret_manager_secret.mlflow["db_password"].secret_id
+            secret  = local.mlflow_secret_refs[each.key]["db_password"].secret_id
             version = "latest"
           }
         }
@@ -119,7 +151,7 @@ resource "google_cloud_run_v2_service" "mlflow" {
         name = "ARTIFACTS_DESTINATION"
         value_source {
           secret_key_ref {
-            secret  = google_secret_manager_secret.mlflow["artifact_root"].secret_id
+            secret  = local.mlflow_secret_refs[each.key]["artifact_root"].secret_id
             version = "latest"
           }
         }
@@ -152,6 +184,7 @@ resource "google_cloud_run_v2_service" "mlflow" {
   depends_on = [
     google_project_service.required["run.googleapis.com"],
     google_secret_manager_secret_iam_member.runtime_mlflow_secret_accessor,
+    google_secret_manager_secret_iam_member.runtime_mlflow_production_secret_accessor,
     google_project_iam_member.runtime_cloudsql_client,
   ]
 }
@@ -163,5 +196,5 @@ resource "google_cloud_run_v2_service_iam_member" "mlflow_ci_invoker" {
   location = each.value.location
   name     = each.value.name
   role     = "roles/run.invoker"
-  member   = "serviceAccount:${google_service_account.ci_staging.email}"
+  member   = "serviceAccount:${local.mlflow_ci_sas[each.key].email}"
 }

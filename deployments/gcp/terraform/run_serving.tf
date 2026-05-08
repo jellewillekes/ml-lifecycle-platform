@@ -1,19 +1,24 @@
 locals {
-  serving_service_name   = "${local.foundation_name_prefix}-serving-staging"
-  serving_deploy_enabled = length(trimspace(var.serving_image)) > 0
-  otlp_enabled           = length(trimspace(var.otlp_collector_endpoint)) > 0
+  serving_deploy_enabled            = length(trimspace(var.serving_image)) > 0
+  serving_production_deploy_enabled = length(trimspace(var.production_serving_image)) > 0
+  otlp_enabled                      = length(trimspace(var.otlp_collector_endpoint)) > 0
+
+  serving_deploy_map = merge(
+    local.serving_deploy_enabled ? { staging = var.serving_image } : {},
+    local.serving_production_deploy_enabled ? { production = var.production_serving_image } : {},
+  )
 }
 
 resource "google_cloud_run_v2_service" "serving" {
-  for_each = local.serving_deploy_enabled ? { staging = var.serving_image } : {}
+  for_each = local.serving_deploy_map
 
   project             = data.google_project.current.project_id
-  name                = local.serving_service_name
+  name                = "${local.foundation_name_prefix}-serving-${each.key}"
   location            = var.region
   ingress             = "INGRESS_TRAFFIC_ALL"
   deletion_protection = true
 
-  labels = merge(local.common_labels, { purpose = "serving_staging" })
+  labels = merge(local.common_labels, { purpose = "serving_${each.key}" })
 
   template {
     service_account                  = google_service_account.runtime.email
@@ -29,8 +34,8 @@ resource "google_cloud_run_v2_service" "serving" {
       egress = "PRIVATE_RANGES_ONLY"
 
       network_interfaces {
-        network    = google_compute_network.staging.id
-        subnetwork = google_compute_subnetwork.staging.id
+        network    = local.mlflow_networks[each.key].id
+        subnetwork = local.mlflow_subnetworks[each.key].id
       }
     }
 
@@ -50,22 +55,22 @@ resource "google_cloud_run_v2_service" "serving" {
 
       env {
         name  = "MLP_ENV"
-        value = "staging"
+        value = each.key
       }
 
       env {
         name  = "MLFLOW_TRACKING_URI"
-        value = google_cloud_run_v2_service.mlflow["staging"].uri
+        value = google_cloud_run_v2_service.mlflow[each.key].uri
       }
 
       env {
         name  = "MLFLOW_REGISTRY_URI"
-        value = google_cloud_run_v2_service.mlflow["staging"].uri
+        value = google_cloud_run_v2_service.mlflow[each.key].uri
       }
 
       env {
         name  = "MLFLOW_CLOUD_RUN_AUDIENCE"
-        value = google_cloud_run_v2_service.mlflow["staging"].uri
+        value = google_cloud_run_v2_service.mlflow[each.key].uri
       }
 
       env {
@@ -169,7 +174,7 @@ resource "google_cloud_run_v2_service_iam_member" "serving_ci_invoker" {
   location = each.value.location
   name     = each.value.name
   role     = "roles/run.invoker"
-  member   = "serviceAccount:${google_service_account.ci_staging.email}"
+  member   = "serviceAccount:${local.mlflow_ci_sas[each.key].email}"
 }
 
 resource "google_cloud_run_v2_service_iam_member" "mlflow_runtime_invoker" {

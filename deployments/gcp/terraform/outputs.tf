@@ -169,3 +169,66 @@ output "platform_schedules" {
     }
   } : null
 }
+
+output "production_network" {
+  description = "Production VPC and subnet used by production hosted workloads."
+  value = {
+    network_name    = google_compute_network.production.name
+    network_id      = google_compute_network.production.id
+    subnetwork_name = google_compute_subnetwork.production.name
+    subnetwork_id   = google_compute_subnetwork.production.id
+    subnetwork_cidr = google_compute_subnetwork.production.ip_cidr_range
+    peering_range   = google_compute_global_address.production_private_services.name
+    peering_cidr    = google_compute_global_address.production_private_services.address
+  }
+}
+
+output "mlflow_production_service" {
+  description = "Hosted production MLflow service contract. Null until the first production MLflow deploy."
+  value = local.mlflow_production_deploy_enabled ? {
+    name       = google_cloud_run_v2_service.mlflow["production"].name
+    uri        = google_cloud_run_v2_service.mlflow["production"].uri
+    image      = google_cloud_run_v2_service.mlflow["production"].template[0].containers[0].image
+    invoker_sa = google_service_account.ci_prod.email
+  } : null
+}
+
+output "serving_production_service" {
+  description = "Hosted production serving service contract. Null until the first production serving deploy."
+  value = local.serving_production_deploy_enabled ? {
+    name       = google_cloud_run_v2_service.serving["production"].name
+    uri        = google_cloud_run_v2_service.serving["production"].uri
+    image      = google_cloud_run_v2_service.serving["production"].template[0].containers[0].image
+    invoker_sa = google_service_account.ci_prod.email
+  } : null
+}
+
+output "platform_production_jobs" {
+  description = "Hosted production Cloud Run job contracts. Null until the first production platform image deploy."
+  value = local.platform_production_jobs_enabled ? {
+    for key, job in google_cloud_run_v2_job.platform_production :
+    key => {
+      name                 = job.name
+      image                = job.template[0].template[0].containers[0].image
+      command              = local.platform_jobs_production[key].command
+      args                 = local.platform_jobs_production[key].args
+      mutates_model_state  = local.platform_jobs_production[key].mutates_model_state
+      safe_validation_args = local.platform_jobs_production[key].safe_validation_args
+    }
+  } : null
+}
+
+output "platform_production_schedules" {
+  description = "Hosted production Cloud Scheduler contracts. Null until the first production platform image deploy."
+  value = local.platform_production_jobs_enabled ? {
+    for key, job in google_cloud_scheduler_job.platform_production :
+    key => {
+      name       = job.name
+      region     = job.region
+      schedule   = job.schedule
+      time_zone  = job.time_zone
+      paused     = job.paused
+      target_job = google_cloud_run_v2_job.platform_production[key].name
+    }
+  } : null
+}
