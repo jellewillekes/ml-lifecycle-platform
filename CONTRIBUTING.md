@@ -68,6 +68,6 @@ Start with the handbook in [`docs/README.md`](docs/README.md).
 Useful references:
 
 - [`docs/runbooks/local-bootstrap.md`](docs/runbooks/local-bootstrap.md)
-- [`docs/architecture/overview.md`](docs/architecture/overview.md)
+- [`docs/architecture.md`](docs/architecture.md)
 - [`docs/ci.md`](docs/ci.md)
 - [`docs/releases.md`](docs/releases.md)

@@ -5,7 +5,7 @@ Status snapshot: M0 ✅, M1 ✅, M2 ✅ (closing via [#165](https://github.com/j
 
 ## Purpose
 
-This file is the single public roadmap for the platform. It replaces the piecemeal planning in [#53](https://github.com/jellewillekes/ml-lifecycle-platform/issues/53) and [docs/simplification-charter.md](docs/simplification-charter.md) with one document that:
+This file is the single public roadmap for the platform. It replaces the piecemeal planning in [#53](https://github.com/jellewillekes/ml-lifecycle-platform/issues/53) with one document that:
 
 - lists every planned ticket with enough detail to open as a GitHub issue,
 - makes dependencies explicit,
@@ -52,7 +52,7 @@ These are hard rules. A ticket that violates them gets rewritten, not accepted.
 
 ## Current state snapshot
 
-Taken from [docs/architecture/current-state.md](docs/architecture/current-state.md) plus a scan of closed issues.
+Taken from [docs/architecture.md](docs/architecture.md) plus a scan of closed issues.
 
 **Implemented and green:**
 

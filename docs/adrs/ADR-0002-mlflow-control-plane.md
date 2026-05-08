@@ -82,5 +82,4 @@ stabilize local portability.
 
 ## Related documents
 
-- [`m0-portability-charter.md`](../architecture/m0-portability-charter.md)
 - [`ADR-0001-portability-surface.md`](./ADR-0001-portability-surface.md)

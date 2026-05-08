@@ -42,7 +42,7 @@ make diagrams               # renders all 7 SVGs
 source file is also runnable on its own:
 
 ```sh
-uv run python docs/architecture/diagrams/context_hosted.py
+uv run python docs/diagrams/context_hosted.py
 ```
 
 ## Brand logos
