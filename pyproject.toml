@@ -31,6 +31,7 @@ mlp = "ml_lifecycle_platform.cli.main:main"
 
 [dependency-groups]
 dev = [
+    "diagrams>=0.24,<1.0",
     "httpx>=0.28.1",
     "mypy>=1.19.1",
     "pre-commit>=4.5.1",

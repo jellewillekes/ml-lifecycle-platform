@@ -55,6 +55,8 @@ help:
 	@echo "  make test-integration  run local integration tests"
 	@echo "  make test-all          run unit + integration tests"
 	@echo "  make docs-check        validate handbook links and local doc paths"
+	@echo "  make diagrams          render architecture SVGs (needs graphviz)"
+	@echo "  make diagrams-check    fail if rendered SVGs drift from sources"
 	@echo "  make fix               format + safe autofix"
 	@echo "  make precommit         run all hooks"
 	@echo "  make install-hooks     install git hooks"
@@ -89,7 +91,7 @@ help:
 	@echo "  make clean             remove local caches"
 	@echo ""
 
-.PHONY: check format lint type test test-unit test-coverage test-integration test-all docs-check fix
+.PHONY: check format lint type test test-unit test-coverage test-integration test-all docs-check diagrams diagrams-check fix
 check: format lint type test
 	@echo "✅ All checks passed"
 
@@ -122,6 +124,34 @@ test-all:
 
 docs-check:
 	@$(PY) scripts/check_docs_links.py
+
+DIAGRAMS_DIR := docs/architecture/diagrams
+DIAGRAMS_SRC := $(DIAGRAMS_DIR)/context_local.py \
+	$(DIAGRAMS_DIR)/context_hosted.py \
+	$(DIAGRAMS_DIR)/container_local.py \
+	$(DIAGRAMS_DIR)/container_hosted.py \
+	$(DIAGRAMS_DIR)/deployment_local.py \
+	$(DIAGRAMS_DIR)/deployment_hosted_runtime.py \
+	$(DIAGRAMS_DIR)/deployment_hosted_governance.py \
+	$(DIAGRAMS_DIR)/deployment_crypto_hosted.py
+
+diagrams:
+	@command -v dot >/dev/null || { echo "graphviz required: brew install graphviz"; exit 1; }
+	@$(PY) $(DIAGRAMS_DIR)/_make_placeholders.py
+	@for src in $(DIAGRAMS_SRC); do \
+		echo "  rendering $$src"; \
+		$(PY) "$$src"; \
+	done
+	@$(PY) $(DIAGRAMS_DIR)/_embed_svg_images.py
+	@echo "✅ Rendered SVGs to $(DIAGRAMS_DIR)/"
+
+diagrams-check: diagrams
+	@if ! git diff --quiet -- $(DIAGRAMS_DIR)/*.svg; then \
+		echo "❌ Tracked architecture diagrams diverge from sources; run 'make diagrams' and commit:"; \
+		git diff --stat -- $(DIAGRAMS_DIR)/*.svg; \
+		exit 1; \
+	fi
+	@echo "✅ Diagrams in sync"
 
 fix:
 	@$(RUFF) format .
