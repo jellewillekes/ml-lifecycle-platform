@@ -55,6 +55,8 @@ resource "google_service_networking_connection" "staging_private_services" {
 }
 
 resource "google_compute_network" "production" {
+  count = var.manage_production_foundation ? 1 : 0
+
   project                 = data.google_project.current.project_id
   name                    = local.production_network_name
   auto_create_subnetworks = false
@@ -64,10 +66,12 @@ resource "google_compute_network" "production" {
 }
 
 resource "google_compute_subnetwork" "production" {
+  count = var.manage_production_foundation ? 1 : 0
+
   project                  = data.google_project.current.project_id
   name                     = local.production_subnetwork_name
   region                   = var.region
-  network                  = google_compute_network.production.id
+  network                  = google_compute_network.production[0].id
   ip_cidr_range            = local.production_subnetwork_cidr
   private_ip_google_access = true
 
@@ -75,20 +79,24 @@ resource "google_compute_subnetwork" "production" {
 }
 
 resource "google_compute_global_address" "production_private_services" {
+  count = var.manage_production_foundation ? 1 : 0
+
   project       = data.google_project.current.project_id
   name          = local.production_private_service_range_name
   purpose       = "VPC_PEERING"
   address_type  = "INTERNAL"
   prefix_length = local.production_private_service_range_prefix_len
-  network       = google_compute_network.production.id
+  network       = google_compute_network.production[0].id
 
   depends_on = [google_project_service.required["compute.googleapis.com"]]
 }
 
 resource "google_service_networking_connection" "production_private_services" {
-  network                 = google_compute_network.production.id
+  count = var.manage_production_foundation ? 1 : 0
+
+  network                 = google_compute_network.production[0].id
   service                 = "servicenetworking.googleapis.com"
-  reserved_peering_ranges = [google_compute_global_address.production_private_services.name]
+  reserved_peering_ranges = [google_compute_global_address.production_private_services[0].name]
 
   depends_on = [
     google_project_service.required["servicenetworking.googleapis.com"],

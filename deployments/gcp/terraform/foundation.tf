@@ -82,6 +82,8 @@ resource "google_service_account" "ci_staging" {
 }
 
 resource "google_service_account" "ci_prod" {
+  count = var.manage_production_foundation ? 1 : 0
+
   project      = data.google_project.current.project_id
   account_id   = "${local.foundation_name_prefix}-ci-prod"
   display_name = "ML lifecycle platform CI / production"
@@ -209,41 +211,51 @@ resource "google_service_account_iam_member" "ci_staging_workload_identity_user"
 }
 
 resource "google_artifact_registry_repository_iam_member" "ci_prod_writer" {
+  count = var.manage_production_foundation ? 1 : 0
+
   project    = google_artifact_registry_repository.images.project
   location   = google_artifact_registry_repository.images.location
   repository = google_artifact_registry_repository.images.name
   role       = "roles/artifactregistry.writer"
-  member     = "serviceAccount:${google_service_account.ci_prod.email}"
+  member     = "serviceAccount:${google_service_account.ci_prod[0].email}"
 }
 
 resource "google_project_iam_member" "ci_prod_viewer" {
+  count = var.manage_production_foundation ? 1 : 0
+
   project = data.google_project.current.project_id
   role    = "roles/viewer"
-  member  = "serviceAccount:${google_service_account.ci_prod.email}"
+  member  = "serviceAccount:${google_service_account.ci_prod[0].email}"
 }
 
 resource "google_project_iam_member" "ci_prod_scheduler_admin" {
+  count = var.manage_production_foundation ? 1 : 0
+
   project = data.google_project.current.project_id
   role    = "roles/cloudscheduler.admin"
-  member  = "serviceAccount:${google_service_account.ci_prod.email}"
+  member  = "serviceAccount:${google_service_account.ci_prod[0].email}"
 }
 
 resource "google_storage_bucket_iam_member" "ci_prod_foundation_bucket_admin" {
-  for_each = google_storage_bucket.foundation
+  for_each = var.manage_production_foundation ? google_storage_bucket.foundation : {}
 
   bucket = each.value.name
   role   = "roles/storage.admin"
-  member = "serviceAccount:${google_service_account.ci_prod.email}"
+  member = "serviceAccount:${google_service_account.ci_prod[0].email}"
 }
 
 resource "google_storage_bucket_iam_member" "ci_prod_tf_state_admin" {
+  count = var.manage_production_foundation ? 1 : 0
+
   bucket = local.tf_state_bucket
   role   = "roles/storage.admin"
-  member = "serviceAccount:${google_service_account.ci_prod.email}"
+  member = "serviceAccount:${google_service_account.ci_prod[0].email}"
 }
 
 resource "google_service_account_iam_member" "ci_prod_workload_identity_user" {
-  service_account_id = google_service_account.ci_prod.name
+  count = var.manage_production_foundation ? 1 : 0
+
+  service_account_id = google_service_account.ci_prod[0].name
   role               = "roles/iam.workloadIdentityUser"
   member = format(
     "principalSet://iam.googleapis.com/%s/attribute.environment/production",
