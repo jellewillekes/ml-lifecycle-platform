@@ -75,6 +75,8 @@ resource "google_project_iam_member" "runtime_cloudsql_client" {
 }
 
 resource "random_password" "mlflow_db_password_production" {
+  count = var.manage_production_foundation ? 1 : 0
+
   length           = 32
   special          = false
   min_lower        = 1
@@ -84,6 +86,8 @@ resource "random_password" "mlflow_db_password_production" {
 }
 
 resource "google_sql_database_instance" "mlflow_production" {
+  count = var.manage_production_foundation ? 1 : 0
+
   project             = data.google_project.current.project_id
   name                = local.mlflow_sql_instance_name_production
   region              = var.region
@@ -104,7 +108,7 @@ resource "google_sql_database_instance" "mlflow_production" {
 
     ip_configuration {
       ipv4_enabled                                  = false
-      private_network                               = google_compute_network.production.id
+      private_network                               = google_compute_network.production[0].id
       enable_private_path_for_google_cloud_services = true
     }
   }
@@ -116,14 +120,18 @@ resource "google_sql_database_instance" "mlflow_production" {
 }
 
 resource "google_sql_database" "mlflow_production" {
+  count = var.manage_production_foundation ? 1 : 0
+
   project  = data.google_project.current.project_id
   name     = local.mlflow_database_name
-  instance = google_sql_database_instance.mlflow_production.name
+  instance = google_sql_database_instance.mlflow_production[0].name
 }
 
 resource "google_sql_user" "mlflow_production" {
+  count = var.manage_production_foundation ? 1 : 0
+
   project  = data.google_project.current.project_id
   name     = local.mlflow_database_user
-  instance = google_sql_database_instance.mlflow_production.name
-  password = random_password.mlflow_db_password_production.result
+  instance = google_sql_database_instance.mlflow_production[0].name
+  password = random_password.mlflow_db_password_production[0].result
 }

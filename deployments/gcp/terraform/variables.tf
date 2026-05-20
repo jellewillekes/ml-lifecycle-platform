@@ -134,3 +134,9 @@ variable "production_platform_image" {
   type        = string
   default     = ""
 }
+
+variable "manage_production_foundation" {
+  description = "Manage production foundation resources (CI service account, VPC, Cloud SQL, Secret Manager secrets, production Cloud Run services, jobs, schedulers) from this Terraform root. Default false so the staging CD service account, which lacks production IAM, can apply cleanly. Set true only for owner-credentialed bootstrap or for the production CD identity once it has the required IAM."
+  type        = bool
+  default     = false
+}

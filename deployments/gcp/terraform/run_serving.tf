@@ -5,7 +5,7 @@ locals {
 
   serving_deploy_map = merge(
     local.serving_deploy_enabled ? { staging = var.serving_image } : {},
-    local.serving_production_deploy_enabled ? { production = var.production_serving_image } : {},
+    local.serving_production_deploy_enabled && var.manage_production_foundation ? { production = var.production_serving_image } : {},
   )
 }
 

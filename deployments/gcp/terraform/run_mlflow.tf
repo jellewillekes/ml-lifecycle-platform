@@ -4,29 +4,29 @@ locals {
 
   mlflow_deploy_map = merge(
     local.mlflow_deploy_enabled ? { staging = var.mlflow_image } : {},
-    local.mlflow_production_deploy_enabled ? { production = var.production_mlflow_image } : {},
+    local.mlflow_production_deploy_enabled && var.manage_production_foundation ? { production = var.production_mlflow_image } : {},
   )
 
-  mlflow_networks = {
-    staging    = google_compute_network.staging
-    production = google_compute_network.production
-  }
-  mlflow_subnetworks = {
-    staging    = google_compute_subnetwork.staging
-    production = google_compute_subnetwork.production
-  }
-  mlflow_sql_instances = {
-    staging    = google_sql_database_instance.mlflow
-    production = google_sql_database_instance.mlflow_production
-  }
-  mlflow_secret_refs = {
-    staging    = google_secret_manager_secret.mlflow
-    production = google_secret_manager_secret.mlflow_production
-  }
-  mlflow_ci_sas = {
-    staging    = google_service_account.ci_staging
-    production = google_service_account.ci_prod
-  }
+  mlflow_networks = merge(
+    { staging = google_compute_network.staging },
+    var.manage_production_foundation ? { production = google_compute_network.production[0] } : {},
+  )
+  mlflow_subnetworks = merge(
+    { staging = google_compute_subnetwork.staging },
+    var.manage_production_foundation ? { production = google_compute_subnetwork.production[0] } : {},
+  )
+  mlflow_sql_instances = merge(
+    { staging = google_sql_database_instance.mlflow },
+    var.manage_production_foundation ? { production = google_sql_database_instance.mlflow_production[0] } : {},
+  )
+  mlflow_secret_refs = merge(
+    { staging = google_secret_manager_secret.mlflow },
+    var.manage_production_foundation ? { production = google_secret_manager_secret.mlflow_production } : {},
+  )
+  mlflow_ci_sas = merge(
+    { staging = google_service_account.ci_staging },
+    var.manage_production_foundation ? { production = google_service_account.ci_prod[0] } : {},
+  )
 }
 
 resource "google_project_iam_member" "ci_run_admin" {

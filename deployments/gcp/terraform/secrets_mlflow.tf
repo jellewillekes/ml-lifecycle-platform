@@ -48,21 +48,21 @@ resource "google_secret_manager_secret_iam_member" "runtime_mlflow_secret_access
 }
 
 locals {
-  mlflow_secret_ids_production = {
+  mlflow_secret_ids_production = var.manage_production_foundation ? {
     db_user                  = "${local.foundation_name_prefix}-mlflow-db-user-production"
     db_password              = "${local.foundation_name_prefix}-mlflow-db-password-production"
     db_name                  = "${local.foundation_name_prefix}-mlflow-db-name-production"
     instance_connection_name = "${local.foundation_name_prefix}-mlflow-instance-connection-name-production"
     artifact_root            = "${local.foundation_name_prefix}-mlflow-artifact-root-production"
-  }
+  } : {}
 
-  mlflow_secret_values_production = {
-    db_user                  = google_sql_user.mlflow_production.name
-    db_password              = random_password.mlflow_db_password_production.result
-    db_name                  = google_sql_database.mlflow_production.name
-    instance_connection_name = google_sql_database_instance.mlflow_production.connection_name
+  mlflow_secret_values_production = var.manage_production_foundation ? {
+    db_user                  = google_sql_user.mlflow_production[0].name
+    db_password              = random_password.mlflow_db_password_production[0].result
+    db_name                  = google_sql_database.mlflow_production[0].name
+    instance_connection_name = google_sql_database_instance.mlflow_production[0].connection_name
     artifact_root            = local.mlflow_artifact_root_production
-  }
+  } : {}
 }
 
 resource "google_secret_manager_secret" "mlflow_production" {

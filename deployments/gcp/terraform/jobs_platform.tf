@@ -173,7 +173,7 @@ resource "google_cloud_run_v2_job_iam_member" "platform_ci_invoker" {
 }
 
 locals {
-  platform_production_jobs_enabled = length(trimspace(var.production_platform_image)) > 0
+  platform_production_jobs_enabled = length(trimspace(var.production_platform_image)) > 0 && var.manage_production_foundation
 
   platform_jobs_production = {
     pipeline = {
@@ -247,8 +247,8 @@ resource "google_cloud_run_v2_job" "platform_production" {
         egress = "PRIVATE_RANGES_ONLY"
 
         network_interfaces {
-          network    = google_compute_network.production.id
-          subnetwork = google_compute_subnetwork.production.id
+          network    = google_compute_network.production[0].id
+          subnetwork = google_compute_subnetwork.production[0].id
         }
       }
 
@@ -344,5 +344,5 @@ resource "google_cloud_run_v2_job_iam_member" "platform_production_ci_invoker" {
   location = each.value.location
   name     = each.value.name
   role     = "roles/run.invoker"
-  member   = "serviceAccount:${google_service_account.ci_prod.email}"
+  member   = "serviceAccount:${google_service_account.ci_prod[0].email}"
 }

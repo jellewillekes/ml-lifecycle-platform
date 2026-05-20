@@ -55,10 +55,10 @@ output "foundation_secret_ids" {
 }
 
 output "foundation_service_accounts" {
-  description = "Service account emails for CI and hosted runtime identities."
+  description = "Service account emails for CI and hosted runtime identities. ci_prod is null until the production foundation is bootstrapped."
   value = {
     ci_staging = google_service_account.ci_staging.email
-    ci_prod    = google_service_account.ci_prod.email
+    ci_prod    = var.manage_production_foundation ? google_service_account.ci_prod[0].email : null
     runtime    = google_service_account.runtime.email
   }
 }
@@ -171,35 +171,35 @@ output "platform_schedules" {
 }
 
 output "production_network" {
-  description = "Production VPC and subnet used by production hosted workloads."
-  value = {
-    network_name    = google_compute_network.production.name
-    network_id      = google_compute_network.production.id
-    subnetwork_name = google_compute_subnetwork.production.name
-    subnetwork_id   = google_compute_subnetwork.production.id
-    subnetwork_cidr = google_compute_subnetwork.production.ip_cidr_range
-    peering_range   = google_compute_global_address.production_private_services.name
-    peering_cidr    = google_compute_global_address.production_private_services.address
-  }
+  description = "Production VPC and subnet used by production hosted workloads. Null until the production foundation is bootstrapped."
+  value = var.manage_production_foundation ? {
+    network_name    = google_compute_network.production[0].name
+    network_id      = google_compute_network.production[0].id
+    subnetwork_name = google_compute_subnetwork.production[0].name
+    subnetwork_id   = google_compute_subnetwork.production[0].id
+    subnetwork_cidr = google_compute_subnetwork.production[0].ip_cidr_range
+    peering_range   = google_compute_global_address.production_private_services[0].name
+    peering_cidr    = google_compute_global_address.production_private_services[0].address
+  } : null
 }
 
 output "mlflow_production_service" {
   description = "Hosted production MLflow service contract. Null until the first production MLflow deploy."
-  value = local.mlflow_production_deploy_enabled ? {
+  value = local.mlflow_production_deploy_enabled && var.manage_production_foundation ? {
     name       = google_cloud_run_v2_service.mlflow["production"].name
     uri        = google_cloud_run_v2_service.mlflow["production"].uri
     image      = google_cloud_run_v2_service.mlflow["production"].template[0].containers[0].image
-    invoker_sa = google_service_account.ci_prod.email
+    invoker_sa = google_service_account.ci_prod[0].email
   } : null
 }
 
 output "serving_production_service" {
   description = "Hosted production serving service contract. Null until the first production serving deploy."
-  value = local.serving_production_deploy_enabled ? {
+  value = local.serving_production_deploy_enabled && var.manage_production_foundation ? {
     name       = google_cloud_run_v2_service.serving["production"].name
     uri        = google_cloud_run_v2_service.serving["production"].uri
     image      = google_cloud_run_v2_service.serving["production"].template[0].containers[0].image
-    invoker_sa = google_service_account.ci_prod.email
+    invoker_sa = google_service_account.ci_prod[0].email
   } : null
 }
 
