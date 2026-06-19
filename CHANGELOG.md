@@ -4,6 +4,36 @@ All important changes and updates to this project are documented here.
 
 This repo uses Conventional Commits and Release Please.
 
+## [0.5.5](https://github.com/jellewillekes/ml-lifecycle-platform/compare/v0.5.4...v0.5.5) (2026-06-19)
+
+
+### Features
+
+* add DataSource port and first Binance OHLCV model ([#234](https://github.com/jellewillekes/ml-lifecycle-platform/issues/234)) ([bcac842](https://github.com/jellewillekes/ml-lifecycle-platform/commit/bcac842b901e37c4665b6e697c211df4dc90887f))
+* add hosted staging Binance pipeline job ([#235](https://github.com/jellewillekes/ml-lifecycle-platform/issues/235)) ([e8cdcf2](https://github.com/jellewillekes/ml-lifecycle-platform/commit/e8cdcf2e3362a110774242255af04f29287c3915)), closes [#201](https://github.com/jellewillekes/ml-lifecycle-platform/issues/201)
+* add LightGBM trainer and use it for binance model ([#238](https://github.com/jellewillekes/ml-lifecycle-platform/issues/238)) ([780902d](https://github.com/jellewillekes/ml-lifecycle-platform/commit/780902dc7a669f24e3181e8affb7a942b6fe7400)), closes [#237](https://github.com/jellewillekes/ml-lifecycle-platform/issues/237)
+* add production environment infrastructure ([#227](https://github.com/jellewillekes/ml-lifecycle-platform/issues/227)) ([a161833](https://github.com/jellewillekes/ml-lifecycle-platform/commit/a16183315d22f9783ccc7d78ddeceffd155d8d21)), closes [#175](https://github.com/jellewillekes/ml-lifecycle-platform/issues/175)
+* add validate_data pipeline stage ([#239](https://github.com/jellewillekes/ml-lifecycle-platform/issues/239)) ([c9ff8d8](https://github.com/jellewillekes/ml-lifecycle-platform/commit/c9ff8d84b6771a58fa9edc9ae17f09f01f552b1c)), closes [#199](https://github.com/jellewillekes/ml-lifecycle-platform/issues/199)
+* add validate_model pipeline stage ([#240](https://github.com/jellewillekes/ml-lifecycle-platform/issues/240)) ([13dc348](https://github.com/jellewillekes/ml-lifecycle-platform/commit/13dc348779f4ccb44adc477206e6ba5e66a4f223)), closes [#200](https://github.com/jellewillekes/ml-lifecycle-platform/issues/200)
+* split CI SA, scope WIF to staging environment, add prod skeletons ([#226](https://github.com/jellewillekes/ml-lifecycle-platform/issues/226)) ([cf62ff2](https://github.com/jellewillekes/ml-lifecycle-platform/commit/cf62ff268d1a82e087a91fb4b6d734a6c40bf3f3))
+* updated roadmap ([#197](https://github.com/jellewillekes/ml-lifecycle-platform/issues/197)) ([5925049](https://github.com/jellewillekes/ml-lifecycle-platform/commit/592504963bc00e0a96452eee2c53753aa9fdb706))
+
+
+### Bug Fixes
+
+* gate production foundation behind manage_production_foundation ([#230](https://github.com/jellewillekes/ml-lifecycle-platform/issues/230)) ([1d153f0](https://github.com/jellewillekes/ml-lifecycle-platform/commit/1d153f028efa2e0dacfb6b4f2da939ffe1eee435)), closes [#175](https://github.com/jellewillekes/ml-lifecycle-platform/issues/175)
+
+
+### Dependencies
+
+* **actions:** bump github/codeql-action in the github-actions group ([#195](https://github.com/jellewillekes/ml-lifecycle-platform/issues/195)) ([af2ffc8](https://github.com/jellewillekes/ml-lifecycle-platform/commit/af2ffc8576ff3a1dcedccb6a148c0f2137662f67))
+* **actions:** bump the github-actions group across 1 directory with 7 updates ([#186](https://github.com/jellewillekes/ml-lifecycle-platform/issues/186)) ([ab61142](https://github.com/jellewillekes/ml-lifecycle-platform/commit/ab61142e91ac9a0b5d688f8ebb5de9f8d1cd2600))
+
+
+### Documentation
+
+* consolidate architecture docs and move diagrams ([#224](https://github.com/jellewillekes/ml-lifecycle-platform/issues/224)) ([637fd63](https://github.com/jellewillekes/ml-lifecycle-platform/commit/637fd6339afa8f2016a5a5a5c1c32d6482b7d790)), closes [#168](https://github.com/jellewillekes/ml-lifecycle-platform/issues/168)
+
 ## [0.5.4](https://github.com/jellewillekes/ml-lifecycle-platform/compare/v0.5.3...v0.5.4) (2026-04-20)
 
 
