@@ -16,6 +16,7 @@ from ml_lifecycle_platform.core.model_spec_types import (
     EvaluationSpec,
     FeatureContractSpec,
     FeatureFieldSpec,
+    FeatureRangeSpec,
     LightGBMTrainerSpec,
     LogisticRegressionTrainerSpec,
     MetricThresholdSpec,
@@ -33,8 +34,10 @@ from ml_lifecycle_platform.core.model_spec_types import (
     SUPPORTED_TASK,
     SUPPORTED_TRAINER_KINDS,
     TrainerSpec,
+    ValidationSpec,
     default_feature_contract_spec,
     default_policy_spec,
+    default_validation_spec,
 )
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
@@ -80,6 +83,14 @@ def _require_bool(payload: Mapping[str, Any], key: str, *, context: str) -> bool
     if not isinstance(value, bool):
         raise ValueError(f"{context}.{key} must be a boolean.")
     return value
+
+
+def _optional_float(
+    payload: Mapping[str, Any], key: str, *, context: str
+) -> float | None:
+    if payload.get(key) is None:
+        return None
+    return _require_float(payload, key, context=context)
 
 
 def _parse_source(payload: Any, *, context: str) -> SourceSpec:
@@ -245,6 +256,43 @@ def _parse_metric_threshold(payload: Any, *, context: str) -> MetricThresholdSpe
     return MetricThresholdSpec(metric=metric, threshold=threshold)
 
 
+def _parse_feature_range(payload: Any, *, context: str) -> FeatureRangeSpec:
+    raw = _require_mapping(payload, context=context)
+    _reject_extra_keys(raw, allowed={"name", "min", "max"}, context=context)
+    name = _require_str(raw, "name", context=context)
+    minimum = _optional_float(raw, "min", context=context)
+    maximum = _optional_float(raw, "max", context=context)
+    if minimum is None and maximum is None:
+        raise ValueError(f"{context} must declare at least one of 'min' or 'max'.")
+    if minimum is not None and maximum is not None and minimum > maximum:
+        raise ValueError(f"{context}.min must be less than or equal to {context}.max.")
+    return FeatureRangeSpec(name=name, minimum=minimum, maximum=maximum)
+
+
+def _parse_validation(payload: Any, *, context: str) -> ValidationSpec:
+    if payload is None:
+        return default_validation_spec()
+
+    raw = _require_mapping(payload, context=context)
+    _reject_extra_keys(raw, allowed={"min_rows", "feature_ranges"}, context=context)
+
+    min_rows = raw.get("min_rows", 1)
+    if not isinstance(min_rows, int) or isinstance(min_rows, bool) or min_rows < 1:
+        raise ValueError(f"{context}.min_rows must be a positive integer.")
+
+    ranges = raw.get("feature_ranges", [])
+    if not isinstance(ranges, list):
+        raise ValueError(f"{context}.feature_ranges must be a list.")
+    parsed_ranges = tuple(
+        _parse_feature_range(item, context=f"{context}.feature_ranges[{idx}]")
+        for idx, item in enumerate(ranges)
+    )
+    if len({feature.name for feature in parsed_ranges}) != len(parsed_ranges):
+        raise ValueError(f"{context}.feature_ranges cannot repeat feature names.")
+
+    return ValidationSpec(min_rows=min_rows, feature_ranges=parsed_ranges)
+
+
 def _parse_feature_field(payload: Any, *, context: str) -> FeatureFieldSpec:
     raw = _require_mapping(payload, context=context)
     _reject_extra_keys(raw, allowed={"name", "dtype", "required"}, context=context)
@@ -366,6 +414,7 @@ def model_spec_from_dict(
             "trainer",
             "evaluation",
             "feature_contract",
+            "validation",
             "policy",
         },
         context="model_spec",
@@ -389,6 +438,22 @@ def model_spec_from_dict(
             "model_spec.feature_contract.features must exclude label_column."
         )
 
+    validation = _parse_validation(
+        raw.get("validation"), context="model_spec.validation"
+    )
+    if feature_contract.features:
+        declared_features = {feature.name for feature in feature_contract.features}
+        unknown_ranges = sorted(
+            feature_range.name
+            for feature_range in validation.feature_ranges
+            if feature_range.name not in declared_features
+        )
+        if unknown_ranges:
+            raise ValueError(
+                "model_spec.validation.feature_ranges reference features not in "
+                f"feature_contract: {', '.join(unknown_ranges)}"
+            )
+
     return ModelSpec(
         schema_version=schema_version,
         model_name=_require_str(raw, "model_name", context="model_spec"),
@@ -404,6 +469,7 @@ def model_spec_from_dict(
             raw.get("evaluation"), context="model_spec.evaluation"
         ),
         feature_contract=feature_contract,
+        validation=validation,
         policy=_parse_policy(raw.get("policy"), context="model_spec.policy"),
         spec_path=resolve_model_spec_path(spec_path),
     )

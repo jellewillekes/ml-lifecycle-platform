@@ -8,7 +8,7 @@ The platform runs one logical contract across two environments. The local path i
 
 ```text
 local path:
-  ingest -> featurize -> train -> evaluate -> register -> promote -> serve
+  ingest -> validate_data -> featurize -> train -> evaluate -> register -> promote -> serve
 
 hosted path:
   GitHub Actions -> Artifact Registry

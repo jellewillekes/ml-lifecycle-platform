@@ -20,6 +20,7 @@ from ml_lifecycle_platform.runtime.bootstrap import (
 
 STEP_MODULES = {
     "ingest": "ml_lifecycle_platform.pipeline.ingest",
+    "validate_data": "ml_lifecycle_platform.pipeline.validate_data",
     "featurize": "ml_lifecycle_platform.pipeline.featurize",
     "train": "ml_lifecycle_platform.pipeline.train",
     "evaluate": "ml_lifecycle_platform.pipeline.evaluate",
@@ -65,6 +66,7 @@ def main() -> None:
         art_dir.mkdir(parents=True, exist_ok=True)
 
         _run_step("ingest")
+        _run_step("validate_data")
         _run_step("featurize")
         _run_step("train")
 
