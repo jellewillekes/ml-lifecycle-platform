@@ -21,7 +21,37 @@ from ml_lifecycle_platform.common.constants import (
 from ml_lifecycle_platform.runtime.mlflow import ensure_experiment
 from ml_lifecycle_platform.runtime.bootstrap import get_runtime_context
 from ml_lifecycle_platform.core.batch_contracts import validate_labeled_dataset
+from ml_lifecycle_platform.core.model_spec_types import SplitSpec
 from ml_lifecycle_platform.core.model_specs import load_model_spec
+
+
+def split_train_test(
+    X: pd.DataFrame,
+    y: pd.Series,
+    split: SplitSpec,
+) -> tuple[pd.DataFrame, pd.DataFrame, pd.Series, pd.Series]:
+    """Split into train/test honoring the spec's split method.
+
+    ``chronological`` holds out the most recent ``test_size`` fraction with no
+    shuffling, which time-series sources need to avoid lookahead bias.
+    ``random`` keeps the existing shuffled, optionally stratified split.
+    """
+    if split.method == "chronological":
+        X_train, X_test, y_train, y_test = train_test_split(
+            X,
+            y,
+            test_size=split.test_size,
+            shuffle=False,
+        )
+    else:
+        X_train, X_test, y_train, y_test = train_test_split(
+            X,
+            y,
+            test_size=split.test_size,
+            random_state=split.random_state,
+            stratify=y if split.stratify else None,
+        )
+    return X_train, X_test, y_train, y_test
 
 
 def main() -> None:
@@ -50,13 +80,7 @@ def main() -> None:
     X = df.drop(columns=[spec.label_column])
     y = df[spec.label_column].astype(int)
 
-    X_train, X_test, y_train, y_test = train_test_split(
-        X,
-        y,
-        test_size=spec.split.test_size,
-        random_state=spec.split.random_state,
-        stratify=y if spec.split.stratify else None,
-    )
+    X_train, X_test, y_train, y_test = split_train_test(X, y, spec.split)
 
     train_df = X_train.copy()
     test_df = X_test.copy()

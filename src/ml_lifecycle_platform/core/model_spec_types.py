@@ -16,7 +16,8 @@ from ml_lifecycle_platform.common.constants import (
 )
 
 SUPPORTED_TASK = "binary_classifier"
-SUPPORTED_SOURCE_KINDS = {"sklearn_demo", "csv"}
+SUPPORTED_SOURCE_KINDS = {"sklearn_demo", "csv", "binance"}
+SUPPORTED_SPLIT_METHODS = {"random", "chronological"}
 SUPPORTED_TRAINER_KIND = "logistic_regression"
 SUPPORTED_PREPROCESSOR_KIND = "standard_scaler"
 SUPPORTED_METRICS = {"accuracy", "f1", "roc_auc"}
@@ -60,16 +61,37 @@ class CsvSourceSpec:
 
 
 @dataclass(frozen=True)
+class BinanceSourceSpec:
+    kind: str
+    symbol: str
+    interval: str
+    limit: int
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "kind": self.kind,
+            "symbol": self.symbol,
+            "interval": self.interval,
+            "limit": self.limit,
+        }
+
+    def data_source_uri(self) -> str:
+        return f"binance://{self.symbol}/{self.interval}?limit={self.limit}"
+
+
+@dataclass(frozen=True)
 class SplitSpec:
     test_size: float
     random_state: int
     stratify: bool
+    method: str = "random"
 
     def to_dict(self) -> dict[str, Any]:
         return {
             "test_size": self.test_size,
             "random_state": self.random_state,
             "stratify": self.stratify,
+            "method": self.method,
         }
 
 
@@ -198,7 +220,7 @@ class ModelSpec:
     model_name: str
     task: str
     label_column: str
-    source: SklearnDemoSourceSpec | CsvSourceSpec
+    source: SklearnDemoSourceSpec | CsvSourceSpec | BinanceSourceSpec
     split: SplitSpec
     preprocessor: PreprocessorSpec
     trainer: LogisticRegressionTrainerSpec
@@ -226,3 +248,6 @@ class ModelSpec:
         if isinstance(self.source, CsvSourceSpec):
             return self.source.data_source_uri(spec_path=self.spec_path)
         return self.source.data_source_uri()
+
+
+SourceSpec = SklearnDemoSourceSpec | CsvSourceSpec | BinanceSourceSpec

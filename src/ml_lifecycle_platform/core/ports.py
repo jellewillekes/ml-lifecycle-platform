@@ -5,7 +5,10 @@ hosted) implement these without inheritance."""
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Mapping, Protocol, Sequence, runtime_checkable
+from typing import TYPE_CHECKING, Mapping, Protocol, Sequence, runtime_checkable
+
+if TYPE_CHECKING:
+    import pandas as pd
 
 
 @runtime_checkable
@@ -25,6 +28,19 @@ class EventStore(Protocol):
 
     def append_event(self, event_type: str, payload: Mapping[str, object]) -> None:
         """Append one event."""
+
+
+@runtime_checkable
+class DataSource(Protocol):
+    """Produce a model-ready labeled dataframe for one training run.
+
+    The returned frame holds exactly the features declared in the model spec's
+    feature contract plus the int {0, 1} label column. Adapters implement this
+    structurally (no inheritance); the resolver maps a spec's source kind to
+    the concrete adapter."""
+
+    def fetch(self) -> pd.DataFrame:
+        """Return the labeled dataset."""
 
 
 @runtime_checkable

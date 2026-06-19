@@ -79,6 +79,7 @@ help:
 	@echo "  make e2e               pipeline -> gate -> promote -> serve -> smoke"
 	@echo "  make e2e-clean         down first, then run the golden path"
 	@echo "  make e2e-keep          like e2e, but keep stack up"
+	@echo "  make e2e-binance       golden path on live Binance OHLCV (local_binance)"
 	@echo ""
 	@echo "GCP Terraform:"
 	@echo "  make terraform-gcp-fmt       terraform fmt -check for deployments/gcp/terraform"
@@ -164,7 +165,7 @@ precommit:
 install-hooks:
 	@$(PRECOMMIT) install
 
-.PHONY: up down logs build reset run-pipeline reproduce policy-check promote promote-dry-run rollback-prod serve smoke-test test-e2e e2e e2e-clean e2e-keep
+.PHONY: up down logs build reset run-pipeline reproduce policy-check promote promote-dry-run rollback-prod serve smoke-test test-e2e e2e e2e-clean e2e-keep e2e-binance
 up:
 	@$(MLP) infra up
 
@@ -260,6 +261,9 @@ e2e-clean:
 e2e-keep:
 	@$(MLP) e2e --keep-stack
 	@echo "E2E passed (stack kept up). Use 'make logs' or 'make down' when done."
+
+e2e-binance:
+	@$(MAKE) e2e-clean MLP_ENV_NAME=local_binance
 
 .PHONY: terraform-gcp-fmt terraform-gcp-init terraform-gcp-plan terraform-gcp-apply terraform-gcp-validate
 terraform-gcp-fmt:

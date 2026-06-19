@@ -36,6 +36,52 @@ def test_load_csv_model_spec_resolves_relative_data_path() -> None:
     )
 
 
+def test_load_binance_model_spec() -> None:
+    spec = load_model_spec("configs/models/binance_btc_1m.yaml")
+
+    assert spec.model_name == "binance_btc_1m"
+    assert spec.source.kind == "binance"
+    assert spec.data_source_uri() == "binance://BTCUSDT/1m?limit=1000"
+    assert spec.split.method == "chronological"
+    assert spec.split.stratify is False
+    feature_names = {feature.name for feature in spec.feature_contract.features}
+    assert "ret_1" in feature_names and "rsi_14" in feature_names
+
+
+def test_chronological_split_rejects_stratify() -> None:
+    payload = {
+        "schema_version": "model_spec/v1",
+        "model_name": "bad_split",
+        "task": "binary_classifier",
+        "label_column": "target",
+        "source": {"kind": "sklearn_demo", "dataset_name": "breast_cancer"},
+        "split": {
+            "method": "chronological",
+            "test_size": 0.2,
+            "random_state": 42,
+            "stratify": True,
+        },
+        "preprocessor": {"kind": "standard_scaler"},
+        "trainer": {
+            "kind": "logistic_regression",
+            "max_iter": 2000,
+            "solver": "lbfgs",
+            "class_weight": "balanced",
+            "random_state": 42,
+        },
+        "evaluation": {
+            "metrics": ["accuracy", "f1", "roc_auc"],
+            "gate": {"metric": "roc_auc", "threshold": 0.5},
+        },
+    }
+
+    with pytest.raises(ValueError, match="stratify must be false"):
+        model_spec_from_dict(
+            payload,
+            spec_path=Path("configs/models/breast_cancer_demo.yaml"),
+        )
+
+
 def test_all_committed_model_specs_load() -> None:
     spec_paths = sorted(Path("configs/models").glob("*.yaml"))
 
