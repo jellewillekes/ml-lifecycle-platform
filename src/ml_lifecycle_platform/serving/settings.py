@@ -11,14 +11,23 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 from .constants import (
     ALIAS_CANDIDATE,
     ALIAS_PROD,
+    DEFAULT_EVENT_JSONL_PATH,
     DEFAULT_MODEL_NAME,
     ENV_CANARY_PCT,
     ENV_CANDIDATE_ALIAS,
+    ENV_EVENT_BQ_TABLE,
+    ENV_EVENT_FSYNC,
+    ENV_EVENT_JSONL_PATH,
+    ENV_EVENT_QUEUE_MAX,
+    ENV_EVENT_SAMPLE_PCT,
+    ENV_EVENT_SINK,
+    ENV_GIT_SHA,
     ENV_LOG_LEVEL,
     ENV_MODEL_CACHE_TTL_SEC,
     ENV_MODEL_NAME,
     ENV_MODEL_SPEC_PATH,
     ENV_PROD_ALIAS,
+    ENV_SERVICE_ENV,
     ENV_UNIT_TESTING,
 )
 
@@ -48,6 +57,24 @@ class Settings(BaseSettings):
     )
 
     log_level: str = Field(default="INFO", validation_alias=ENV_LOG_LEVEL)
+
+    # Prediction event-plane (cold sink). "none" disables emission entirely.
+    event_sink: str = Field(default="none", validation_alias=ENV_EVENT_SINK)
+    event_jsonl_path: str = Field(
+        default=DEFAULT_EVENT_JSONL_PATH, validation_alias=ENV_EVENT_JSONL_PATH
+    )
+    event_bq_table: str = Field(default="", validation_alias=ENV_EVENT_BQ_TABLE)
+    event_sample_pct: int = Field(
+        default=100, ge=0, le=100, validation_alias=ENV_EVENT_SAMPLE_PCT
+    )
+    event_queue_max: int = Field(
+        default=10000, ge=1, validation_alias=ENV_EVENT_QUEUE_MAX
+    )
+    event_fsync: bool = Field(default=False, validation_alias=ENV_EVENT_FSYNC)
+
+    # Envelope metadata (reuses MLP_ENV / GIT_SHA already set on containers).
+    service_env: str = Field(default="local", validation_alias=ENV_SERVICE_ENV)
+    git_sha: str = Field(default="dev", validation_alias=ENV_GIT_SHA)
 
     # Disable real MLflow loads in unit tests.
     unit_testing: bool = Field(default=False, validation_alias=ENV_UNIT_TESTING)

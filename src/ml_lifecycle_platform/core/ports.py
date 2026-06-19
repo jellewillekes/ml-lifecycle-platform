@@ -10,6 +10,8 @@ from typing import TYPE_CHECKING, Mapping, Protocol, Sequence, runtime_checkable
 if TYPE_CHECKING:
     import pandas as pd
 
+    from ml_lifecycle_platform.contracts.prediction_event import PredictionEvent
+
 
 @runtime_checkable
 class ArtifactStore(Protocol):
@@ -28,6 +30,29 @@ class EventStore(Protocol):
 
     def append_event(self, event_type: str, payload: Mapping[str, object]) -> None:
         """Append one event."""
+
+
+@runtime_checkable
+class PredictionEventSink(Protocol):
+    """Cold write path for prediction logging — the event plane.
+
+    The destination for one prediction's inputs, output, latency, and model
+    reference. Adapters (local JSONL, BigQuery, future S3/Parquet) implement
+    this structurally so serving and runtime depend only on the port; this is
+    the data-capture / prediction-logging component every managed ML platform
+    has. Drift, replay, and feedback read from whatever this writes."""
+
+    def write(self, event: PredictionEvent) -> None:
+        """Persist one prediction event."""
+
+    def write_batch(self, events: Sequence[PredictionEvent]) -> None:
+        """Persist a batch of prediction events."""
+
+    def flush(self, timeout_s: float) -> None:
+        """Block until buffered events are persisted or the timeout elapses."""
+
+    def close(self) -> None:
+        """Flush remaining events and release resources."""
 
 
 @runtime_checkable

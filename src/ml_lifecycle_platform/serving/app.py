@@ -5,6 +5,8 @@ model aliases loaded from the MLflow registry."""
 from __future__ import annotations
 
 import logging
+import random
+import threading
 import time
 import uuid
 from collections.abc import AsyncGenerator, Awaitable, Callable
@@ -16,7 +18,7 @@ from fastapi import FastAPI, HTTPException, Query, Request
 from opentelemetry import trace
 from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
 from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, JsonValue
 from starlette.responses import Response
 
 try:
@@ -29,6 +31,11 @@ except Exception:  # pragma: no cover
 from ml_lifecycle_platform.common.logging import bind_log_context, configure_logging
 from ml_lifecycle_platform.common.telemetry import init_telemetry
 from ml_lifecycle_platform.runtime.mlflow import client as get_mlflow_client
+from ml_lifecycle_platform.contracts.model_ref import ModelRef
+from ml_lifecycle_platform.contracts.prediction_event import (
+    EventEnvelope,
+    PredictionEvent,
+)
 from ml_lifecycle_platform.core.feature_contracts import FeatureContractValidationError
 from ml_lifecycle_platform.core.model_spec_types import FeatureContractSpec
 from ml_lifecycle_platform.core.model_specs import load_model_spec
@@ -40,7 +47,13 @@ from .constants import (
     HEADER_MODEL_VERSION,
     HEADER_REQUEST_ID,
 )
-from .metrics import record_predict_latency, record_request, record_startup_latency
+from .event_emitter import PredictionEventEmitter, build_event_sink
+from .metrics import (
+    record_event_dropped,
+    record_predict_latency,
+    record_request,
+    record_startup_latency,
+)
 from .model_store import get_model_store
 from .prediction import run_prediction
 from .router import (
@@ -60,15 +73,134 @@ def _configure_logging(settings: Settings) -> None:
     configure_logging("serving", level=settings.log_level)
 
 
+_emitter: PredictionEventEmitter | None = None
+_emitter_lock = threading.Lock()
+_ENVELOPE_ENVS = {"local", "staging", "prod"}
+
+
+def _start_emitter(settings: Settings) -> None:
+    global _emitter
+    with _emitter_lock:
+        if _emitter is not None:
+            return
+        try:
+            sink = build_event_sink(settings)
+        except Exception as exc:
+            # The event plane must never take down serving; degrade to no-op.
+            logger.error("event sink unavailable, emission disabled: %s", exc)
+            _emitter = None
+            return
+        _emitter = (
+            None
+            if sink is None
+            else PredictionEventEmitter(sink, max_queue=settings.event_queue_max)
+        )
+
+
+def _stop_emitter() -> None:
+    global _emitter
+    with _emitter_lock:
+        if _emitter is not None:
+            _emitter.close()
+            _emitter = None
+
+
+def _envelope_env(settings: Settings) -> Literal["local", "staging", "prod"]:
+    env = settings.service_env.strip().lower()
+    if env in _ENVELOPE_ENVS:
+        return cast(Literal["local", "staging", "prod"], env)
+    return "local"
+
+
+def _build_prediction_events(
+    settings: Settings,
+    *,
+    corr_id: str,
+    rows: list[dict[str, PredictionScalar]],
+    proba: list[float],
+    model_version: str | None,
+    primary_alias: str,
+    event_time_ns: int,
+    latency_ns: int,
+) -> list[PredictionEvent]:
+    envelope = EventEnvelope(
+        service="serving",
+        env=_envelope_env(settings),
+        git_sha=settings.git_sha or None,
+    )
+    model_ref = ModelRef(
+        model_name=settings.model_name,
+        alias=primary_alias,
+        version=model_version,
+    )
+    ingest_time_ns = time.time_ns()
+    events: list[PredictionEvent] = []
+    for row, pred in zip(rows, proba):
+        features: dict[str, JsonValue] = {key: value for key, value in row.items()}
+        events.append(
+            PredictionEvent(
+                corr_id=corr_id,
+                event_time_ns=event_time_ns,
+                ingest_time_ns=ingest_time_ns,
+                model_ref=model_ref,
+                features=features,
+                prediction=pred,
+                latency_ns=latency_ns,
+                envelope=envelope,
+            )
+        )
+    return events
+
+
+def _emit_prediction_events(
+    settings: Settings,
+    *,
+    corr_id: str,
+    rows: list[dict[str, PredictionScalar]],
+    proba: list[float],
+    model_version: str | None,
+    primary_alias: str,
+    event_time_ns: int,
+    latency_ns: int,
+) -> None:
+    emitter = _emitter
+    if emitter is None or not corr_id:
+        return
+    if (
+        settings.event_sample_pct < 100
+        and random.random() * 100 >= settings.event_sample_pct
+    ):
+        return
+    try:
+        emitter.emit(
+            _build_prediction_events(
+                settings,
+                corr_id=corr_id,
+                rows=rows,
+                proba=proba,
+                model_version=model_version,
+                primary_alias=primary_alias,
+                event_time_ns=event_time_ns,
+                latency_ns=latency_ns,
+            )
+        )
+    except Exception as exc:
+        # Emission is best-effort; never fail a served prediction over it.
+        record_event_dropped("build_error", len(rows))
+        logger.warning("prediction event emission failed: %s", exc)
+
+
 @asynccontextmanager
 async def lifespan(_app: FastAPI) -> AsyncGenerator[None, None]:
     t0 = time.perf_counter()
     settings = get_settings()
     _configure_logging(settings)
     init_telemetry("serving")
+    _start_emitter(settings)
     record_startup_latency(time.perf_counter() - t0)
     logger.info("serving started")
     yield
+    _stop_emitter()
     logger.info("serving stopped")
 
 
@@ -379,6 +511,7 @@ async def predict(
     _configure_logging(settings)
 
     t0 = time.perf_counter()
+    event_time_ns = time.time_ns()
     status_code: int = 200
     chosen_label: Literal["prod", "candidate", "unknown"] = "unknown"
 
@@ -443,6 +576,17 @@ async def predict(
         if result.chosen_version:
             response.headers[HEADER_MODEL_VERSION] = result.chosen_version
         response.headers[HEADER_FEATURE_CONTRACT_VERSION] = contract.version
+
+        _emit_prediction_events(
+            settings,
+            corr_id=getattr(request.state, "request_id", "") or "",
+            rows=payload.rows,
+            proba=result.y_primary,
+            model_version=result.chosen_version,
+            primary_alias=primary_alias,
+            event_time_ns=event_time_ns,
+            latency_ns=int(latency_s * 1_000_000_000),
+        )
 
         logger.info(
             "predict",
