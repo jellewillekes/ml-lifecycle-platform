@@ -18,7 +18,7 @@ from ml_lifecycle_platform.common.constants import (
 SUPPORTED_TASK = "binary_classifier"
 SUPPORTED_SOURCE_KINDS = {"sklearn_demo", "csv", "binance"}
 SUPPORTED_SPLIT_METHODS = {"random", "chronological"}
-SUPPORTED_TRAINER_KIND = "logistic_regression"
+SUPPORTED_TRAINER_KINDS = {"logistic_regression", "lightgbm"}
 SUPPORTED_PREPROCESSOR_KIND = "standard_scaler"
 SUPPORTED_METRICS = {"accuracy", "f1", "roc_auc"}
 SUPPORTED_FEATURE_TYPES = {"float", "int", "bool", "string"}
@@ -119,6 +119,33 @@ class LogisticRegressionTrainerSpec:
             "class_weight": self.class_weight,
             "random_state": self.random_state,
         }
+
+
+@dataclass(frozen=True)
+class LightGBMTrainerSpec:
+    kind: str
+    n_estimators: int
+    learning_rate: float
+    num_leaves: int
+    max_depth: int
+    min_child_samples: int
+    class_weight: str
+    random_state: int
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "kind": self.kind,
+            "n_estimators": self.n_estimators,
+            "learning_rate": self.learning_rate,
+            "num_leaves": self.num_leaves,
+            "max_depth": self.max_depth,
+            "min_child_samples": self.min_child_samples,
+            "class_weight": self.class_weight,
+            "random_state": self.random_state,
+        }
+
+
+TrainerSpec = LogisticRegressionTrainerSpec | LightGBMTrainerSpec
 
 
 @dataclass(frozen=True)
@@ -223,7 +250,7 @@ class ModelSpec:
     source: SklearnDemoSourceSpec | CsvSourceSpec | BinanceSourceSpec
     split: SplitSpec
     preprocessor: PreprocessorSpec
-    trainer: LogisticRegressionTrainerSpec
+    trainer: TrainerSpec
     evaluation: EvaluationSpec
     feature_contract: FeatureContractSpec
     policy: PolicySpec

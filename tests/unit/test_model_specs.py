@@ -8,7 +8,10 @@ from ml_lifecycle_platform.common.constants import (
     MODEL_SPEC_SCHEMA_VERSION,
     TAG_CONFIG_HASH,
 )
-from ml_lifecycle_platform.core.model_spec_types import default_policy_spec
+from ml_lifecycle_platform.core.model_spec_types import (
+    LightGBMTrainerSpec,
+    default_policy_spec,
+)
 from ml_lifecycle_platform.core.model_specs import load_model_spec, model_spec_from_dict
 
 pytestmark = pytest.mark.unit
@@ -46,6 +49,72 @@ def test_load_binance_model_spec() -> None:
     assert spec.split.stratify is False
     feature_names = {feature.name for feature in spec.feature_contract.features}
     assert "ret_1" in feature_names and "rsi_14" in feature_names
+
+
+def test_binance_spec_uses_lightgbm_trainer() -> None:
+    spec = load_model_spec("configs/models/binance_btc_1m.yaml")
+
+    assert isinstance(spec.trainer, LightGBMTrainerSpec)
+    assert spec.trainer.kind == "lightgbm"
+    assert spec.trainer.n_estimators == 200
+    assert spec.trainer.num_leaves == 15
+    assert spec.trainer.class_weight == "balanced"
+
+
+def test_lightgbm_trainer_rejects_unsupported_fields() -> None:
+    payload = {
+        "schema_version": "model_spec/v1",
+        "model_name": "bad_lgbm",
+        "task": "binary_classifier",
+        "label_column": "target",
+        "source": {"kind": "sklearn_demo", "dataset_name": "breast_cancer"},
+        "split": {"test_size": 0.2, "random_state": 42, "stratify": True},
+        "preprocessor": {"kind": "standard_scaler"},
+        "trainer": {
+            "kind": "lightgbm",
+            "n_estimators": 100,
+            "learning_rate": 0.1,
+            "num_leaves": 31,
+            "max_depth": -1,
+            "min_child_samples": 20,
+            "class_weight": "balanced",
+            "random_state": 42,
+            "max_iter": 2000,
+        },
+        "evaluation": {
+            "metrics": ["accuracy", "f1", "roc_auc"],
+            "gate": {"metric": "roc_auc", "threshold": 0.5},
+        },
+    }
+
+    with pytest.raises(ValueError, match="unsupported fields"):
+        model_spec_from_dict(
+            payload,
+            spec_path=Path("configs/models/binance_btc_1m.yaml"),
+        )
+
+
+def test_trainer_rejects_unknown_kind() -> None:
+    payload = {
+        "schema_version": "model_spec/v1",
+        "model_name": "bad_kind",
+        "task": "binary_classifier",
+        "label_column": "target",
+        "source": {"kind": "sklearn_demo", "dataset_name": "breast_cancer"},
+        "split": {"test_size": 0.2, "random_state": 42, "stratify": True},
+        "preprocessor": {"kind": "standard_scaler"},
+        "trainer": {"kind": "xgboost", "random_state": 42},
+        "evaluation": {
+            "metrics": ["accuracy", "f1", "roc_auc"],
+            "gate": {"metric": "roc_auc", "threshold": 0.5},
+        },
+    }
+
+    with pytest.raises(ValueError, match="kind must be one of"):
+        model_spec_from_dict(
+            payload,
+            spec_path=Path("configs/models/breast_cancer_demo.yaml"),
+        )
 
 
 def test_chronological_split_rejects_stratify() -> None:

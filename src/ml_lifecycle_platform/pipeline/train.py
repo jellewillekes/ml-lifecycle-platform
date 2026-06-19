@@ -51,7 +51,10 @@ from ml_lifecycle_platform.contracts.dataset_fingerprint import (
     write_fingerprint_json,
 )
 from ml_lifecycle_platform.contracts.repro_contract import ReproContract
-from ml_lifecycle_platform.core.model_spec_types import ModelSpec
+from ml_lifecycle_platform.core.model_spec_types import (
+    LightGBMTrainerSpec,
+    ModelSpec,
+)
 from ml_lifecycle_platform.core.model_specs import load_model_spec
 from ml_lifecycle_platform.runtime.bootstrap import (
     configure_mlflow,
@@ -112,7 +115,18 @@ def config_hash_for_spec(spec: ModelSpec | Mapping[str, Any]) -> str:
     return sha256_text(json.dumps(payload, sort_keys=True, separators=(",", ":")))
 
 
-def trainer_params_for_spec(spec: ModelSpec) -> dict[str, str | int]:
+def trainer_params_for_spec(spec: ModelSpec) -> dict[str, str | int | float]:
+    if isinstance(spec.trainer, LightGBMTrainerSpec):
+        return {
+            "model_type": "lightgbm",
+            "n_estimators": spec.trainer.n_estimators,
+            "learning_rate": spec.trainer.learning_rate,
+            "num_leaves": spec.trainer.num_leaves,
+            "max_depth": spec.trainer.max_depth,
+            "min_child_samples": spec.trainer.min_child_samples,
+            "class_weight": spec.trainer.class_weight,
+            "random_state": spec.trainer.random_state,
+        }
     return {
         "model_type": "logreg",
         "max_iter": spec.trainer.max_iter,
@@ -120,6 +134,36 @@ def trainer_params_for_spec(spec: ModelSpec) -> dict[str, str | int]:
         "class_weight": spec.trainer.class_weight,
         "random_state": spec.trainer.random_state,
     }
+
+
+def build_estimator(spec: ModelSpec) -> BaseEstimator:
+    if isinstance(spec.trainer, LightGBMTrainerSpec):
+        # Imported lazily: the native OpenMP dependency (libgomp) is only
+        # needed when a spec actually selects the lightgbm trainer, so the
+        # logreg path and `make check` never pay for it.
+        from lightgbm import LGBMClassifier
+
+        return LGBMClassifier(
+            n_estimators=spec.trainer.n_estimators,
+            learning_rate=spec.trainer.learning_rate,
+            num_leaves=spec.trainer.num_leaves,
+            max_depth=spec.trainer.max_depth,
+            min_child_samples=spec.trainer.min_child_samples,
+            class_weight=spec.trainer.class_weight,
+            random_state=spec.trainer.random_state,
+            # Single-threaded + deterministic so the reproduce step can replay
+            # the probe predictions bit-for-bit.
+            n_jobs=1,
+            deterministic=True,
+            force_col_wise=True,
+            verbose=-1,
+        )
+    return LogisticRegression(
+        max_iter=spec.trainer.max_iter,
+        solver=spec.trainer.solver,
+        class_weight=spec.trainer.class_weight,
+        random_state=spec.trainer.random_state,
+    )
 
 
 def load_training_inputs(
@@ -156,19 +200,13 @@ def train_from_inputs(
     inputs: TrainingInputs,
     spec: ModelSpec,
 ) -> TrainingResult:
-    params = trainer_params_for_spec(spec)
     X_train = inputs.train_df.drop(columns=[spec.label_column])
     y_train = inputs.train_df[spec.label_column].astype(int)
 
     X_test = inputs.test_df.drop(columns=[spec.label_column])
     y_test = inputs.test_df[spec.label_column].astype(int)
 
-    clf = LogisticRegression(
-        max_iter=int(params["max_iter"]),
-        solver=str(params["solver"]),
-        class_weight=str(params["class_weight"]),
-        random_state=int(params["random_state"]),
-    )
+    clf = build_estimator(spec)
     pipeline = Pipeline(steps=[("pre", inputs.preprocessor), ("clf", clf)])
     pipeline.fit(X_train, y_train)
 
