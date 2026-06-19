@@ -23,6 +23,7 @@ on:
           - promote
           - rollback
           - pipeline
+          - pipeline-binance
       execution_mode:
         description: Safe execution mode for the selected job.
         required: true
@@ -102,7 +103,7 @@ jobs:
           job_args_csv=""
 
           case "${JOB_NAME_INPUT}:${EXECUTION_MODE_INPUT}" in
-            maintenance:default|reproduce:default|pipeline:default)
+            maintenance:default|reproduce:default|pipeline:default|pipeline-binance:default)
               ;;
             promote:default)
               job_args_csv="-m,ml_lifecycle_platform.registry.promote,--model-name,breast_cancer_clf,--format,json"
@@ -116,7 +117,7 @@ jobs:
             rollback:dry_run)
               job_args_csv="-m,ml_lifecycle_platform.registry.rollback,--model-name,breast_cancer_clf,--dry-run,--format,json"
               ;;
-            maintenance:dry_run|reproduce:dry_run|pipeline:dry_run)
+            maintenance:dry_run|reproduce:dry_run|pipeline:dry_run|pipeline-binance:dry_run)
               echo "execution_mode=dry_run is not supported for job ${JOB_NAME_INPUT}."
               exit 1
               ;;

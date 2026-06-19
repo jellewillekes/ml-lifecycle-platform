@@ -1,5 +1,16 @@
 locals {
   platform_jobs_enabled = length(trimspace(var.platform_image)) > 0
+
+  # Model identity is injected per job via env vars (MLP_ENV plus the
+  # MODEL_NAME / MLP_MODEL_SPEC_PATH / EXPERIMENT_NAME runtime overrides), so a
+  # single platform image can drive several model pipelines. The breast-cancer
+  # demo is the default identity; the binance pipeline overrides it.
+  staging_demo_model_env = {
+    MLP_ENV             = "staging"
+    MODEL_NAME          = "breast_cancer_clf"
+    MLP_MODEL_SPEC_PATH = "configs/models/breast_cancer_demo.yaml"
+  }
+
   platform_jobs = {
     pipeline = {
       name                 = "${local.foundation_name_prefix}-pipeline-staging"
@@ -8,6 +19,21 @@ locals {
       timeout              = "1800s"
       mutates_model_state  = true
       safe_validation_args = []
+      model_env            = local.staging_demo_model_env
+    }
+    pipeline_binance = {
+      name                 = "${local.foundation_name_prefix}-pipeline-binance-staging"
+      command              = ["python"]
+      args                 = ["-m", "ml_lifecycle_platform.pipeline.orchestrate"]
+      timeout              = "1800s"
+      mutates_model_state  = true
+      safe_validation_args = []
+      model_env = {
+        MLP_ENV             = "staging"
+        EXPERIMENT_NAME     = "binance-btc-1m"
+        MODEL_NAME          = "binance_btc_1m"
+        MLP_MODEL_SPEC_PATH = "configs/models/binance_btc_1m.yaml"
+      }
     }
     promote = {
       name                 = "${local.foundation_name_prefix}-promote-staging"
@@ -16,6 +42,7 @@ locals {
       timeout              = "900s"
       mutates_model_state  = true
       safe_validation_args = ["--model-name", "breast_cancer_clf", "--dry-run", "--format", "json"]
+      model_env            = local.staging_demo_model_env
     }
     rollback = {
       name                 = "${local.foundation_name_prefix}-rollback-staging"
@@ -24,6 +51,7 @@ locals {
       timeout              = "900s"
       mutates_model_state  = true
       safe_validation_args = ["--model-name", "breast_cancer_clf", "--dry-run", "--format", "json"]
+      model_env            = local.staging_demo_model_env
     }
     reproduce = {
       name                 = "${local.foundation_name_prefix}-reproduce-staging"
@@ -32,6 +60,7 @@ locals {
       timeout              = "1800s"
       mutates_model_state  = false
       safe_validation_args = []
+      model_env            = local.staging_demo_model_env
     }
     maintenance = {
       name                 = "${local.foundation_name_prefix}-maintenance-staging"
@@ -40,6 +69,7 @@ locals {
       timeout              = "600s"
       mutates_model_state  = false
       safe_validation_args = []
+      model_env            = local.staging_demo_model_env
     }
   }
 }
@@ -89,9 +119,12 @@ resource "google_cloud_run_v2_job" "platform" {
           }
         }
 
-        env {
-          name  = "MLP_ENV"
-          value = "staging"
+        dynamic "env" {
+          for_each = each.value.model_env
+          content {
+            name  = env.key
+            value = env.value
+          }
         }
 
         env {
@@ -107,16 +140,6 @@ resource "google_cloud_run_v2_job" "platform" {
         env {
           name  = "MLFLOW_CLOUD_RUN_AUDIENCE"
           value = google_cloud_run_v2_service.mlflow["staging"].uri
-        }
-
-        env {
-          name  = "MODEL_NAME"
-          value = "breast_cancer_clf"
-        }
-
-        env {
-          name  = "MLP_MODEL_SPEC_PATH"
-          value = "configs/models/breast_cancer_demo.yaml"
         }
 
         env {

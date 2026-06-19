@@ -363,7 +363,7 @@ The current pipeline ingests synthetic data. Real data from day one makes every 
 #### Acceptance criteria
 
 - `make e2e-clean` trains `binance_btc_1m` end-to-end locally on real data
-- staging Cloud Run Job ingests Binance klines and produces a registered model
+- staging Cloud Run Job ingests Binance klines and produces a registered model — wired via the `mlp-pipeline-binance-staging` job (run with the `pipeline-binance` workflow choice)
 - UP-49/UP-50 gates exercised on real data
 - `data-sources.md` runbook takes a contributor from "I have an API in mind" to a merged new-source PR
 
