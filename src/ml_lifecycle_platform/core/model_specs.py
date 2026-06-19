@@ -588,3 +588,21 @@ def load_model_spec(path: str | Path) -> ModelSpec:
     spec_path = resolve_model_spec_path(path)
     payload = yaml.safe_load(spec_path.read_text(encoding="utf-8"))
     return model_spec_from_dict(payload, spec_path=spec_path)
+
+
+def discover_model_specs(models_dir: str | Path = "configs/models") -> list[ModelSpec]:
+    """Load every ``*.yaml`` spec under ``models_dir``, sorted by file name."""
+    base = Path(models_dir)
+    if not base.is_absolute():
+        base = (REPO_ROOT / base).resolve()
+    return [load_model_spec(path) for path in sorted(base.glob("*.yaml"))]
+
+
+def resolve_spec_by_model_name(model_name: str) -> ModelSpec:
+    """Return the discovered spec whose ``model_name`` matches, else raise."""
+    for spec in discover_model_specs():
+        if spec.model_name == model_name:
+            return spec
+    raise ValueError(
+        f"No model spec with model_name={model_name!r} under configs/models/."
+    )

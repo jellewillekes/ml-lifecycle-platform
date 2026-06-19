@@ -196,16 +196,26 @@ def _handle_infra_build(args: argparse.Namespace, profile: RuntimeProfile) -> in
     return _run(_compose_cmd(profile, *command), _command_env(profile))
 
 
+def _pipeline_orchestrate_args(args: argparse.Namespace) -> list[str]:
+    if args.all:
+        return ["--all"]
+    if args.model:
+        return ["--model", args.model]
+    return []
+
+
 def _handle_pipeline_run(args: argparse.Namespace, profile: RuntimeProfile) -> int:
     env_overrides: dict[str, str] = {}
     if args.model_spec:
         env_overrides["MLP_MODEL_SPEC_PATH"] = args.model_spec
     env = _command_env(profile, env_overrides)
     _run(_compose_cmd(profile, "build", *SVC_IMAGES), env)
-    return _run(
-        _compose_cmd(profile, "run", "--rm", "--use-aliases", "pipeline"),
-        env,
-    )
+    command = _compose_cmd(profile, "run", "--rm", "--use-aliases", "pipeline")
+    orchestrate_args = _pipeline_orchestrate_args(args)
+    if orchestrate_args:
+        command += ["python", "-m", "ml_lifecycle_platform.pipeline.orchestrate"]
+        command += orchestrate_args
+    return _run(command, env)
 
 
 def _handle_registry_promote(args: argparse.Namespace, profile: RuntimeProfile) -> int:
@@ -373,6 +383,13 @@ def _build_parser() -> argparse.ArgumentParser:
     pipeline_sub = pipeline.add_subparsers(dest="pipeline_command", required=True)
     pipeline_run = pipeline_sub.add_parser("run", help="Run the local pipeline")
     pipeline_run.add_argument("--model-spec")
+    pipeline_selector = pipeline_run.add_mutually_exclusive_group()
+    pipeline_selector.add_argument("--model", help="Train one model by its model_name")
+    pipeline_selector.add_argument(
+        "--all",
+        action="store_true",
+        help="Train every spec in configs/models/",
+    )
     pipeline_run.set_defaults(handler=_handle_pipeline_run)
 
     registry = subparsers.add_parser("registry", help="Registry commands")
