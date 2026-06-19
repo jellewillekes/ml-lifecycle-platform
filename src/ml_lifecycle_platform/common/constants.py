@@ -13,6 +13,11 @@ MODEL_SPEC_SCHEMA_VERSION = "model_spec/v1"
 RELEASE_REPORT_SCHEMA_VERSION = "release_reports/v1"
 RUNTIME_EVENT_SCHEMA_VERSION = "runtime_event/v1"
 
+# Event-plane contracts use a bare-major envelope version (not the name/vN
+# scheme above): streaming/batch readers refuse an unknown major.
+PREDICTION_EVENT_SCHEMA_VERSION = "1"
+LABEL_EVENT_SCHEMA_VERSION = "1"
+
 # MLflow tag keys
 TAG_STEP = "step"
 TAG_MODEL_NAME = "model_name"

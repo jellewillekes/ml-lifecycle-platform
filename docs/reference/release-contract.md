@@ -138,6 +138,63 @@ It is not the same as:
 - "which image is deployed?"
 - "which model alias is live?"
 
+## Event-plane contracts
+
+The event plane is the durable record of what the platform predicted and what
+actually happened. Drift, replay, and feedback all read from it. Two row-level
+Pydantic contracts define it; both carry ns-precision timestamps.
+
+These use a **bare-major envelope version** (`schema_version: "1"`), not the
+`name/vN` scheme the artifact contracts above use. The event plane is consumed
+by streaming and batch readers (BigQuery, DuckDB) where registry-style
+versioning does not apply.
+
+### Schema evolution
+
+- additive, optional fields → no version bump
+- any breaking change (rename, type change, new required field) → bump the
+  major (`"1"` → `"2"`)
+- a reader refuses an unknown major rather than guessing
+
+### PredictionEvent
+
+`contracts/prediction_event.py` — one prediction, with latency attribution.
+
+| Field | Type | Stability |
+| --- | --- | --- |
+| `schema_version` | `Literal["1"]` | stable; bumped only on a breaking change |
+| `event_id` | `UUID` | stable; the sink idempotency key |
+| `corr_id` | `str` | stable; join key to the labels table |
+| `event_time_ns` | `int` (ns, INT64) | stable |
+| `ingest_time_ns` | `int` (ns, INT64) | stable |
+| `model_ref` | `ModelRef` | stable; carries its own `model_ref/v1` version |
+| `features` | `dict[str, JsonValue]` | may columnar-break at tick volume (UP-29a) |
+| `prediction` | `JsonValue` | stable |
+| `latency_ns` | `int` (ns, INT64) | stable |
+| `envelope` | `EventEnvelope` | stable: `service`, `env`, `run_id`, `git_sha` |
+
+### LabelEvent and the labels table
+
+`contracts/label_event.py` — a delayed realized label plus the Pandera schema
+for the batch `labels` table that feedback capture (UP-34) joins against
+prediction events.
+
+- **join key**: `corr_id` (prediction events ⋈ labels); required and non-null
+  on both sides
+- **freshness SLO**: a label is expected within its source's natural lag; a
+  join is considered complete once that window has elapsed
+- **late-arrival policy**: labels arriving after the window are still ingested
+  and recompute the affected realized-performance rows; they never mutate the
+  original prediction event
+
+Realized-label sources for the three M4c models:
+
+| Model | Realized label | Lag |
+| --- | --- | --- |
+| Binance BTC 1m | next-bar return sign at bar close | ~1 bar |
+| Coinbase BTC 1m | next-bar return sign at bar close | ~1 bar |
+| Open-Meteo temp 1h | ERA5 realized temperature | ~2 days |
+
 ## What deploy workflows should consume
 
 Today and going forward:
