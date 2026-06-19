@@ -15,9 +15,12 @@ split:
 preprocessor:
   kind: standard_scaler
 trainer:
-  kind: logistic_regression
-  max_iter: 2000
-  solver: lbfgs
+  kind: lightgbm
+  n_estimators: 200
+  learning_rate: 0.05
+  num_leaves: 15
+  max_depth: 4
+  min_child_samples: 20
   class_weight: balanced
   random_state: 42
 evaluation:

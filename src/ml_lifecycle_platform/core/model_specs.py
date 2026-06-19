@@ -16,6 +16,7 @@ from ml_lifecycle_platform.core.model_spec_types import (
     EvaluationSpec,
     FeatureContractSpec,
     FeatureFieldSpec,
+    LightGBMTrainerSpec,
     LogisticRegressionTrainerSpec,
     MetricThresholdSpec,
     ModelSpec,
@@ -30,7 +31,8 @@ from ml_lifecycle_platform.core.model_spec_types import (
     SUPPORTED_SOURCE_KINDS,
     SUPPORTED_SPLIT_METHODS,
     SUPPORTED_TASK,
-    SUPPORTED_TRAINER_KIND,
+    SUPPORTED_TRAINER_KINDS,
+    TrainerSpec,
     default_feature_contract_spec,
     default_policy_spec,
 )
@@ -153,16 +155,45 @@ def _parse_preprocessor(payload: Any, *, context: str) -> PreprocessorSpec:
     return PreprocessorSpec(kind=kind)
 
 
-def _parse_trainer(payload: Any, *, context: str) -> LogisticRegressionTrainerSpec:
+def _parse_trainer(payload: Any, *, context: str) -> TrainerSpec:
     raw = _require_mapping(payload, context=context)
+    kind = _require_str(raw, "kind", context=context)
+    if kind not in SUPPORTED_TRAINER_KINDS:
+        raise ValueError(
+            f"{context}.kind must be one of {sorted(SUPPORTED_TRAINER_KINDS)}."
+        )
+
+    if kind == "lightgbm":
+        _reject_extra_keys(
+            raw,
+            allowed={
+                "kind",
+                "n_estimators",
+                "learning_rate",
+                "num_leaves",
+                "max_depth",
+                "min_child_samples",
+                "class_weight",
+                "random_state",
+            },
+            context=context,
+        )
+        return LightGBMTrainerSpec(
+            kind=kind,
+            n_estimators=_require_int(raw, "n_estimators", context=context),
+            learning_rate=_require_float(raw, "learning_rate", context=context),
+            num_leaves=_require_int(raw, "num_leaves", context=context),
+            max_depth=_require_int(raw, "max_depth", context=context),
+            min_child_samples=_require_int(raw, "min_child_samples", context=context),
+            class_weight=_require_str(raw, "class_weight", context=context),
+            random_state=_require_int(raw, "random_state", context=context),
+        )
+
     _reject_extra_keys(
         raw,
         allowed={"kind", "max_iter", "solver", "class_weight", "random_state"},
         context=context,
     )
-    kind = _require_str(raw, "kind", context=context)
-    if kind != SUPPORTED_TRAINER_KIND:
-        raise ValueError(f"{context}.kind must be {SUPPORTED_TRAINER_KIND!r}.")
     return LogisticRegressionTrainerSpec(
         kind=kind,
         max_iter=_require_int(raw, "max_iter", context=context),

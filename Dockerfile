@@ -15,8 +15,10 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 WORKDIR /app
 
 # Base: git for registry URIs, curl for healthchecks, uv for locked installs.
+# libgomp1 is the OpenMP runtime LightGBM's native lib loads at import time;
+# the slim base omits it, so train and serve would crash without it.
 RUN apt-get update \
-  && apt-get install -y --no-install-recommends git curl \
+  && apt-get install -y --no-install-recommends git curl libgomp1 \
   && rm -rf /var/lib/apt/lists/*
 
 COPY --from=ghcr.io/astral-sh/uv:0.9.5 /uv /uvx /bin/
