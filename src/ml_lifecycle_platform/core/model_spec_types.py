@@ -176,6 +176,32 @@ class MetricThresholdSpec:
 
 
 @dataclass(frozen=True)
+class FeatureRangeSpec:
+    name: str
+    minimum: float | None
+    maximum: float | None
+
+    def to_dict(self) -> dict[str, Any]:
+        return {"name": self.name, "min": self.minimum, "max": self.maximum}
+
+
+@dataclass(frozen=True)
+class ValidationSpec:
+    min_rows: int
+    feature_ranges: tuple[FeatureRangeSpec, ...]
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "min_rows": self.min_rows,
+            "feature_ranges": [feature.to_dict() for feature in self.feature_ranges],
+        }
+
+
+def default_validation_spec() -> ValidationSpec:
+    return ValidationSpec(min_rows=1, feature_ranges=())
+
+
+@dataclass(frozen=True)
 class FeatureFieldSpec:
     name: str
     dtype: str
@@ -253,6 +279,7 @@ class ModelSpec:
     trainer: TrainerSpec
     evaluation: EvaluationSpec
     feature_contract: FeatureContractSpec
+    validation: ValidationSpec
     policy: PolicySpec
     spec_path: Path
 
@@ -268,6 +295,7 @@ class ModelSpec:
             "trainer": self.trainer.to_dict(),
             "evaluation": self.evaluation.to_dict(),
             "feature_contract": self.feature_contract.to_dict(),
+            "validation": self.validation.to_dict(),
             "policy": self.policy.to_dict(),
         }
 

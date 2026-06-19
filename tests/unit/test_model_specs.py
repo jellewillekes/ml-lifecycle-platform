@@ -117,6 +117,100 @@ def test_trainer_rejects_unknown_kind() -> None:
         )
 
 
+def test_binance_spec_loads_validation_block() -> None:
+    spec = load_model_spec("configs/models/binance_btc_1m.yaml")
+
+    assert spec.validation.min_rows == 500
+    ranges = {fr.name: fr for fr in spec.validation.feature_ranges}
+    assert ranges["rsi_14"].minimum == 0.0
+    assert ranges["rsi_14"].maximum == 100.0
+    assert ranges["ret_1"].minimum == -0.5
+
+
+def test_validation_defaults_to_permissive_when_block_missing() -> None:
+    spec = load_model_spec("configs/models/breast_cancer_demo.yaml")
+
+    assert spec.validation.min_rows == 1
+    assert spec.validation.feature_ranges == ()
+
+
+def test_validation_rejects_unsupported_fields() -> None:
+    payload = {
+        "schema_version": "model_spec/v1",
+        "model_name": "bad_validation",
+        "task": "binary_classifier",
+        "label_column": "target",
+        "source": {"kind": "sklearn_demo", "dataset_name": "breast_cancer"},
+        "split": {"test_size": 0.2, "random_state": 42, "stratify": True},
+        "preprocessor": {"kind": "standard_scaler"},
+        "trainer": {
+            "kind": "logistic_regression",
+            "max_iter": 2000,
+            "solver": "lbfgs",
+            "class_weight": "balanced",
+            "random_state": 42,
+        },
+        "evaluation": {
+            "metrics": ["accuracy", "f1", "roc_auc"],
+            "gate": {"metric": "roc_auc", "threshold": 0.5},
+        },
+        "validation": {"min_rows": 10, "max_rows": 100},
+    }
+
+    with pytest.raises(ValueError, match="unsupported fields"):
+        model_spec_from_dict(
+            payload,
+            spec_path=Path("configs/models/breast_cancer_demo.yaml"),
+        )
+
+
+def test_validation_rejects_range_for_undeclared_feature() -> None:
+    payload = {
+        "schema_version": "model_spec/v1",
+        "model_name": "bad_range",
+        "task": "binary_classifier",
+        "label_column": "target",
+        "source": {
+            "kind": "binance",
+            "symbol": "BTCUSDT",
+            "interval": "1m",
+            "limit": 1000,
+        },
+        "split": {
+            "method": "chronological",
+            "test_size": 0.2,
+            "random_state": 42,
+            "stratify": False,
+        },
+        "preprocessor": {"kind": "standard_scaler"},
+        "trainer": {
+            "kind": "logistic_regression",
+            "max_iter": 2000,
+            "solver": "lbfgs",
+            "class_weight": "balanced",
+            "random_state": 42,
+        },
+        "evaluation": {
+            "metrics": ["accuracy", "f1", "roc_auc"],
+            "gate": {"metric": "roc_auc", "threshold": 0.5},
+        },
+        "feature_contract": {
+            "version": "bad_range.input/v1",
+            "allow_unknown_fields": False,
+            "features": [{"name": "ret_1", "dtype": "float"}],
+        },
+        "validation": {
+            "feature_ranges": [{"name": "rsi_99", "min": 0.0, "max": 100.0}]
+        },
+    }
+
+    with pytest.raises(ValueError, match="not in feature_contract"):
+        model_spec_from_dict(
+            payload,
+            spec_path=Path("configs/models/binance_btc_1m.yaml"),
+        )
+
+
 def test_chronological_split_rejects_stratify() -> None:
     payload = {
         "schema_version": "model_spec/v1",
