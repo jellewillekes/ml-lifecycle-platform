@@ -204,6 +204,23 @@ def _feature_contract(settings: Settings) -> FeatureContractSpec:
     return _load_feature_contract(settings.model_name, settings.model_spec_path)
 
 
+def _require_served_model(model_name: str) -> None:
+    """404 unless ``model_name`` is the one this instance serves.
+
+    Per-model isolation: each container serves exactly one model, so the
+    self-describing ``/predict/<model_name>`` route rejects every other name.
+    """
+    settings = get_settings()
+    if model_name != settings.model_name:
+        raise HTTPException(
+            status_code=404,
+            detail=(
+                f"model {model_name!r} is not served by this instance "
+                f"(serving {settings.model_name!r})"
+            ),
+        )
+
+
 def _registry_resolves_prod_alias(settings: Settings) -> tuple[bool, str | None]:
     """Return whether the prod alias resolves."""
     if settings.unit_testing:
@@ -337,6 +354,18 @@ def metadata_schema() -> SchemaMetadataResponse:
             for feature in contract.features
         ],
     )
+
+
+@app.get("/metadata/model/{model_name}", response_model=ModelMetadataResponse)
+def metadata_model_for(model_name: str) -> ModelMetadataResponse:
+    _require_served_model(model_name)
+    return metadata_model()
+
+
+@app.get("/metadata/schema/{model_name}", response_model=SchemaMetadataResponse)
+def metadata_schema_for(model_name: str) -> SchemaMetadataResponse:
+    _require_served_model(model_name)
+    return metadata_schema()
 
 
 @app.post("/predict", response_model=PredictResponse)
@@ -474,3 +503,16 @@ async def predict(
             chosen=chosen_label,
             latency_s=latency_s,
         )
+
+
+@app.post("/predict/{model_name}", response_model=PredictResponse)
+async def predict_model(
+    model_name: str,
+    request: Request,
+    payload: PredictRequest,
+    response: Response,
+    mode: Mode = Query(default="prod", description="prod|candidate|shadow|canary"),
+) -> PredictResponse:
+    """Self-describing predict route; delegates once the model name matches."""
+    _require_served_model(model_name)
+    return await predict(request, payload, response, mode)

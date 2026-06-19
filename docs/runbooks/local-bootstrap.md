@@ -135,6 +135,20 @@ Starter CSV location:
 
 - [`examples/csv/local_csv_binary_classifier.csv`](../../examples/csv/local_csv_binary_classifier.csv)
 
+## Train multiple models
+
+The pipeline is spec-driven, so one command trains every spec in `configs/models/`:
+
+```bash
+uv run mlp --env local pipeline run --all
+uv run mlp --env local pipeline run --model binance_btc_1m
+```
+
+Each model is isolated in its own MLflow experiment (keyed on `model_name`), and
+`--all` continues past a single model's failure, then exits non-zero listing the
+models that failed. Serving stays one model per container; each instance exposes
+`/predict/<model_name>` and rejects any other name with a 404.
+
 ## Tear down
 
 ```bash
