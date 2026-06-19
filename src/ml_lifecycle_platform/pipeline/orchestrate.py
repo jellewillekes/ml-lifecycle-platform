@@ -24,6 +24,7 @@ STEP_MODULES = {
     "featurize": "ml_lifecycle_platform.pipeline.featurize",
     "train": "ml_lifecycle_platform.pipeline.train",
     "evaluate": "ml_lifecycle_platform.pipeline.evaluate",
+    "validate_model": "ml_lifecycle_platform.pipeline.validate_model",
     "register": "ml_lifecycle_platform.registry.register",
 }
 
@@ -78,6 +79,7 @@ def main() -> None:
         print(f"[orchestrate] Captured {ART_TRAIN_RUN_ID}={train_run_id}")
 
         _run_step("evaluate")
+        _run_step("validate_model")
         _run_step("register")
 
         print("[orchestrate] Pipeline complete.")

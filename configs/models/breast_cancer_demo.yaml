@@ -25,6 +25,18 @@ evaluation:
   gate:
     metric: roc_auc
     threshold: 0.95
+model_validation:
+  # This model separates the classes well (roc_auc ~0.99), so the gates are
+  # real: an overall floor, a bounded regression vs. the previous run, and a
+  # minimum on the larger-radius slice where malignant cases concentrate.
+  metric: roc_auc
+  min_overall: 0.90
+  max_regression: 0.05
+  segments:
+    - name: large_radius
+      column: mean radius
+      min: 15.0
+      min_metric: 0.85
 feature_contract:
   version: breast_cancer_clf.input/v1
   allow_unknown_fields: false
