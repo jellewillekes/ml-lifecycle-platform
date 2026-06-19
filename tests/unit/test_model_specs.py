@@ -211,6 +211,145 @@ def test_validation_rejects_range_for_undeclared_feature() -> None:
         )
 
 
+def test_model_validation_defaults_to_eval_gate_when_block_missing() -> None:
+    spec = load_model_spec("configs/models/local_csv_binary_classifier.yaml")
+
+    assert spec.model_validation.metric == spec.evaluation.gate.metric
+    assert spec.model_validation.min_overall == spec.evaluation.gate.threshold
+    assert spec.model_validation.max_regression is None
+    assert spec.model_validation.segments == ()
+
+
+def test_binance_spec_loads_lenient_model_validation_block() -> None:
+    spec = load_model_spec("configs/models/binance_btc_1m.yaml")
+
+    assert spec.model_validation.metric == "roc_auc"
+    assert spec.model_validation.min_overall == 0.50
+    assert spec.model_validation.max_regression is None
+    assert spec.model_validation.segments == ()
+
+
+def test_demo_spec_loads_model_validation_segment() -> None:
+    spec = load_model_spec("configs/models/breast_cancer_demo.yaml")
+
+    assert spec.model_validation.min_overall == 0.90
+    assert spec.model_validation.max_regression == 0.05
+    segment = spec.model_validation.segments[0]
+    assert segment.name == "large_radius"
+    assert segment.column == "mean radius"
+    assert segment.minimum == 15.0
+    assert segment.min_metric == 0.85
+
+
+def test_model_validation_rejects_metric_outside_evaluation_metrics() -> None:
+    payload = {
+        "schema_version": "model_spec/v1",
+        "model_name": "bad_mv_metric",
+        "task": "binary_classifier",
+        "label_column": "target",
+        "source": {"kind": "sklearn_demo", "dataset_name": "breast_cancer"},
+        "split": {"test_size": 0.2, "random_state": 42, "stratify": True},
+        "preprocessor": {"kind": "standard_scaler"},
+        "trainer": {
+            "kind": "logistic_regression",
+            "max_iter": 2000,
+            "solver": "lbfgs",
+            "class_weight": "balanced",
+            "random_state": 42,
+        },
+        "evaluation": {
+            "metrics": ["accuracy", "roc_auc"],
+            "gate": {"metric": "roc_auc", "threshold": 0.5},
+        },
+        "model_validation": {"metric": "f1", "min_overall": 0.5},
+    }
+
+    with pytest.raises(ValueError, match="evaluation metrics"):
+        model_spec_from_dict(
+            payload,
+            spec_path=Path("configs/models/breast_cancer_demo.yaml"),
+        )
+
+
+def test_model_validation_rejects_segment_for_undeclared_column() -> None:
+    payload = {
+        "schema_version": "model_spec/v1",
+        "model_name": "bad_mv_segment",
+        "task": "binary_classifier",
+        "label_column": "target",
+        "source": {
+            "kind": "binance",
+            "symbol": "BTCUSDT",
+            "interval": "1m",
+            "limit": 1000,
+        },
+        "split": {
+            "method": "chronological",
+            "test_size": 0.2,
+            "random_state": 42,
+            "stratify": False,
+        },
+        "preprocessor": {"kind": "standard_scaler"},
+        "trainer": {
+            "kind": "logistic_regression",
+            "max_iter": 2000,
+            "solver": "lbfgs",
+            "class_weight": "balanced",
+            "random_state": 42,
+        },
+        "evaluation": {
+            "metrics": ["accuracy", "f1", "roc_auc"],
+            "gate": {"metric": "roc_auc", "threshold": 0.5},
+        },
+        "feature_contract": {
+            "version": "bad_mv_segment.input/v1",
+            "allow_unknown_fields": False,
+            "features": [{"name": "ret_1", "dtype": "float"}],
+        },
+        "model_validation": {
+            "segments": [
+                {"name": "s", "column": "rsi_99", "min": 0.0, "min_metric": 0.5}
+            ]
+        },
+    }
+
+    with pytest.raises(ValueError, match="not in feature_contract"):
+        model_spec_from_dict(
+            payload,
+            spec_path=Path("configs/models/binance_btc_1m.yaml"),
+        )
+
+
+def test_model_validation_rejects_unsupported_fields() -> None:
+    payload = {
+        "schema_version": "model_spec/v1",
+        "model_name": "bad_mv_fields",
+        "task": "binary_classifier",
+        "label_column": "target",
+        "source": {"kind": "sklearn_demo", "dataset_name": "breast_cancer"},
+        "split": {"test_size": 0.2, "random_state": 42, "stratify": True},
+        "preprocessor": {"kind": "standard_scaler"},
+        "trainer": {
+            "kind": "logistic_regression",
+            "max_iter": 2000,
+            "solver": "lbfgs",
+            "class_weight": "balanced",
+            "random_state": 42,
+        },
+        "evaluation": {
+            "metrics": ["accuracy", "f1", "roc_auc"],
+            "gate": {"metric": "roc_auc", "threshold": 0.5},
+        },
+        "model_validation": {"min_overall": 0.5, "max_drop": 0.1},
+    }
+
+    with pytest.raises(ValueError, match="unsupported fields"):
+        model_spec_from_dict(
+            payload,
+            spec_path=Path("configs/models/breast_cancer_demo.yaml"),
+        )
+
+
 def test_chronological_split_rejects_stratify() -> None:
     payload = {
         "schema_version": "model_spec/v1",

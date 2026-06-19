@@ -202,6 +202,40 @@ def default_validation_spec() -> ValidationSpec:
 
 
 @dataclass(frozen=True)
+class SegmentSpec:
+    name: str
+    column: str
+    minimum: float | None
+    maximum: float | None
+    min_metric: float
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "name": self.name,
+            "column": self.column,
+            "min": self.minimum,
+            "max": self.maximum,
+            "min_metric": self.min_metric,
+        }
+
+
+@dataclass(frozen=True)
+class ModelValidationSpec:
+    metric: str
+    min_overall: float
+    max_regression: float | None
+    segments: tuple[SegmentSpec, ...]
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "metric": self.metric,
+            "min_overall": self.min_overall,
+            "max_regression": self.max_regression,
+            "segments": [segment.to_dict() for segment in self.segments],
+        }
+
+
+@dataclass(frozen=True)
 class FeatureFieldSpec:
     name: str
     dtype: str
@@ -280,6 +314,7 @@ class ModelSpec:
     evaluation: EvaluationSpec
     feature_contract: FeatureContractSpec
     validation: ValidationSpec
+    model_validation: ModelValidationSpec
     policy: PolicySpec
     spec_path: Path
 
@@ -296,6 +331,7 @@ class ModelSpec:
             "evaluation": self.evaluation.to_dict(),
             "feature_contract": self.feature_contract.to_dict(),
             "validation": self.validation.to_dict(),
+            "model_validation": self.model_validation.to_dict(),
             "policy": self.policy.to_dict(),
         }
 

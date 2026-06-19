@@ -21,8 +21,10 @@ from ml_lifecycle_platform.core.model_spec_types import (
     LogisticRegressionTrainerSpec,
     MetricThresholdSpec,
     ModelSpec,
+    ModelValidationSpec,
     PolicySpec,
     PreprocessorSpec,
+    SegmentSpec,
     SklearnDemoSourceSpec,
     SourceSpec,
     SplitSpec,
@@ -293,6 +295,88 @@ def _parse_validation(payload: Any, *, context: str) -> ValidationSpec:
     return ValidationSpec(min_rows=min_rows, feature_ranges=parsed_ranges)
 
 
+def _parse_segment(payload: Any, *, context: str) -> SegmentSpec:
+    raw = _require_mapping(payload, context=context)
+    _reject_extra_keys(
+        raw, allowed={"name", "column", "min", "max", "min_metric"}, context=context
+    )
+    name = _require_str(raw, "name", context=context)
+    column = _require_str(raw, "column", context=context)
+    minimum = _optional_float(raw, "min", context=context)
+    maximum = _optional_float(raw, "max", context=context)
+    if minimum is None and maximum is None:
+        raise ValueError(f"{context} must declare at least one of 'min' or 'max'.")
+    if minimum is not None and maximum is not None and minimum > maximum:
+        raise ValueError(f"{context}.min must be less than or equal to {context}.max.")
+    min_metric = _require_float(raw, "min_metric", context=context)
+    if not 0.0 <= min_metric <= 1.0:
+        raise ValueError(f"{context}.min_metric must be between 0 and 1.")
+    return SegmentSpec(
+        name=name,
+        column=column,
+        minimum=minimum,
+        maximum=maximum,
+        min_metric=min_metric,
+    )
+
+
+def _parse_model_validation(
+    payload: Any, *, context: str, evaluation: EvaluationSpec
+) -> ModelValidationSpec:
+    if payload is None:
+        return ModelValidationSpec(
+            metric=evaluation.gate.metric,
+            min_overall=evaluation.gate.threshold,
+            max_regression=None,
+            segments=(),
+        )
+
+    raw = _require_mapping(payload, context=context)
+    _reject_extra_keys(
+        raw,
+        allowed={"metric", "min_overall", "max_regression", "segments"},
+        context=context,
+    )
+
+    metric = raw.get("metric", evaluation.gate.metric)
+    if not isinstance(metric, str) or metric not in evaluation.metrics:
+        raise ValueError(
+            f"{context}.metric must be one of the declared evaluation metrics "
+            f"{list(evaluation.metrics)}."
+        )
+
+    min_overall = raw.get("min_overall", evaluation.gate.threshold)
+    if (
+        not isinstance(min_overall, (int, float))
+        or isinstance(min_overall, bool)
+        or not 0.0 <= min_overall <= 1.0
+    ):
+        raise ValueError(f"{context}.min_overall must be between 0 and 1.")
+
+    max_regression: float | None = None
+    if raw.get("max_regression") is not None:
+        max_regression = _require_float(raw, "max_regression", context=context)
+        if not 0.0 <= max_regression <= 1.0:
+            raise ValueError(f"{context}.max_regression must be between 0 and 1.")
+
+    ranges = raw.get("segments", [])
+    if not isinstance(ranges, list):
+        raise ValueError(f"{context}.segments must be a list.")
+    segments = tuple(
+        _parse_segment(item, context=f"{context}.segments[{idx}]")
+        for idx, item in enumerate(ranges)
+    )
+    if len({segment.name for segment in segments}) != len(segments):
+        raise ValueError(f"{context}.segments cannot repeat segment names.")
+
+    return ModelValidationSpec(
+        metric=metric,
+        min_overall=float(min_overall),
+        max_regression=max_regression,
+        segments=segments,
+    )
+
+
 def _parse_feature_field(payload: Any, *, context: str) -> FeatureFieldSpec:
     raw = _require_mapping(payload, context=context)
     _reject_extra_keys(raw, allowed={"name", "dtype", "required"}, context=context)
@@ -415,6 +499,7 @@ def model_spec_from_dict(
             "evaluation",
             "feature_contract",
             "validation",
+            "model_validation",
             "policy",
         },
         context="model_spec",
@@ -441,6 +526,14 @@ def model_spec_from_dict(
     validation = _parse_validation(
         raw.get("validation"), context="model_spec.validation"
     )
+    evaluation = _parse_evaluation(
+        raw.get("evaluation"), context="model_spec.evaluation"
+    )
+    model_validation = _parse_model_validation(
+        raw.get("model_validation"),
+        context="model_spec.model_validation",
+        evaluation=evaluation,
+    )
     if feature_contract.features:
         declared_features = {feature.name for feature in feature_contract.features}
         unknown_ranges = sorted(
@@ -452,6 +545,16 @@ def model_spec_from_dict(
             raise ValueError(
                 "model_spec.validation.feature_ranges reference features not in "
                 f"feature_contract: {', '.join(unknown_ranges)}"
+            )
+        unknown_segments = sorted(
+            segment.column
+            for segment in model_validation.segments
+            if segment.column not in declared_features
+        )
+        if unknown_segments:
+            raise ValueError(
+                "model_spec.model_validation.segments reference columns not in "
+                f"feature_contract: {', '.join(unknown_segments)}"
             )
 
     return ModelSpec(
@@ -465,11 +568,10 @@ def model_spec_from_dict(
             raw.get("preprocessor"), context="model_spec.preprocessor"
         ),
         trainer=_parse_trainer(raw.get("trainer"), context="model_spec.trainer"),
-        evaluation=_parse_evaluation(
-            raw.get("evaluation"), context="model_spec.evaluation"
-        ),
+        evaluation=evaluation,
         feature_contract=feature_contract,
         validation=validation,
+        model_validation=model_validation,
         policy=_parse_policy(raw.get("policy"), context="model_spec.policy"),
         spec_path=resolve_model_spec_path(spec_path),
     )
