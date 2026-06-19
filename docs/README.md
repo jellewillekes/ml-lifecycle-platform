@@ -21,6 +21,7 @@ The hosted staging path is a separate advanced path documented under [Advanced h
 ## Local runbooks
 
 - [`runbooks/local-bootstrap.md`](./runbooks/local-bootstrap.md): fresh-clone local setup and golden path
+- [`runbooks/data-sources.md`](./runbooks/data-sources.md): the `DataSource` port and adding a new data source
 - [`runbooks/promotion.md`](./runbooks/promotion.md): dry-run and real promotion
 - [`runbooks/rollback.md`](./runbooks/rollback.md): rollback current prod
 - [`runbooks/reproduce.md`](./runbooks/reproduce.md): reproduce a registered model

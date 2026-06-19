@@ -10,6 +10,7 @@ import yaml
 
 from ml_lifecycle_platform.common.constants import MODEL_SPEC_SCHEMA_VERSION
 from ml_lifecycle_platform.core.model_spec_types import (
+    BinanceSourceSpec,
     CsvSourceSpec,
     EvaluationGateSpec,
     EvaluationSpec,
@@ -21,11 +22,13 @@ from ml_lifecycle_platform.core.model_spec_types import (
     PolicySpec,
     PreprocessorSpec,
     SklearnDemoSourceSpec,
+    SourceSpec,
     SplitSpec,
     SUPPORTED_FEATURE_TYPES,
     SUPPORTED_METRICS,
     SUPPORTED_PREPROCESSOR_KIND,
     SUPPORTED_SOURCE_KINDS,
+    SUPPORTED_SPLIT_METHODS,
     SUPPORTED_TASK,
     SUPPORTED_TRAINER_KIND,
     default_feature_contract_spec,
@@ -77,9 +80,7 @@ def _require_bool(payload: Mapping[str, Any], key: str, *, context: str) -> bool
     return value
 
 
-def _parse_source(
-    payload: Any, *, context: str
-) -> SklearnDemoSourceSpec | CsvSourceSpec:
+def _parse_source(payload: Any, *, context: str) -> SourceSpec:
     raw = _require_mapping(payload, context=context)
     kind = _require_str(raw, "kind", context=context)
     if kind not in SUPPORTED_SOURCE_KINDS:
@@ -94,6 +95,20 @@ def _parse_source(
             raise ValueError(f"{context}.dataset_name must be 'breast_cancer'.")
         return SklearnDemoSourceSpec(kind=kind, dataset_name=dataset_name)
 
+    if kind == "binance":
+        _reject_extra_keys(
+            raw, allowed={"kind", "symbol", "interval", "limit"}, context=context
+        )
+        limit = _require_int(raw, "limit", context=context)
+        if not 1 <= limit <= 1000:
+            raise ValueError(f"{context}.limit must be between 1 and 1000.")
+        return BinanceSourceSpec(
+            kind=kind,
+            symbol=_require_str(raw, "symbol", context=context),
+            interval=_require_str(raw, "interval", context=context),
+            limit=limit,
+        )
+
     _reject_extra_keys(raw, allowed={"kind", "path"}, context=context)
     return CsvSourceSpec(kind=kind, path=_require_str(raw, "path", context=context))
 
@@ -102,16 +117,30 @@ def _parse_split(payload: Any, *, context: str) -> SplitSpec:
     raw = _require_mapping(payload, context=context)
     _reject_extra_keys(
         raw,
-        allowed={"test_size", "random_state", "stratify"},
+        allowed={"test_size", "random_state", "stratify", "method"},
         context=context,
     )
     test_size = _require_float(raw, "test_size", context=context)
     if not 0.0 < test_size < 1.0:
         raise ValueError(f"{context}.test_size must be between 0 and 1.")
+
+    method = raw.get("method", "random")
+    if not isinstance(method, str) or method not in SUPPORTED_SPLIT_METHODS:
+        raise ValueError(
+            f"{context}.method must be one of {sorted(SUPPORTED_SPLIT_METHODS)}."
+        )
+
+    stratify = _require_bool(raw, "stratify", context=context)
+    if method == "chronological" and stratify:
+        raise ValueError(
+            f"{context}.stratify must be false when method is 'chronological'."
+        )
+
     return SplitSpec(
         test_size=test_size,
         random_state=_require_int(raw, "random_state", context=context),
-        stratify=_require_bool(raw, "stratify", context=context),
+        stratify=stratify,
+        method=method,
     )
 
 

@@ -1,12 +1,15 @@
-"""Load the raw dataset from the model spec's source (sklearn builtin or CSV)
-and persist it to ``data/raw.csv`` with lineage tags on the MLflow run."""
+"""Load the raw dataset from the model spec's declared source via its
+``DataSource`` adapter and persist it to ``data/raw.csv`` with lineage tags on
+the MLflow run."""
 
 from __future__ import annotations
 
 import mlflow
 import pandas as pd
-from sklearn.datasets import load_breast_cancer
 
+from ml_lifecycle_platform.backends.common.data_sources.resolver import (
+    build_data_source,
+)
 from ml_lifecycle_platform.common.constants import (
     RAW_CSV,
     STEP_INGEST,
@@ -16,18 +19,12 @@ from ml_lifecycle_platform.common.constants import (
 from ml_lifecycle_platform.runtime.mlflow import ensure_experiment
 from ml_lifecycle_platform.runtime.bootstrap import get_runtime_context
 from ml_lifecycle_platform.core.batch_contracts import validate_labeled_dataset
-from ml_lifecycle_platform.core.model_spec_types import CsvSourceSpec, ModelSpec
+from ml_lifecycle_platform.core.model_spec_types import ModelSpec
 from ml_lifecycle_platform.core.model_specs import load_model_spec
 
 
 def _load_source_dataframe(spec: ModelSpec) -> pd.DataFrame:
-    if isinstance(spec.source, CsvSourceSpec):
-        csv_path = spec.source.resolved_path(spec_path=spec.spec_path)
-        df = pd.read_csv(csv_path)
-    else:
-        dataset = load_breast_cancer(as_frame=True)
-        df = dataset.frame.copy()
-
+    df = build_data_source(spec).fetch()
     return validate_labeled_dataset(
         df,
         spec=spec,
