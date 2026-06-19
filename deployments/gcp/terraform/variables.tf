@@ -25,6 +25,7 @@ variable "required_services" {
   type        = list(string)
   default = [
     "artifactregistry.googleapis.com",
+    "bigquery.googleapis.com",
     "cloudresourcemanager.googleapis.com",
     "cloudscheduler.googleapis.com",
     "compute.googleapis.com",

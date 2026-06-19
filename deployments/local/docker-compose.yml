@@ -156,6 +156,9 @@ services:
       MLP_MODEL_SPEC_PATH: ${MLP_MODEL_SPEC_PATH:-configs/models/breast_cancer_demo.yaml}
       CANARY_PCT: ${CANARY_PCT:-10}
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      MLP_EVENT_SINK: ${MLP_EVENT_SINK:-jsonl}
+      MLP_EVENT_JSONL_PATH: ${MLP_EVENT_JSONL_PATH:-/app/artifacts/prediction-events.jsonl}
+      GIT_SHA: ${GIT_SHA:-dev}
     ports:
       - "${MLP_HOST_SERVE_PORT:-8000}:8000"
     healthcheck:

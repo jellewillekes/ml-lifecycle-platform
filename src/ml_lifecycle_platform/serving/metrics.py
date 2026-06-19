@@ -31,6 +31,12 @@ SHADOW_DIFF_MAE = Histogram(
     labelnames=("mode",),
 )
 
+EVENTS_DROPPED_TOTAL = Counter(
+    "events_dropped_total",
+    "Prediction events dropped before reaching the cold sink.",
+    labelnames=("reason",),
+)
+
 
 @lru_cache(maxsize=1)
 def _otel_instruments() -> tuple[Any, Any, Any]:  # type: ignore[valid-type]
@@ -62,6 +68,15 @@ def _startup_histogram() -> Any:
     )
 
 
+@lru_cache(maxsize=1)
+def _events_dropped_counter() -> Any:
+    meter = otel_metrics.get_meter("ml_lifecycle_platform.serving")
+    return meter.create_counter(
+        "events_dropped_total",
+        description="Prediction events dropped before reaching the cold sink.",
+    )
+
+
 def record_request(endpoint: str, mode: str, status: str) -> None:
     REQUESTS_TOTAL.labels(endpoint=endpoint, mode=mode, status=status).inc()
     counter, _, _ = _otel_instruments()
@@ -86,3 +101,10 @@ def record_shadow_diff(mode: str, mae: float) -> None:
 
 def record_startup_latency(latency_s: float) -> None:
     _startup_histogram().record(latency_s)
+
+
+def record_event_dropped(reason: str, count: int = 1) -> None:
+    if count <= 0:
+        return
+    EVENTS_DROPPED_TOTAL.labels(reason=reason).inc(count)
+    _events_dropped_counter().add(count, {"reason": reason})

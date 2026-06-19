@@ -7,6 +7,15 @@ locals {
     local.serving_deploy_enabled ? { staging = var.serving_image } : {},
     local.serving_production_deploy_enabled && var.manage_production_foundation ? { production = var.production_serving_image } : {},
   )
+
+  # Cold event sink per environment. Only staging has a BigQuery table today;
+  # other environments default to no emission until their table exists.
+  event_sink_by_env = {
+    staging = "bigquery"
+  }
+  event_table_by_env = {
+    staging = "${google_bigquery_table.prediction_events.project}.${google_bigquery_table.prediction_events.dataset_id}.${google_bigquery_table.prediction_events.table_id}"
+  }
 }
 
 resource "google_cloud_run_v2_service" "serving" {
@@ -111,6 +120,16 @@ resource "google_cloud_run_v2_service" "serving" {
       env {
         name  = "GOOGLE_CLOUD_PROJECT"
         value = data.google_project.current.project_id
+      }
+
+      env {
+        name  = "MLP_EVENT_SINK"
+        value = lookup(local.event_sink_by_env, each.key, "none")
+      }
+
+      env {
+        name  = "MLP_EVENT_BQ_TABLE"
+        value = lookup(local.event_table_by_env, each.key, "")
       }
 
       dynamic "env" {
