@@ -274,6 +274,28 @@ def _handle_registry_reproduce(
     return _run(command, _command_env(profile, env_overrides))
 
 
+def _handle_registry_show_baseline(
+    args: argparse.Namespace, profile: RuntimeProfile
+) -> int:
+    env_overrides: dict[str, str] = {}
+    if args.model_name:
+        env_overrides["MODEL_NAME"] = args.model_name
+
+    command = _python_module_cmd(
+        "ml_lifecycle_platform.registry.show_baseline",
+        "--format",
+        args.format,
+    )
+    if args.model_name:
+        command.extend(["--model-name", args.model_name])
+    if args.model_version:
+        command.extend(["--model-version", args.model_version])
+    elif args.alias:
+        command.extend(["--alias", args.alias])
+
+    return _run(command, _command_env(profile, env_overrides))
+
+
 def _handle_serve_api(args: argparse.Namespace, profile: RuntimeProfile) -> int:
     env_overrides: dict[str, str] = {}
     if args.model_name:
@@ -414,6 +436,19 @@ def _build_parser() -> argparse.ArgumentParser:
         "--format", choices=["json", "text"], default="json"
     )
     registry_reproduce.set_defaults(handler=_handle_registry_reproduce)
+    registry_show_baseline = registry_sub.add_parser(
+        "show-baseline", help="Show the drift baseline for a model version"
+    )
+    registry_show_baseline.add_argument("--model-name")
+    baseline_selector = registry_show_baseline.add_mutually_exclusive_group(
+        required=True
+    )
+    baseline_selector.add_argument("--model-version")
+    baseline_selector.add_argument("--alias")
+    registry_show_baseline.add_argument(
+        "--format", choices=["json", "text"], default="json"
+    )
+    registry_show_baseline.set_defaults(handler=_handle_registry_show_baseline)
 
     serve = subparsers.add_parser("serve", help="Serving commands")
     serve_sub = serve.add_subparsers(dest="serve_command", required=True)

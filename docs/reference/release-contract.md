@@ -138,6 +138,27 @@ It is not the same as:
 - "which image is deployed?"
 - "which model alias is live?"
 
+## Drift baseline
+
+Every promotion computes a `DriftBaseline` from the model's training split
+(`repro/inputs/train.csv` on the source run) and attaches it to release
+evidence. The `release_manifest.json` carries a `baseline_ref` pointing at the
+`drift_baseline.json` artifact under the same release-evidence root.
+
+The baseline is the statistical fingerprint of the data the model was trained
+on, so a production release can be compared against live traffic later:
+
+- per column: `count`, `null_rate`, `mean`, `std`, `min`, `max`, plus a quantile
+  grid (p0…p100 by 5)
+- the quantile grid lets batch drift (UP-32) reconstruct a step-CDF for a KS
+  test; `mean`/`std` drive a cheaper mean/std delta
+- **stat-test choice for v1: KS + mean/std delta** per feature
+- a missing or unreadable training split degrades to no baseline rather than
+  failing the promotion
+
+Inspect it with `mlp registry show-baseline --model-version <v>` (or `--alias`).
+A Pandera schema validates the per-column summary table before it is written.
+
 ## Event-plane contracts
 
 The event plane is the durable record of what the platform predicted and what
