@@ -9,12 +9,14 @@ from datetime import UTC, datetime
 from typing import Any
 
 from ml_lifecycle_platform.common.constants import (
+    ART_DRIFT_BASELINE_JSON,
     ART_MODEL_CARD_MD,
     ART_PROMOTION_DECISION_JSON,
     ART_RELEASE_MANIFEST_JSON,
     ART_ROLLBACK_TARGET_JSON,
     RELEASE_REPORT_SCHEMA_VERSION,
 )
+from ml_lifecycle_platform.contracts.drift_baseline import DriftBaseline
 from ml_lifecycle_platform.policy.policy_engine import PolicyDecision
 
 
@@ -120,6 +122,7 @@ class ReleaseManifest:
     policy_outcome: PolicyOutcome
     result: OperationResult
     metrics: dict[str, float] = field(default_factory=dict)
+    baseline_ref: str | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -137,6 +140,7 @@ class ReleaseManifest:
             "policy_outcome": self.policy_outcome.to_dict(),
             "result": self.result.to_dict(),
             "metrics": dict(self.metrics),
+            "baseline_ref": self.baseline_ref,
         }
 
     @classmethod
@@ -167,6 +171,7 @@ class ReleaseManifest:
             policy_outcome=_parse_policy_outcome(policy),
             result=_parse_operation_result(result),
             metrics={str(key): float(value) for key, value in metrics.items()},
+            baseline_ref=_optional_str(raw.get("baseline_ref")),
         )
 
 
@@ -205,9 +210,10 @@ class ReleaseReportBundle:
     manifest: ReleaseManifest
     rollback_target: RollbackTargetReport
     model_card: str
+    drift_baseline: DriftBaseline | None = None
 
     def file_contents(self) -> dict[str, bytes]:
-        return {
+        contents = {
             ART_PROMOTION_DECISION_JSON: json.dumps(
                 self.decision.to_dict(), indent=2, sort_keys=True
             ).encode("utf-8"),
@@ -219,6 +225,11 @@ class ReleaseReportBundle:
             ).encode("utf-8"),
             ART_MODEL_CARD_MD: self.model_card.encode("utf-8"),
         }
+        if self.drift_baseline is not None:
+            contents[ART_DRIFT_BASELINE_JSON] = self.drift_baseline.to_json().encode(
+                "utf-8"
+            )
+        return contents
 
 
 def render_model_card(bundle: ReleaseReportBundle) -> str:

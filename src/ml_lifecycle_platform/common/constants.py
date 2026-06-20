@@ -11,6 +11,7 @@ FEATURE_STATS_SCHEMA_VERSION = "feature_stats/v1"
 REPRO_CONTRACT_SCHEMA_VERSION = "repro_contract/v1"
 MODEL_SPEC_SCHEMA_VERSION = "model_spec/v1"
 RELEASE_REPORT_SCHEMA_VERSION = "release_reports/v1"
+DRIFT_BASELINE_SCHEMA_VERSION = "drift_baseline/v1"
 RUNTIME_EVENT_SCHEMA_VERSION = "runtime_event/v1"
 
 # Event-plane contracts use a bare-major envelope version (not the name/vN
@@ -83,6 +84,7 @@ ART_PROMOTION_DECISION_JSON = "promotion_decision.json"
 ART_RELEASE_MANIFEST_JSON = "release_manifest.json"
 ART_ROLLBACK_TARGET_JSON = "rollback_target.json"
 ART_MODEL_CARD_MD = "model_card.md"
+ART_DRIFT_BASELINE_JSON = "drift_baseline.json"
 
 # Artifact paths inside MLflow
 MLFLOW_ARTIFACT_PATH_REPORTS = "reports"

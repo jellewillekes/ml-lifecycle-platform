@@ -20,6 +20,7 @@ from ml_lifecycle_platform.common.constants import (
     ALIAS_CANDIDATE,
     ALIAS_CHAMPION,
     ALIAS_PROD,
+    ART_DRIFT_BASELINE_JSON,
     RELEASE_STATUS_PREVIOUS_PROD,
     TAG_CONFIG_HASH,
     TAG_DATASET_FINGERPRINT,
@@ -45,8 +46,12 @@ from ml_lifecycle_platform.policy.policy_engine import (
     PolicyDecision,
     evaluate_promotion_policy,
 )
+from ml_lifecycle_platform.registry.drift_baseline import baseline_from_source_run
 from ml_lifecycle_platform.registry.metrics import record_release
-from ml_lifecycle_platform.registry.release_evidence import emit_release_evidence
+from ml_lifecycle_platform.registry.release_evidence import (
+    artifact_root,
+    emit_release_evidence,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -257,6 +262,18 @@ def _build_promotion_bundle(
             "to_alias": str(decision.context.get("to_alias", "")),
         },
     )
+    drift_baseline = baseline_from_source_run(
+        client,
+        source_run_id=source_run_id,
+        model_name=model_name,
+        model_version=candidate_version,
+        created_at=generated_at,
+    )
+    baseline_ref = (
+        f"{artifact_root(operation='promote', model_name=model_name, model_version=candidate_version)}/{ART_DRIFT_BASELINE_JSON}"
+        if drift_baseline is not None
+        else None
+    )
     manifest = ReleaseManifest(
         generated_at=generated_at,
         operation="promote",
@@ -272,6 +289,7 @@ def _build_promotion_bundle(
         policy_outcome=policy_outcome,
         result=result,
         metrics=_source_run_metrics(client, source_run_id),
+        baseline_ref=baseline_ref,
     )
     bundle = ReleaseReportBundle(
         decision=PromotionDecisionReport(
@@ -308,6 +326,7 @@ def _build_promotion_bundle(
         manifest=bundle.manifest,
         rollback_target=bundle.rollback_target,
         model_card=render_model_card(bundle),
+        drift_baseline=drift_baseline,
     )
 
 
