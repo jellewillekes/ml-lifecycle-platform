@@ -121,6 +121,15 @@ resource "google_project_iam_member" "ci_staging_scheduler_admin" {
   member  = "serviceAccount:${google_service_account.ci_staging.email}"
 }
 
+# CI provisions the event-plane dataset and table during deploy, which needs
+# project-level bigquery.datasets.create (dataEditor on the dataset is not
+# enough and cannot exist before the dataset does). Apply with owner creds.
+resource "google_project_iam_member" "ci_staging_bigquery_admin" {
+  project = data.google_project.current.project_id
+  role    = "roles/bigquery.admin"
+  member  = "serviceAccount:${google_service_account.ci_staging.email}"
+}
+
 resource "google_storage_bucket_iam_member" "ci_staging_foundation_bucket_admin" {
   for_each = google_storage_bucket.foundation
 
