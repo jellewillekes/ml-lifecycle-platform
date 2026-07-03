@@ -28,7 +28,7 @@ resource "google_sql_database_instance" "mlflow" {
   name                = local.mlflow_sql_instance_name
   region              = var.region
   database_version    = "POSTGRES_16"
-  deletion_protection = true
+  deletion_protection = var.enable_deletion_protection
 
   settings {
     edition           = "ENTERPRISE"
@@ -92,7 +92,7 @@ resource "google_sql_database_instance" "mlflow_production" {
   name                = local.mlflow_sql_instance_name_production
   region              = var.region
   database_version    = "POSTGRES_16"
-  deletion_protection = true
+  deletion_protection = var.enable_deletion_protection
 
   settings {
     edition           = "ENTERPRISE"

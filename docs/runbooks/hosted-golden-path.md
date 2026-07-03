@@ -98,3 +98,9 @@ Treat these as different failures:
 - expected policy-blocked dry-run: promotion or rollback dry-run returned a safe policy block
 
 Do not treat those as the same incident.
+
+## Tearing down
+
+To bring the whole hosted footprint to near-zero cost and rebuild it later from
+the same state bucket, see [`teardown-and-restore.md`](teardown-and-restore.md)
+(`make gcp-teardown`).

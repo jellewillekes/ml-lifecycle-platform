@@ -141,3 +141,9 @@ variable "manage_production_foundation" {
   type        = bool
   default     = false
 }
+
+variable "enable_deletion_protection" {
+  description = "Guard stateful resources (Cloud SQL, Cloud Run services, the BigQuery events table) and their backing buckets against accidental deletion. Default true for normal operation. Set false only to let `make gcp-teardown` run `terraform destroy`; see docs/runbooks/teardown-and-restore.md."
+  type        = bool
+  default     = true
+}

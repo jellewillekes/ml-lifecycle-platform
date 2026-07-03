@@ -50,7 +50,7 @@ resource "google_storage_bucket" "foundation" {
   storage_class               = "STANDARD"
   uniform_bucket_level_access = true
   public_access_prevention    = "enforced"
-  force_destroy               = false
+  force_destroy               = !var.enable_deletion_protection
 
   labels = merge(local.common_labels, { purpose = each.key })
 

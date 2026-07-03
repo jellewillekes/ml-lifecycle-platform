@@ -43,6 +43,7 @@ These runbooks cover the GCP staging path. You do not need them for normal local
 - [`runbooks/schedule-platform-jobs.md`](./runbooks/schedule-platform-jobs.md): inspect, pause, resume, and verify Cloud Scheduler for hosted jobs
 - [`runbooks/serving-staging-baseline.md`](./runbooks/serving-staging-baseline.md): advisory k6 baseline against hosted serving staging
 - [`runbooks/gcp-ci-auth.md`](./runbooks/gcp-ci-auth.md): verify GitHub Actions OIDC auth into GCP
+- [`runbooks/teardown-and-restore.md`](./runbooks/teardown-and-restore.md): `make gcp-teardown` to near-zero cost, then rebuild from the same state bucket
 
 ## Delivery docs
 

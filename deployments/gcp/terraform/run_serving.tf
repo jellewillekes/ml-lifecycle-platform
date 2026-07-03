@@ -25,7 +25,7 @@ resource "google_cloud_run_v2_service" "serving" {
   name                = "${local.foundation_name_prefix}-serving-${each.key}"
   location            = var.region
   ingress             = "INGRESS_TRAFFIC_ALL"
-  deletion_protection = true
+  deletion_protection = var.enable_deletion_protection
 
   labels = merge(local.common_labels, { purpose = "serving_${each.key}" })
 
