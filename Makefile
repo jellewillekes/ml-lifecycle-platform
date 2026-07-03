@@ -69,6 +69,7 @@ help:
 	@echo "  make reset             down + no-cache rebuild"
 	@echo "  make run-pipeline      train+eval+register (candidate)"
 	@echo "  make reproduce         rebuild a registered model from the source training run"
+	@echo "  make drift             batch drift over recent prediction events (MODEL=<name>)"
 	@echo "  make policy-check      dry-run promotion gate check (fails if blocked)"
 	@echo "  make promote           candidate -> prod"
 	@echo "  make promote-dry-run   show dry-run JSON (no side effects)"
@@ -206,6 +207,24 @@ reproduce:
 		--model-name "$$model_name" \
 		"$${selector[@]}" \
 		--report-path "$$report_path"
+
+drift:
+	@set -euo pipefail; \
+	if [[ -n "$${MODEL:-}" ]]; then \
+		args=(--model "$${MODEL}"); \
+	else \
+		args=(--all); \
+	fi; \
+	if [[ -n "$${WINDOW_HOURS:-}" ]]; then \
+		args+=(--window-hours "$${WINDOW_HOURS}"); \
+	fi; \
+	if [[ -n "$${THRESHOLD:-}" ]]; then \
+		args+=(--threshold "$${THRESHOLD}"); \
+	fi; \
+	MLP_ENV="$(MLP_ENV_NAME)" \
+	MLP_EVENT_SINK="$${MLP_EVENT_SINK:-jsonl}" \
+	MLP_EVENT_JSONL_PATH="$${MLP_EVENT_JSONL_PATH:-artifacts/prediction-events.jsonl}" \
+	$(PY) -m ml_lifecycle_platform.jobs.drift "$${args[@]}"
 
 policy-check:
 	@$(MLP) registry promote --dry-run --format json

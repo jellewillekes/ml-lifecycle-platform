@@ -71,6 +71,18 @@ locals {
       safe_validation_args = []
       model_env            = local.staging_demo_model_env
     }
+    drift = {
+      name                 = "${local.foundation_name_prefix}-drift-staging"
+      command              = ["python"]
+      args                 = ["-m", "ml_lifecycle_platform.jobs.drift", "--all"]
+      timeout              = "900s"
+      mutates_model_state  = false
+      safe_validation_args = []
+      model_env = merge(local.staging_demo_model_env, {
+        MLP_EVENT_SINK     = "bigquery"
+        MLP_EVENT_BQ_TABLE = "${google_bigquery_table.prediction_events.project}.${google_bigquery_table.prediction_events.dataset_id}.${google_bigquery_table.prediction_events.table_id}"
+      })
+    }
   }
 }
 

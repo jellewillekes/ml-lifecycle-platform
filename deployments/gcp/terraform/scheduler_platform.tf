@@ -16,6 +16,14 @@ locals {
       attempt_deadline = "180s"
       retry_count      = 0
     }
+    drift = {
+      name             = "${local.foundation_name_prefix}-drift-staging-schedule"
+      description      = "Daily batch drift over the last 24h of prediction events."
+      schedule         = "17 5 * * *"
+      paused           = false
+      attempt_deadline = "300s"
+      retry_count      = 0
+    }
   }
 }
 
