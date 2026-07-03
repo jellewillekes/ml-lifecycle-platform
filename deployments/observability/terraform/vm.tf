@@ -7,9 +7,10 @@ resource "google_compute_disk" "prometheus" {
 
   labels = merge(local.common_labels, { purpose = "prometheus_tsdb" })
 
-  lifecycle {
-    prevent_destroy = true
-  }
+  # No prevent_destroy here: it is a literal meta-argument that no variable can
+  # override, so it would block `make gcp-teardown`. A normal apply never
+  # replaces this disk (a VM recreate leaves it intact), so the guarded,
+  # confirm-prompted teardown command is the only path that deletes it.
 }
 
 resource "google_project_iam_member" "vm_log_writer" {

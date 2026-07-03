@@ -14,8 +14,10 @@ Everything hosted lives in two independent Terraform roots:
   jobs, schedulers, service accounts, Workload Identity Federation, Artifact
   Registry, artifact buckets.
 - [`deployments/observability/terraform`](../../deployments/observability/terraform) —
-  the always-on GCE VM (Grafana/Prometheus/Tempo), the alert-router Cloud Run
-  service, and the Tempo/config buckets.
+  the always-on GCE VM (Grafana/Prometheus/Tempo), its Prometheus TSDB disk, the
+  alert-router Cloud Run service, and the Tempo/config buckets. Teardown deletes
+  the TSDB disk, so metric history does not survive; the dashboards and rules are
+  reprovisioned from code on restore.
 
 ## Tear it down
 
