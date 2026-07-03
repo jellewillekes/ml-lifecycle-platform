@@ -100,6 +100,21 @@ muting at CM means you lose the log record that the alert ever fired.
 - **Likely causes:** scheduler paused, job image broken, job auth
   regression.
 
+### DriftKsBreach
+
+- **What fires it:** `max by (model, feature) (mlp_drift_ks_statistic) > 0.3`
+  for 10m. The gauge lands from the daily batch-drift job (UP-32); the
+  alert query looks back 48h so one missed run does not clear it. `0.3`
+  matches the job's `DEFAULT_KS_THRESHOLD`, so a firing alert means the job
+  already flagged that feature and wrote a flagging `drift_report.json`.
+- **Check:** the model/feature label on the alert, then the latest
+  `drift_report.json` in that model's release evidence (`reports/drift/...`)
+  for the per-feature KS and mean/std deltas. See
+  [`drift.md`](drift.md) for how to re-run the comparison.
+- **Likely causes:** genuine feature-distribution shift in live prediction
+  events versus the release baseline, a stale baseline after a data-schema
+  change, or a thin event window (few events → noisy empirical CDF).
+
 ### ServingAvailabilityBurnFast / BurnSlow
 
 - **What fires it:** multi-window burn against a 99.5% availability SLO.

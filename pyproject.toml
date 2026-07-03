@@ -4,6 +4,7 @@ version = "0.5.5"
 requires-python = ">=3.11.7"
 dependencies = [
     "boto3>=1.42.34",
+    "duckdb>=1.1,<2.0",
     "fastapi>=0.128.0",
     "google-auth>=2.48.0",
     "google-cloud-bigquery>=3.25,<4.0",

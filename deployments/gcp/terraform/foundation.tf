@@ -130,6 +130,15 @@ resource "google_project_iam_member" "ci_staging_bigquery_admin" {
   member  = "serviceAccount:${google_service_account.ci_staging.email}"
 }
 
+# The drift job (running as runtime) reads the event plane via a BigQuery query
+# job, which needs project-level jobs.create. Table-level dataEditor (granted in
+# events.tf) already covers reading the rows. Apply with owner credentials.
+resource "google_project_iam_member" "runtime_bigquery_job_user" {
+  project = data.google_project.current.project_id
+  role    = "roles/bigquery.jobUser"
+  member  = "serviceAccount:${google_service_account.runtime.email}"
+}
+
 resource "google_storage_bucket_iam_member" "ci_staging_foundation_bucket_admin" {
   for_each = google_storage_bucket.foundation
 

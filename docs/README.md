@@ -25,6 +25,7 @@ The hosted staging path is a separate advanced path documented under [Advanced h
 - [`runbooks/promotion.md`](./runbooks/promotion.md): dry-run and real promotion
 - [`runbooks/rollback.md`](./runbooks/rollback.md): rollback current prod
 - [`runbooks/reproduce.md`](./runbooks/reproduce.md): reproduce a registered model
+- [`runbooks/drift.md`](./runbooks/drift.md): run batch drift, read the report, and the KS alert
 
 ## Advanced hosted runbooks
 

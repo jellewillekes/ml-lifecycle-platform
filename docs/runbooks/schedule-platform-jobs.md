@@ -17,7 +17,6 @@ Out of scope here:
 - scheduled `rollback`
 - automatic promotion to `prod`
 - workflow engine behavior
-- drift-specific workloads that do not exist in this repo yet
 
 ## Resource contract
 
@@ -29,11 +28,13 @@ Managed scheduler jobs:
 
 - `mlp-maintenance-staging-schedule`
 - `mlp-pipeline-staging-schedule`
+- `mlp-drift-staging-schedule`
 
 Target Cloud Run jobs:
 
 - `mlp-maintenance-staging`
 - `mlp-pipeline-staging`
+- `mlp-drift-staging`
 
 Current committed cadence:
 
@@ -41,12 +42,18 @@ Current committed cadence:
 | --- | --- | --- | --- | --- | --- |
 | `mlp-maintenance-staging-schedule` | `mlp-maintenance-staging` | `17 3 * * *` | `UTC` | `false` | daily hosted control-plane verification |
 | `mlp-pipeline-staging-schedule` | `mlp-pipeline-staging` | `17 4 * * 1` | `UTC` | `true` | optional weekly candidate-generation path |
+| `mlp-drift-staging-schedule` | `mlp-drift-staging` | `17 5 * * *` | `UTC` | `false` | daily batch drift over the last 24h of prediction events |
 
 Intentional boundary:
 
 - only `maintenance` is enabled first
 - `pipeline` exists as an operator-controlled next step
+- `drift` is enabled: it is read-only (reads the event plane, writes a
+  `drift_report.json` and a Prometheus gauge, mutates no model state)
 - `promote` and `rollback` remain manual release actions
+
+Drift operations (re-run on demand, local parity, alerting) live in the
+dedicated [`drift.md`](drift.md) runbook.
 
 ## Deploy path
 

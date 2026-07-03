@@ -56,6 +56,19 @@ class PredictionEventSink(Protocol):
 
 
 @runtime_checkable
+class BatchEventReader(Protocol):
+    """Read a model's prediction events in a time window for batch analysis.
+
+    The cold-path read counterpart to ``PredictionEventSink``: drift, replay,
+    and feedback read events back through this port. Adapters (local DuckDB over
+    JSONL, BigQuery hosted) return one row per event with the event's features
+    expanded into columns plus an ``event_time_ns`` column."""
+
+    def read_window(self, model_name: str, start_ns: int, end_ns: int) -> pd.DataFrame:
+        """Return events for ``model_name`` with event_time_ns in [start, end)."""
+
+
+@runtime_checkable
 class DataSource(Protocol):
     """Produce a model-ready labeled dataframe for one training run.
 
