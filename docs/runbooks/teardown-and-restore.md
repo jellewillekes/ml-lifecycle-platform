@@ -27,7 +27,8 @@ make gcp-teardown
 ```
 
 `make gcp-teardown` destroys the **observability root first** (the leaf), then
-the **gcp root**. Terraform prompts for `yes` once per root.
+the **gcp root**. For each root it auto-approves a guard-clearing apply, then
+prompts for `yes` on the destroy.
 
 **Why owner credentials.** The gcp root owns project-level IAM bindings and the
 WIF pool. Removing those needs `setIamPolicy`, which the scoped staging CI
@@ -49,11 +50,19 @@ images — is deleted.
 ### How the guards are handled
 
 Stateful resources normally carry `deletion_protection = true` (Cloud SQL, the
-two Cloud Run services, the BigQuery events table) or `force_destroy = false`
-(artifact and Tempo buckets), so a stray `terraform destroy` fails safely. Both
-are wired to a single variable `enable_deletion_protection` (default `true`).
-The teardown target passes `enable_deletion_protection=false` at destroy time,
-which is enough to remove every guard in one `destroy` — no preceding `apply`.
+Cloud Run services and jobs, the BigQuery events table) or `force_destroy =
+false` (artifact and Tempo buckets), so a stray `terraform destroy` fails
+safely. All are wired to a single variable `enable_deletion_protection`
+(default `true`).
+
+The Google provider reads these guards from **state**, not from destroy-time
+args, so flipping the variable on `terraform destroy` alone is rejected. The
+teardown target therefore runs two steps per root: `terraform apply -var
+enable_deletion_protection=false` to persist the cleared guards into state (an
+in-place update that recreates nothing on a healthy state), then `terraform
+destroy`. The MLflow Cloud Run service is torn down before Cloud SQL so no live
+connection blocks the database drop, and the `mlflow` database/user use
+`deletion_policy = "ABANDON"` so the instance deletion cascades them away.
 Normal applies keep protection on; the variable only ever flips during teardown.
 
 ### Confirm zero billed resources

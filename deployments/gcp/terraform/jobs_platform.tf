@@ -89,9 +89,10 @@ locals {
 resource "google_cloud_run_v2_job" "platform" {
   for_each = local.platform_jobs_enabled ? local.platform_jobs : {}
 
-  project  = data.google_project.current.project_id
-  name     = each.value.name
-  location = var.region
+  project             = data.google_project.current.project_id
+  name                = each.value.name
+  location            = var.region
+  deletion_protection = var.enable_deletion_protection
 
   labels = merge(
     local.common_labels,

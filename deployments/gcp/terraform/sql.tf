@@ -59,6 +59,11 @@ resource "google_sql_database" "mlflow" {
   project  = data.google_project.current.project_id
   name     = local.mlflow_database_name
   instance = google_sql_database_instance.mlflow.name
+
+  # ABANDON on teardown: the instance destroy removes the database physically, so
+  # issuing a DROP DATABASE first only races the live MLflow connections ("being
+  # accessed by other users"). Let the instance deletion cascade instead.
+  deletion_policy = "ABANDON"
 }
 
 resource "google_sql_user" "mlflow" {
@@ -66,6 +71,10 @@ resource "google_sql_user" "mlflow" {
   name     = local.mlflow_database_user
   instance = google_sql_database_instance.mlflow.name
   password = random_password.mlflow_db_password.result
+
+  # ABANDON on teardown: a DROP ROLE fails while the user still owns objects in
+  # the mlflow database. The instance destroy removes the user with it.
+  deletion_policy = "ABANDON"
 }
 
 resource "google_project_iam_member" "runtime_cloudsql_client" {

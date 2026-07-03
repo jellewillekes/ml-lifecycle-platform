@@ -314,16 +314,25 @@ gcp-teardown:
 	echo "                      platform jobs, schedulers, foundation (SAs/WIF/AR/buckets)"; \
 	echo "     Kept: the external TF state bucket ($(TF_STATE_BUCKET)) and the GCP project."; \
 	echo "     Run with owner credentials. Restore: docs/runbooks/teardown-and-restore.md"; \
-	echo "     Terraform will prompt for 'yes' once per root."; \
 	echo ""; \
+	echo "Each root is torn down in two steps because Cloud Run, Cloud SQL and"; \
+	echo "bucket deletion guards are read from state, not from the destroy args:"; \
+	echo "an apply that clears them (auto-approved), then a destroy (prompts 'yes')."; \
+	echo ""; \
+	echo "==> observability"; \
 	$(TERRAFORM) -chdir=$(DEPLOYMENTS_OBS_TERRAFORM_DIR) init -reconfigure \
 		-backend-config="bucket=$(TF_STATE_BUCKET)" \
 		-backend-config="prefix=$(TF_STATE_PREFIX_OBS)"; \
+	$(TERRAFORM) -chdir=$(DEPLOYMENTS_OBS_TERRAFORM_DIR) apply -auto-approve \
+		-var enable_deletion_protection=false; \
 	$(TERRAFORM) -chdir=$(DEPLOYMENTS_OBS_TERRAFORM_DIR) destroy \
 		-var enable_deletion_protection=false; \
+	echo "==> gcp"; \
 	$(TERRAFORM) -chdir=$(DEPLOYMENTS_GCP_TERRAFORM_DIR) init -reconfigure \
 		-backend-config="bucket=$(TF_STATE_BUCKET)" \
 		-backend-config="prefix=$(TF_STATE_PREFIX)"; \
+	$(TERRAFORM) -chdir=$(DEPLOYMENTS_GCP_TERRAFORM_DIR) apply -auto-approve \
+		-var enable_deletion_protection=false; \
 	$(TERRAFORM) -chdir=$(DEPLOYMENTS_GCP_TERRAFORM_DIR) destroy \
 		-var enable_deletion_protection=false; \
 	echo ""; \
