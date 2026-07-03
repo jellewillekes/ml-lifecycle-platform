@@ -25,7 +25,7 @@ resource "google_bigquery_table" "prediction_events" {
   project             = data.google_project.current.project_id
   dataset_id          = google_bigquery_dataset.events.dataset_id
   table_id            = local.prediction_events_table_id
-  deletion_protection = true
+  deletion_protection = var.enable_deletion_protection
 
   labels = merge(local.common_labels, { purpose = "events" })
 

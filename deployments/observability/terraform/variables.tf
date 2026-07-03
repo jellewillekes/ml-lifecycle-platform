@@ -110,3 +110,9 @@ variable "alert_router_image" {
     error_message = "alert_router_image must be a non-empty image reference."
   }
 }
+
+variable "enable_deletion_protection" {
+  description = "Guard the Tempo trace-block bucket against accidental deletion. Default true for normal operation. Set false only to let `make gcp-teardown` run `terraform destroy`; see docs/runbooks/teardown-and-restore.md."
+  type        = bool
+  default     = true
+}
