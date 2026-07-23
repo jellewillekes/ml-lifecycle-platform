@@ -4,6 +4,23 @@ All important changes and updates to this project are documented here.
 
 This repo uses Conventional Commits and Release Please.
 
+## [0.5.6](https://github.com/jellewillekes/ml-lifecycle-platform/compare/v0.5.5...v0.5.6) (2026-07-23)
+
+
+### Features
+
+* add batch drift MVP against windowed events ([#250](https://github.com/jellewillekes/ml-lifecycle-platform/issues/250)) ([353a10a](https://github.com/jellewillekes/ml-lifecycle-platform/commit/353a10ab3a6217dcf5566b42c808f914fadf7530)), closes [#209](https://github.com/jellewillekes/ml-lifecycle-platform/issues/209)
+* add event-plane prediction and label contracts ([#242](https://github.com/jellewillekes/ml-lifecycle-platform/issues/242)) ([64f69f4](https://github.com/jellewillekes/ml-lifecycle-platform/commit/64f69f4258f311c5d4158c858a86a96573c01e93)), closes [#198](https://github.com/jellewillekes/ml-lifecycle-platform/issues/198) [#205](https://github.com/jellewillekes/ml-lifecycle-platform/issues/205)
+* add multi-model spec-driven orchestration ([#244](https://github.com/jellewillekes/ml-lifecycle-platform/issues/244)) ([8a2bfcd](https://github.com/jellewillekes/ml-lifecycle-platform/commit/8a2bfcddc29fbc04335ca0818ca02c1d54a821a1)), closes [#202](https://github.com/jellewillekes/ml-lifecycle-platform/issues/202)
+* add one-command GCP teardown and restore runbook ([#252](https://github.com/jellewillekes/ml-lifecycle-platform/issues/252)) ([e71bda2](https://github.com/jellewillekes/ml-lifecycle-platform/commit/e71bda2c78dad143e091ec68e1f4dbb06ea65420)), closes [#251](https://github.com/jellewillekes/ml-lifecycle-platform/issues/251)
+* add prediction event sink with JSONL and BigQuery adapters ([#245](https://github.com/jellewillekes/ml-lifecycle-platform/issues/245)) ([b816c3d](https://github.com/jellewillekes/ml-lifecycle-platform/commit/b816c3d6bcdb8ab194b8777d8adae97fd5429b6d)), closes [#203](https://github.com/jellewillekes/ml-lifecycle-platform/issues/203)
+* add release-linked drift baselines ([#247](https://github.com/jellewillekes/ml-lifecycle-platform/issues/247)) ([d6a2ac2](https://github.com/jellewillekes/ml-lifecycle-platform/commit/d6a2ac2673d68655fd9f5a513c091d2bca00a671)), closes [#206](https://github.com/jellewillekes/ml-lifecycle-platform/issues/206)
+
+
+### Bug Fixes
+
+* grant CI service account BigQuery admin for event plane ([#246](https://github.com/jellewillekes/ml-lifecycle-platform/issues/246)) ([13cc1bd](https://github.com/jellewillekes/ml-lifecycle-platform/commit/13cc1bd1720543bfe4ed8efe1e59a57f28c2abbe)), closes [#203](https://github.com/jellewillekes/ml-lifecycle-platform/issues/203)
+
 ## [0.5.5](https://github.com/jellewillekes/ml-lifecycle-platform/compare/v0.5.4...v0.5.5) (2026-06-19)
 
 
